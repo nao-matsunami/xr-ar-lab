@@ -1,0 +1,173 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Physics AR Demo</title>
+
+  <script src="//cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
+  <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
+  <script src="//cdn.8thwall.com/web/landing-page/landing-page.js"></script>
+
+  <!-- Physics Engine -->
+  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
+
+  <script async src="../../vendor/engine/xr-standalone/xr.js" data-preload-chunks="slam"></script>
+
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #instructions {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 999; background: rgba(0,0,0,0.6); color: #fff;
+      padding: 8px 16px; border-radius: 20px; font-size: 13px;
+      font-family: sans-serif; pointer-events: none;
+    }
+    #score {
+      position: fixed; top: 60px; right: 20px;
+      z-index: 999; background: rgba(0,0,0,0.5); color: #ff6b6b;
+      padding: 8px 14px; border-radius: 12px; font-size: 18px;
+      font-family: monospace; font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="instructions">画面タップでトマトを投げる 🍅</div>
+  <div id="score">🍅 0</div>
+
+  <a-scene
+    landing-page
+    xrextras-loading
+    xrextras-runtime-error
+    renderer="colorManagement: true"
+    physics="iterations: 1"
+    xrweb="allowedDevices: any">
+
+    <a-assets>
+      <a-asset-item id="tomatoModel" src="./assets/tomato.glb"></a-asset-item>
+      <audio id="splat" src="./assets/splat.m4a" preload="auto"></audio>
+    </a-assets>
+
+    <a-camera id="camera" position="0 4 4"></a-camera>
+
+    <a-light type="ambient" intensity="0.8"></a-light>
+    <a-light type="directional" intensity="0.6" position="1 4 2"
+      light="castShadow: true; shadowMapHeight: 2048; shadowMapWidth: 2048"></a-light>
+
+    <!-- Physics ground plane -->
+    <a-entity id="ground"
+      geometry="primitive: plane; width: 100; height: 100"
+      rotation="-90 0 0"
+      material="shader: shadow; transparent: true; opacity: 0.4"
+      shadow="receive: true"
+      body="type: static; shape: box;"
+      shape="shape: box; halfExtents: 50 50 0.01"></a-entity>
+  </a-scene>
+
+  <script>
+    const camera = document.getElementById('camera');
+    const scene = document.querySelector('a-scene');
+    let tossCount = 0;
+    let activeTomatoes = [];
+    const MAX_TOMATOES = 10;
+
+    // Shoot tomato on touch
+    scene.addEventListener('touchstart', (event) => {
+      // Clean up old tomatoes
+      while (activeTomatoes.length >= MAX_TOMATOES) {
+        const old = activeTomatoes.shift();
+        if (old.parentNode) old.parentNode.removeChild(old);
+      }
+
+      const tomato = document.createElement('a-entity');
+
+      // Position at camera
+      const camPos = camera.object3D.position.clone();
+      tomato.setAttribute('position', camPos);
+
+      // Random rotation
+      tomato.setAttribute('rotation', {
+        x: -90 + Math.random() * 30,
+        y: Math.random() * 360,
+        z: 0
+      });
+
+      tomato.setAttribute('gltf-model', '#tomatoModel');
+      tomato.setAttribute('scale', '1 1 1');
+      tomato.setAttribute('shadow', 'cast: true');
+
+      // Physics body
+      tomato.setAttribute('body', {
+        type: 'dynamic',
+        sphereRadius: 0.35,
+        shape: 'sphere'
+      });
+
+      // Calculate velocity in camera direction
+      const direction = new THREE.Vector3(0, 0, -10);
+      direction.applyQuaternion(camera.object3D.quaternion);
+      tomato.setAttribute('velocity', direction);
+
+      scene.appendChild(tomato);
+      activeTomatoes.push(tomato);
+
+      tossCount++;
+      document.getElementById('score').textContent = '🍅 ' + tossCount;
+
+      // Collision detection
+      let didCollide = false;
+      tomato.addEventListener('collide', (e) => {
+        if (didCollide) return;
+        if (e.detail.body.el.id !== 'ground') return;
+        didCollide = true;
+
+        // Play splat sound
+        const splatAudio = document.getElementById('splat');
+        splatAudio.currentTime = 0;
+        splatAudio.play().catch(() => {});
+
+        // Create splat effect at impact
+        const splatPos = tomato.object3D.position.clone();
+        const splat = document.createElement('a-cylinder');
+        splat.setAttribute('position', splatPos);
+        splat.setAttribute('radius', '0.1');
+        splat.setAttribute('height', '0.02');
+        splat.setAttribute('color', '#ff3333');
+        splat.setAttribute('material', 'shader: flat; opacity: 0.8');
+        splat.setAttribute('animation', {
+          property: 'scale',
+          to: '3 1 3',
+          dur: 400,
+          easing: 'easeOutQuad'
+        });
+        splat.setAttribute('animation__fade', {
+          property: 'material.opacity',
+          to: 0,
+          dur: 2000,
+          delay: 1000,
+          easing: 'easeInQuad'
+        });
+        scene.appendChild(splat);
+
+        // Hide tomato after splat
+        setTimeout(() => {
+          tomato.setAttribute('visible', 'false');
+        }, 100);
+
+        // Clean up splat
+        setTimeout(() => {
+          if (splat.parentNode) splat.parentNode.removeChild(splat);
+        }, 3500);
+      });
+    });
+
+    // Hide instructions after first toss
+    scene.addEventListener('touchstart', () => {
+      setTimeout(() => {
+        document.getElementById('instructions').style.opacity = '0';
+      }, 2000);
+    }, { once: true });
+  </script>
+</body>
+</html>

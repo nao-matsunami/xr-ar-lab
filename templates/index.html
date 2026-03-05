@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XR AR Lab — Template Gallery</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.6rem;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #888;
+      font-size: 0.85rem;
+      margin-bottom: 30px;
+    }
+
+    .section-title {
+      font-size: 0.8rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin: 30px 0 14px;
+      padding-left: 4px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #14142a;
+      border: 1px solid #2a2a4a;
+      border-radius: 14px;
+      padding: 20px;
+      text-decoration: none;
+      color: inherit;
+      transition: all 0.2s;
+      display: block;
+    }
+    .card:hover {
+      border-color: #00f0ff;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0,240,255,0.1);
+    }
+    .card:active { transform: translateY(0); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .card-icon {
+      font-size: 1.6rem;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,240,255,0.08);
+      border-radius: 10px;
+    }
+    .card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .card-desc {
+      font-size: 0.85rem;
+      color: #999;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tag {
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .tag-slam   { background: rgba(46,204,113,0.15); color: #2ecc71; }
+    .tag-face   { background: rgba(155,89,182,0.15); color: #9b59b6; }
+    .tag-sky    { background: rgba(52,152,219,0.15); color: #3498db; }
+    .tag-image  { background: rgba(241,196,15,0.15); color: #f1c40f; }
+    .tag-aframe { background: rgba(255,255,255,0.08); color: #888; }
+    .tag-threejs { background: rgba(255,255,255,0.08); color: #888; }
+    .tag-test   { background: rgba(255,255,255,0.05); color: #666; }
+    .tag-gesture { background: rgba(231,76,60,0.15); color: #e74c3c; }
+    .tag-physics { background: rgba(230,126,34,0.15); color: #e67e22; }
+    .tag-capture { background: rgba(26,188,156,0.15); color: #1abc9c; }
+    .tag-video  { background: rgba(142,68,173,0.15); color: #8e44ad; }
+    .tag-anim   { background: rgba(243,156,18,0.15); color: #f39c12; }
+    .tag-hand   { background: rgba(255,107,107,0.15); color: #ff6b6b; }
+    .tag-portal { background: rgba(0,206,209,0.15); color: #00ced1; }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      padding: 20px;
+      color: #555;
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>XR AR Lab</h1>
+  <p class="subtitle">8th Wall AR/VR Template Gallery</p>
+
+  <div class="grid">
+
+    <div class="section-title" style="grid-column: 1 / -1;">AR Feature Templates</div>
+
+    <a class="card" href="./image-target-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F3AF;</div>
+        <div class="card-title">Image Target</div>
+      </div>
+      <div class="card-desc">
+        画像認識AR — ポスター・看板・名刺にかざすと3Dコンテンツが表示される
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-image">Image Target</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <a class="card" href="./face-effects-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F3AD;</div>
+        <div class="card-title">Face Effects</div>
+      </div>
+      <div class="card-desc">
+        顔認識AR — メガネ・王冠・マスク等のエフェクトを顔にリアルタイム表示
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-face">Face Tracking</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <a class="card" href="./sky-effects-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x2601;</div>
+        <div class="card-title">Sky Effects</div>
+      </div>
+      <div class="card-desc">
+        空置換AR — 空を検出してファンタジーな映像に置き換え（宇宙・夕焼け・オーロラ・ネオン）
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-sky">Sky Segmentation</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <a class="card" href="./world-slam-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F30D;</div>
+        <div class="card-title">World SLAM</div>
+      </div>
+      <div class="card-desc">
+        空間認識AR — 地面を検出してタップで3Dオブジェクトを配置（4種形状・Undo対応）
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-slam">SLAM</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <div class="section-title" style="grid-column: 1 / -1;">Interaction</div>
+
+    <a class="card" href="./gesture-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F90F;</div>
+        <div class="card-title">Gesture</div>
+      </div>
+      <div class="card-desc">
+        ジェスチャー操作 — ドラッグ・ピンチ・回転で3Dオブジェクトを自由に操作
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-gesture">Gesture</span>
+        <span class="tag tag-slam">SLAM</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <a class="card" href="./physics-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F3B3;</div>
+        <div class="card-title">Physics</div>
+      </div>
+      <div class="card-desc">
+        物理演算 — タップでトマトを投げ、地面で跳ね返る物理シミュレーション
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-physics">Physics</span>
+        <span class="tag tag-slam">SLAM</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <a class="card" href="./capture-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F4F7;</div>
+        <div class="card-title">Capture</div>
+      </div>
+      <div class="card-desc">
+        写真撮影 — AR画面をスクリーンショット撮影、ウォーターマーク付き保存・共有
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-capture">Capture</span>
+        <span class="tag tag-slam">SLAM</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <div class="section-title" style="grid-column: 1 / -1;">Advanced</div>
+
+    <a class="card" href="./portal-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F6AA;</div>
+        <div class="card-title">Portal</div>
+      </div>
+      <div class="card-desc">
+        ポータル — 地面に異世界への入口を配置、近づいて中を覗ける
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-portal">Portal</span>
+        <span class="tag tag-slam">SLAM</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <a class="card" href="./alpha-video-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F3AC;</div>
+        <div class="card-title">Alpha Video</div>
+      </div>
+      <div class="card-desc">
+        透過動画 — 背景が透ける動画/アニメーションをAR空間に配置
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-video">Video</span>
+        <span class="tag tag-slam">SLAM</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <a class="card" href="./animation-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F3AC;</div>
+        <div class="card-title">Animation</div>
+      </div>
+      <div class="card-desc">
+        3Dアニメーション — Mixamoキャラクターのアニメーション切り替え（Idle/HipHop/Chicken等）
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-anim">Animation</span>
+        <span class="tag tag-slam">SLAM</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <a class="card" href="./hand-tracking-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x270B;</div>
+        <div class="card-title">Hand Tracking</div>
+      </div>
+      <div class="card-desc">
+        ハンドトラッキング — 手を検出して3Dメッシュと指先エフェクトを表示（実験的）
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-hand">Hand</span>
+        <span class="tag tag-face">Tracking</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <div class="section-title" style="grid-column: 1 / -1;">Test / Minimal Templates</div>
+
+    <a class="card" href="./image-target/">
+      <div class="card-header">
+        <div class="card-icon">&#x2705;</div>
+        <div class="card-title">SLAM Basic</div>
+      </div>
+      <div class="card-desc">
+        動作確認済み最小構成 — A-Frame + SLAM + XRExtras
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-slam">SLAM</span>
+        <span class="tag tag-test">Verified</span>
+      </div>
+    </a>
+
+    <a class="card" href="./minimal-test/">
+      <div class="card-header">
+        <div class="card-icon">&#x26A1;</div>
+        <div class="card-title">Minimal</div>
+      </div>
+      <div class="card-desc">
+        超最小構成 — A-Frame + xr.js のみ（XRExtras なし）
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-slam">SLAM</span>
+        <span class="tag tag-test">Verified</span>
+      </div>
+    </a>
+
+    <a class="card" href="./raw-test/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F527;</div>
+        <div class="card-title">Raw Three.js</div>
+      </div>
+      <div class="card-desc">
+        Three.js 直接制御 — A-Frame なし、パイプライン API を直接使用
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-threejs">Three.js</span>
+        <span class="tag tag-test">Verified</span>
+      </div>
+    </a>
+
+  </div>
+
+  <footer>
+    XR AR Lab &mdash; 8th Wall Open Source Engine<br>
+    Templates for AR/VR development and cross-project deployment
+  </footer>
+
+</body>
+</html>

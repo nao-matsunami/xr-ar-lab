@@ -1,0 +1,47 @@
+#overlay {
+  z-index: 35;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+#savePrompt {
+  position: absolute;
+  left: 50%;
+  bottom: 22vh;
+  transform: translateX(-50%);
+  max-width: 80vw;
+
+  font-family: sans-serif;
+  font-weight: bold;
+  font-size: 6vmin;
+  color: black;
+  text-align: center;
+
+  background-color: white;
+  padding: 2vmin;
+  border-radius: 10px;
+}
+
+#actionButton {
+  /* change color of action button */
+  background-color: #007aff !important;
+}
+
+@media only screen
+and (min-device-width: 375px)
+and (max-device-width: 812px)
+and (-webkit-min-device-pixel-ratio: 3)
+and (orientation: landscape) {
+
+  .recorder-container {
+    /* move recorder button to side in landscape on mobile */
+    left: unset !important;
+    transform: unset !important;
+    right: 3vw !important;
+   }
+
+}

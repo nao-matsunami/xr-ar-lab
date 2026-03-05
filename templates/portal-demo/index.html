@@ -1,0 +1,191 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Portal AR Demo</title>
+
+  <script src="//cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
+  <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
+  <script src="//cdn.8thwall.com/web/landing-page/landing-page.js"></script>
+  <script async src="../../vendor/engine/xr-standalone/xr.js" data-preload-chunks="slam"></script>
+
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #instructions {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 999; background: rgba(0,0,0,0.6); color: #fff;
+      padding: 8px 16px; border-radius: 20px; font-size: 13px;
+      font-family: sans-serif; pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="instructions">地面をタップしてポータルを配置</div>
+
+  <a-scene
+    landing-page
+    xrextras-loading
+    xrextras-runtime-error
+    renderer="colorManagement: true"
+    xrweb="allowedDevices: any">
+
+    <a-assets>
+      <a-asset-item id="ballModel" src="./assets/jini-ball.glb"></a-asset-item>
+      <img id="pines" src="./assets/misty-pines.jpg">
+    </a-assets>
+
+    <a-camera id="camera" position="0 4 4"
+      raycaster="objects: .cantap" cursor="fuse: false; rayOrigin: mouse;"></a-camera>
+
+    <a-light type="ambient" intensity="0.6"></a-light>
+    <a-light type="directional" intensity="0.8" position="0 4 2"></a-light>
+
+    <!-- Ground for tap detection -->
+    <a-entity id="ground" class="cantap"
+      geometry="primitive: plane; width: 100; height: 100"
+      rotation="-90 0 0"
+      material="shader: shadow; transparent: true; opacity: 0.4"
+      shadow="receive: true"></a-entity>
+
+    <!-- Portal container (hidden until placed) -->
+    <a-entity id="portal-container" visible="false">
+
+      <!-- Portal contents (visible through the opening) -->
+      <a-entity id="portal-contents">
+        <!-- Inner world skybox -->
+        <a-sphere radius="8" material="src: #pines; side: back; shader: flat"></a-sphere>
+
+        <!-- Floating objects inside -->
+        <a-entity gltf-model="#ballModel" position="0 1.5 -1.5" scale="0.5 0.5 0.5"
+          animation="property: rotation; to: 0 360 0; loop: true; dur: 6000; easing: linear"
+          animation__float="property: position; dir: alternate; dur: 2000; easing: easeInOutSine; loop: true; to: 0 2.0 -1.5">
+        </a-entity>
+
+        <a-torus position="-1.2 1 -2" radius="0.4" radius-tubular="0.05"
+          color="#00f0ff" material="shader: flat; emissive: #00f0ff; emissiveIntensity: 0.5"
+          animation="property: rotation; to: 360 360 0; loop: true; dur: 8000; easing: linear">
+        </a-torus>
+
+        <a-sphere position="1.5 0.5 -2.5" radius="0.3" color="#ff6b9d"
+          material="shader: flat; emissive: #ff6b9d; emissiveIntensity: 0.3"
+          animation__float="property: position; dir: alternate; dur: 3000; easing: easeInOutSine; loop: true; to: 1.5 1.2 -2.5">
+        </a-sphere>
+
+        <!-- Ground in inner world -->
+        <a-plane position="0 0 0" rotation="-90 0 0" width="10" height="10"
+          material="color: #1a1a3e; shader: flat"></a-plane>
+
+        <!-- Particle-like small spheres -->
+        <a-sphere position="-0.5 2.5 -1" radius="0.05" color="#ffdd57" material="shader: flat"></a-sphere>
+        <a-sphere position="0.8 3.0 -2" radius="0.04" color="#00f0ff" material="shader: flat"></a-sphere>
+        <a-sphere position="-1.0 1.8 -3" radius="0.06" color="#ff6b9d" material="shader: flat"></a-sphere>
+        <a-sphere position="0.3 2.2 -1.5" radius="0.03" color="#ffdd57" material="shader: flat"></a-sphere>
+      </a-entity>
+
+      <!-- Hider walls (occlude portal contents from outside) -->
+      <a-entity id="hider-walls">
+        <!-- Back wall -->
+        <a-box position="0 2 -4" width="8.1" height="8" depth="0.1"
+          xrextras-hider-material></a-box>
+        <!-- Left wall -->
+        <a-box position="-4 2 0" width="0.1" height="8" depth="8.1"
+          xrextras-hider-material></a-box>
+        <!-- Right wall -->
+        <a-box position="4 2 0" width="0.1" height="8" depth="8.1"
+          xrextras-hider-material></a-box>
+        <!-- Top wall -->
+        <a-box position="0 6 0" width="8.1" height="0.1" depth="8.1"
+          xrextras-hider-material></a-box>
+        <!-- Floor (behind portal) -->
+        <a-box position="0 -0.05 0" width="8.1" height="0.1" depth="8.1"
+          xrextras-hider-material></a-box>
+      </a-entity>
+
+      <!-- Portal frame (the doorway) -->
+      <a-entity id="portal-wall">
+        <!-- Wall with hole = 4 pieces around the opening -->
+        <!-- Left piece -->
+        <a-box position="-2.5 2 0" width="3" height="8" depth="0.1"
+          xrextras-hider-material></a-box>
+        <!-- Right piece -->
+        <a-box position="2.5 2 0" width="3" height="8" depth="0.1"
+          xrextras-hider-material></a-box>
+        <!-- Top piece -->
+        <a-box position="0 4.5 0" width="2" height="3" depth="0.1"
+          xrextras-hider-material></a-box>
+
+        <!-- Visible frame border -->
+        <a-box position="-1 1.5 0.01" width="0.08" height="3" depth="0.08"
+          color="#00f0ff" material="shader: flat; emissive: #00f0ff; emissiveIntensity: 0.8"></a-box>
+        <a-box position="1 1.5 0.01" width="0.08" height="3" depth="0.08"
+          color="#00f0ff" material="shader: flat; emissive: #00f0ff; emissiveIntensity: 0.8"></a-box>
+        <a-box position="0 3.01 0.01" width="2.08" height="0.08" depth="0.08"
+          color="#00f0ff" material="shader: flat; emissive: #00f0ff; emissiveIntensity: 0.8"></a-box>
+      </a-entity>
+
+    </a-entity>
+  </a-scene>
+
+  <script>
+    let portalPlaced = false;
+    const portalContainer = document.getElementById('portal-container');
+    const contents = document.getElementById('portal-contents');
+    const hiderWalls = document.getElementById('hider-walls');
+    const portalWall = document.getElementById('portal-wall');
+    const camera = document.getElementById('camera');
+
+    // Track if user is inside or outside portal
+    let isInsidePortal = false;
+    let wasOutside = true;
+    const portalWidth = 2;
+    const portalHeight = 3;
+    const portalDepth = 0.1;
+
+    document.getElementById('ground').addEventListener('click', (event) => {
+      if (portalPlaced) return;
+      portalPlaced = true;
+
+      const point = event.detail.intersection.point;
+      portalContainer.setAttribute('position', `${point.x} ${point.y} ${point.z - 2}`);
+      portalContainer.setAttribute('visible', 'true');
+
+      document.getElementById('instructions').textContent = 'ポータルに近づいて中を覗いてみよう';
+      setTimeout(() => {
+        document.getElementById('instructions').style.display = 'none';
+      }, 5000);
+    });
+
+    // Portal visibility logic (tick-like update)
+    setInterval(() => {
+      if (!portalPlaced) return;
+
+      const portalPos = portalContainer.object3D.position;
+      const camPos = camera.object3D.position;
+
+      // Relative position to portal
+      const relZ = camPos.z - portalPos.z;
+      const relX = camPos.x - portalPos.x;
+      const relY = camPos.y - portalPos.y;
+
+      const isOutside = relZ > portalDepth / 2;
+      const withinBounds = relY < portalHeight && relY > 0 && Math.abs(relX) < portalWidth / 2;
+
+      if (wasOutside !== isOutside && withinBounds) {
+        isInsidePortal = !isOutside;
+      }
+
+      // Show contents when outside (through portal) or when inside
+      contents.object3D.visible = isInsidePortal || isOutside;
+      // Hide walls when inside portal (can see everything)
+      hiderWalls.object3D.visible = !isInsidePortal && isOutside;
+      // Show portal wall from inside
+      portalWall.object3D.visible = true;
+
+      wasOutside = isOutside;
+    }, 16);
+  </script>
+</body>
+</html>

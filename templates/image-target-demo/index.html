@@ -1,0 +1,176 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Image Target AR Demo</title>
+
+  <!-- 8frame (8th Wall版 A-Frame) -->
+  <script src="//cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
+
+  <!-- XR Extras -->
+  <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
+
+  <!-- Landing Pages -->
+  <script src="//cdn.8thwall.com/web/landing-page/landing-page.js"></script>
+
+  <!-- 8th Wall Engine (ローカルバイナリ — slam チャンク必須: XrController を生成) -->
+  <script async src="../../vendor/engine/xr-standalone/xr.js" data-preload-chunks="slam"></script>
+
+  <script>
+    // --- Image Target データのロード ---
+    // xrloaded 時に同期的に imageTargetData を設定する。
+    // A-Frame の xrweb コンポーネントが XR8.XrController.configure() を呼ぶ前に
+    // ターゲットデータを登録しておく必要がある。
+    //
+    // 注意: fetch は非同期のため、xrweb の初期化と競合する可能性がある。
+    // そのため JSON データをインラインで埋め込む。
+    const onxrloaded = () => {
+      XR8.XrController.configure({
+        imageTargetData: [
+          {
+            imagePath: 'image-targets/sample-target-1_luminance.jpg',
+            metadata: null,
+            name: 'sample-target-1',
+            type: 'PLANAR',
+            properties: {
+              left: 0, top: 0, width: 995, height: 1326,
+              isRotated: false, originalWidth: 995, originalHeight: 1326,
+            },
+            resources: {
+              originalImage: 'sample-target-1_original.jpg',
+              croppedImage: 'sample-target-1_cropped.jpg',
+              thumbnailImage: 'sample-target-1_thumbnail.jpg',
+              luminanceImage: 'sample-target-1_luminance.jpg',
+            },
+            created: 1772601126877,
+            updated: 1772601126877,
+          },
+          {
+            imagePath: 'image-targets/sample-target-2_luminance.jpg',
+            metadata: null,
+            name: 'sample-target-2',
+            type: 'PLANAR',
+            properties: {
+              left: 0, top: 0, width: 980, height: 1307,
+              isRotated: false, originalWidth: 980, originalHeight: 1307,
+            },
+            resources: {
+              originalImage: 'sample-target-2_original.jpg',
+              croppedImage: 'sample-target-2_cropped.jpg',
+              thumbnailImage: 'sample-target-2_thumbnail.jpg',
+              luminanceImage: 'sample-target-2_luminance.jpg',
+            },
+            created: 1772601126925,
+            updated: 1772601126925,
+          },
+        ],
+      })
+      console.log('Image targets configured (inline)')
+    }
+    window.XR8 ? onxrloaded() : window.addEventListener('xrloaded', onxrloaded)
+  </script>
+
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #info-overlay {
+      display: none;
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.8); color: #fff;
+      padding: 12px 20px; border-radius: 12px;
+      font: 14px/1.5 sans-serif; z-index: 999;
+      text-align: center; max-width: 90vw;
+    }
+    .ar-ready #info-overlay { display: block; }
+  </style>
+</head>
+
+<body>
+
+  <div id="info-overlay">
+    ターゲット画像にカメラをかざしてください<br>
+    <small>target-display.html でターゲット画像を表示・印刷できます</small>
+  </div>
+
+  <a-scene
+    xrextras-gesture-detector
+    landing-page
+    xrextras-loading
+    xrextras-runtime-error
+    renderer="colorManagement: true"
+    xrweb="disableWorldTracking: true; allowedDevices: any">
+
+    <a-camera
+      id="camera"
+      position="0 4 10"
+      raycaster="objects: .cantap"
+      cursor="fuse: false; rayOrigin: mouse;">
+    </a-camera>
+
+    <a-light type="directional" intensity="0.5" position="1 1 1"></a-light>
+    <a-light type="ambient" intensity="1"></a-light>
+
+    <!--
+      Image Target の使い方:
+      1. compile-targets.mjs でターゲット画像をコンパイル（既存サンプル画像あり）
+         node compile-targets.mjs
+      2. image-targets/ に JSON と処理済み画像が出力される
+      3. 上部の onxrloaded 内の imageTargetData 配列を更新する
+      4. <xrextras-named-image-target> の name を JSON の name と一致させる
+      5. target-display.html でターゲット画像を確認・印刷
+    -->
+
+    <!-- ターゲット 1: 3Dオブジェクト表示 -->
+    <xrextras-named-image-target name="sample-target-1">
+      <a-entity>
+        <a-box
+          position="0 0.3 0"
+          scale="0.5 0.5 0.5"
+          color="#4CC3D9"
+          animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear">
+        </a-box>
+        <a-text
+          value="AR Content"
+          position="0 0.8 0"
+          align="center"
+          scale="0.5 0.5 0.5"
+          color="#FFFFFF">
+        </a-text>
+      </a-entity>
+    </xrextras-named-image-target>
+
+    <!-- ターゲット 2: 情報パネル表示 -->
+    <xrextras-named-image-target name="sample-target-2">
+      <a-entity>
+        <a-plane
+          position="0 0 0.01"
+          width="0.8" height="0.5"
+          color="#2C3E50" opacity="0.9">
+        </a-plane>
+        <a-text
+          value="Information Panel\nLine 2\nLine 3"
+          position="0 0 0.02"
+          align="center"
+          scale="0.4 0.4 0.4"
+          color="#ECF0F1">
+        </a-text>
+        <a-sphere
+          position="0.3 0.35 0"
+          radius="0.08"
+          color="#E74C3C"
+          animation="property: position; to: 0.3 0.45 0; dir: alternate; loop: true; dur: 1000; easing: easeInOutSine">
+        </a-sphere>
+      </a-entity>
+    </xrextras-named-image-target>
+
+  </a-scene>
+
+  <script>
+    // AR準備完了時にオーバーレイ表示
+    window.addEventListener('xrloaded', () => {
+      document.body.classList.add('ar-ready')
+    })
+  </script>
+</body>
+</html>

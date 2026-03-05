@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XR/AR テクノロジーデモ</title>
+  <meta property="og:title" content="XR/AR テクノロジーデモ">
+  <meta property="og:description" content="8th Wall オープンソースエンジンによるWebAR体験">
+  <meta property="og:type" content="website">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Segoe UI', sans-serif;
+      background: #0a0a1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    .hero {
+      text-align: center;
+      padding: 60px 20px 40px;
+      background: linear-gradient(180deg, #0f1530 0%, #0a0a1a 100%);
+    }
+    .hero h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #00f0ff, #7dd3fc, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+    .hero p {
+      color: #94a3b8;
+      font-size: 0.95rem;
+      max-width: 480px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .section {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 40px 0 20px;
+    }
+    .section-header .icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+    .section-header h2 {
+      font-size: 1.1rem;
+      color: #fff;
+      font-weight: 700;
+    }
+    .section-header .sub {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-left: auto;
+    }
+
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .demo-card {
+      background: #14142a;
+      border: 1px solid #1e293b;
+      border-radius: 16px;
+      padding: 24px 20px;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .demo-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--card-color, #00f0ff), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .demo-card:hover {
+      border-color: var(--card-color, #00f0ff);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    }
+    .demo-card:hover::before { opacity: 1; }
+
+    .demo-card .emoji {
+      font-size: 2rem;
+      margin-bottom: 12px;
+      display: block;
+    }
+    .demo-card h3 {
+      font-size: 1rem;
+      color: #fff;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .demo-card .desc {
+      font-size: 0.82rem;
+      color: #94a3b8;
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+    .demo-card .usecase {
+      font-size: 0.75rem;
+      color: #64748b;
+      line-height: 1.5;
+      border-top: 1px solid #1e293b;
+      padding-top: 10px;
+    }
+    .demo-card .tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .demo-card .tag {
+      font-size: 0.65rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.06);
+      color: #64748b;
+      font-weight: 600;
+    }
+    .demo-card .cta {
+      display: inline-block;
+      margin-top: 14px;
+      padding: 8px 20px;
+      border-radius: 8px;
+      background: rgba(0,240,255,0.1);
+      color: #00f0ff;
+      font-size: 0.82rem;
+      font-weight: 700;
+      border: 1px solid rgba(0,240,255,0.2);
+      transition: all 0.2s;
+    }
+    .demo-card:hover .cta {
+      background: rgba(0,240,255,0.2);
+      border-color: #00f0ff;
+    }
+
+    footer {
+      text-align: center;
+      padding: 50px 20px 30px;
+      color: #475569;
+      font-size: 0.75rem;
+      line-height: 1.8;
+    }
+    footer .powered {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    footer a { color: #00f0ff; text-decoration: none; }
+
+    @media (max-width: 600px) {
+      .hero h1 { font-size: 1.5rem; }
+      .demo-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>XR/AR テクノロジーデモ</h1>
+  <p>8th Wall オープンソースエンジンによるWebAR体験。<br>スマートフォンのブラウザだけで、アプリ不要で体験できます。</p>
+</div>
+
+<div class="section">
+
+  <div class="section-header">
+    <div class="icon" style="background:rgba(0,240,255,0.1);">&#x1F3AF;</div>
+    <h2>AR Features</h2>
+    <span class="sub">主要機能</span>
+  </div>
+  <div class="demo-grid">
+    <a class="demo-card" href="../templates/image-target-demo/" style="--card-color:#f1c40f;">
+      <span class="emoji">&#x1F3AF;</span>
+      <h3>画像認識AR</h3>
+      <div class="desc">ポスターや名刺にスマホをかざすと、3Dコンテンツが飛び出します。</div>
+      <div class="usecase">活用: 観光案内、展示会ポスター、名刺AR、商品パッケージ</div>
+      <div class="tags"><span class="tag">Image Target</span><span class="tag">A-Frame</span></div>
+      <span class="cta">デモを見る &rarr;</span>
+    </a>
+
+    <a class="demo-card" href="../templates/face-effects-demo/" style="--card-color:#9b59b6;">
+      <span class="emoji">&#x1F3AD;</span>
+      <h3>顔エフェクト</h3>
+      <div class="desc">顔を認識してリアルタイムでエフェクト（メガネ・王冠・メッシュ等）を表示。</div>
+      <div class="usecase">活用: フォトブース、SNSフィルター、バーチャル試着</div>
+      <div class="tags"><span class="tag">Face Tracking</span><span class="tag">A-Frame</span></div>
+      <span class="cta">デモを見る &rarr;</span>
+    </a>
+
+    <a class="demo-card" href="../templates/sky-effects-demo/" style="--card-color:#3498db;">
+      <span class="emoji">&#x2601;</span>
+      <h3>空の演出</h3>
+      <div class="desc">空を検出してファンタジーな映像（宇宙・夕焼け・オーロラ）に置き換え。</div>
+      <div class="usecase">活用: イベント演出、観光地の体験強化、映像制作</div>
+      <div class="tags"><span class="tag">Sky Segmentation</span><span class="tag">A-Frame</span></div>
+      <span class="cta">デモを見る &rarr;</span>
+    </a>
+
+    <a class="demo-card" href="../templates/world-slam-demo/" style="--card-color:#2ecc71;">
+      <span class="emoji">&#x1F30D;</span>
+      <h3>空間認識（SLAM）</h3>
+      <div class="desc">地面を検出してタップで3Dオブジェクトを自由に配置。</div>
+      <div class="usecase">活用: 家具配置シミュレーション、建築プレゼン、教育教材</div>
+      <div class="tags"><span class="tag">SLAM</span><span class="tag">A-Frame</span></div>
+      <span class="cta">デモを見る &rarr;</span>
+    </a>
+  </div>
+
+  <div class="section-header">
+    <div class="icon" style="background:rgba(231,76,60,0.1);">&#x270B;</div>
+    <h2>Interaction</h2>
+    <span class="sub">インタラクション</span>
+  </div>
+  <div class="demo-grid">
+    <a class="demo-card" href="../templates/gesture-demo/" style="--card-color:#e74c3c;">
+      <span class="emoji">&#x1F90F;</span>
+      <h3>ジェスチャー操作</h3>
+      <div class="desc">ドラッグ・ピンチ・回転で3Dオブジェクトを直感的に操作。</div>
+      <div class="usecase">活用: 商品3Dビューア、インテリアシミュレーション</div>
+      <div class="tags"><span class="tag">Gesture</span><span class="tag">SLAM</span></div>
+      <span class="cta">デモを見る &rarr;</span>
+    </a>
+
+    <a class="demo-card" href="../templates/physics-demo/" style="--card-color:#e67e22;">
+      <span class="emoji">&#x1F3B3;</span>
+      <h3>物理演算</h3>
+      <div class="desc">タップでオブジェクトを投げ、物理法則に従って跳ね返る。</div>
+      <div class="usecase">活用: ARゲーム、物理シミュレーション、教育</div>
+      <div class="tags"><span class="tag">Physics</span><span class="tag">SLAM</span></div>
+      <span class="cta">デモを見る &rarr;</span>
+    </a>
+
+    <a class="demo-card" href="../templates/capture-demo/" style="--card-color:#1abc9c;">
+      <span class="emoji">&#x1F4F7;</span>
+      <h3>写真撮影</h3>
+      <div class="desc">AR画面をスクリーンショット撮影。ウォーターマーク付きで保存・SNS共有。</div>
+      <div class="usecase">活用: フォトブース、イベント記念撮影、プロモーション</div>
+      <div class="tags"><span class="tag">Capture</span><span class="tag">Share API</span></div>
+      <span class="cta">デモを見る &rarr;</span>
+    </a>
+  </div>
+
+  <div class="section-header">
+    <div class="icon" style="background:rgba(142,68,173,0.1);">&#x2728;</div>
+    <h2>Advanced</h2>
+    <span class="sub">応用</span>
+  </div>
+  <div class="demo-grid">
+    <a class="demo-card" href="../templates/portal-demo/" style="--card-color:#00ced1;">
+      <span class="emoji">&#x1F6AA;</span>
+      <h3>ポータル</h3>
+      <div class="desc">地面に異世界への入口を配置。近づくと中の幻想世界が見える。</div>
+      <div class="usecase">活用: エンターテインメント施設、不動産内見、テーマパーク</div>
+      <div class="tags"><span class="tag">Portal</span><span class="tag">Hider Material</span></div>
+      <span class="cta">デモを見る &rarr;</span>
+    </a>
+
+    <a class="demo-card" href="../templates/alpha-video-demo/" style="--card-color:#8e44ad;">
+      <span class="emoji">&#x1F3AC;</span>
+      <h3>透過動画</h3>
+      <div class="desc">背景が透ける動画やアニメーションをAR空間に表示。</div>
+      <div class="usecase">活用: バーチャルキャラクター、プロモーション映像、ガイド案内</div>
+      <div class="tags"><span class="tag">Alpha Video</span><span class="tag">Chromakey</span></div>
+      <span class="cta">デモを見る &rarr;</span>
+    </a>
+
+    <a class="demo-card" href="../templates/animation-demo/" style="--card-color:#f39c12;">
+      <span class="emoji">&#x1F57A;</span>
+      <h3>3Dアニメーション</h3>
+      <div class="desc">アニメーション付き3Dキャラクターを配置、ダンスや動作を切り替え。</div>
+      <div class="usecase">活用: キャラクターAR、教育、ゲーム、プレゼンテーション</div>
+      <div class="tags"><span class="tag">Animation</span><span class="tag">glTF</span></div>
+      <span class="cta">デモを見る &rarr;</span>
+    </a>
+
+    <a class="demo-card" href="../templates/hand-tracking-demo/" style="--card-color:#ff6b6b;">
+      <span class="emoji">&#x270B;</span>
+      <h3>ハンドトラッキング</h3>
+      <div class="desc">手を検出して3Dメッシュと指先エフェクトを表示（実験的機能）。</div>
+      <div class="usecase">活用: ジェスチャーUI、手話認識、インタラクティブ展示</div>
+      <div class="tags"><span class="tag">Hand Tracking</span><span class="tag">Experimental</span></div>
+      <span class="cta">デモを見る &rarr;</span>
+    </a>
+  </div>
+
+</div>
+
+<footer>
+  <div class="powered">Powered by <a href="https://github.com/nicolo-ribaudo/nicolo-nicolo" target="_blank">8th Wall Open Source Engine</a></div>
+  A-Frame / Three.js / 8th Wall Engine<br>
+  このページ自体も AR デモサーバーから配信されています
+</footer>
+
+</body>
+</html>

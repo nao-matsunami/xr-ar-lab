@@ -1,0 +1,28 @@
+# 外部リポジトリ（サブモジュールとして管理するか、個別にclone）
+vendor/
+
+# SSL証明書
+tools/ssl/*.pem
+
+# Node
+node_modules/
+package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# ビルド成果物
+dist/
+build/
+
+# ログ
+*.log
+.overnight-logs/
+
+# 証明書
+tools/certs/

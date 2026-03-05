@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Sky Effects AR Demo</title>
+
+  <!-- 8frame (8th Wall版 A-Frame) -->
+  <script src="//cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
+
+  <!-- XR Extras -->
+  <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
+
+  <!-- Landing Pages -->
+  <script src="//cdn.8thwall.com/web/landing-page/landing-page.js"></script>
+
+  <!-- Coaching Overlay (空の検出ガイド) -->
+  <script src="https://cdn.8thwall.com/web/coaching-overlay/coaching-overlay.js"></script>
+
+  <!-- 8th Wall Engine (ローカルバイナリ — LayersControllerはコアに内蔵、チャンクプリロード不要) -->
+  <script async src="../../vendor/engine/xr-standalone/xr.js"></script>
+
+  <script src="./sky-recenter.js"></script>
+
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #sky-switcher {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 999; display: flex; gap: 8px;
+    }
+    #sky-switcher button {
+      padding: 10px 16px; border: 2px solid rgba(255,255,255,0.5);
+      border-radius: 25px; background: rgba(0,0,0,0.5);
+      color: #fff; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+    }
+    #sky-switcher button.active {
+      border-color: #00f0ff; color: #00f0ff;
+      background: rgba(0,240,255,0.15);
+    }
+    #sky-switcher button:active { transform: scale(0.95); }
+  </style>
+</head>
+
+<body>
+
+  <div id="sky-switcher">
+    <button class="active" onclick="switchSky('space')">Space</button>
+    <button onclick="switchSky('sunset')">Sunset</button>
+    <button onclick="switchSky('aurora')">Aurora</button>
+    <button onclick="switchSky('neon')">Neon</button>
+  </div>
+
+  <a-scene
+    xrextras-loading
+    xrextras-runtime-error
+    landing-page
+    sky-coaching-overlay
+    sky-recenter
+    renderer="colorManagement: true"
+    xrlayers="allowedDevices: any">
+
+    <a-camera position="0 3 0"></a-camera>
+
+    <!-- スカイレイヤーシーン: 空が検出された部分にこの内容が表示される -->
+    <a-entity xrlayerscene="name: sky; edgeSmoothness: 0.6">
+
+      <!-- 空の背景（切り替え可能） -->
+      <a-sky id="sky-bg" color="#0a0a2e"></a-sky>
+
+      <!-- 浮遊するオブジェクト群 -->
+      <a-entity id="sky-objects-space">
+        <!-- 星々 -->
+        <a-sphere position="5 15 -20" radius="0.3" color="#FFFFFF"
+                  material="shader: flat"
+                  animation="property: position; to: 5 16 -20; dir: alternate; loop: true; dur: 3000; easing: easeInOutSine"></a-sphere>
+        <a-sphere position="-8 20 -15" radius="0.2" color="#FFFFCC"
+                  material="shader: flat"
+                  animation="property: position; to: -8 21 -15; dir: alternate; loop: true; dur: 2500; easing: easeInOutSine"></a-sphere>
+        <a-sphere position="12 18 -25" radius="0.15" color="#CCCCFF"
+                  material="shader: flat"
+                  animation="property: position; to: 12 19 -25; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine"></a-sphere>
+
+        <!-- 惑星 -->
+        <a-sphere position="0 12 -18" radius="2" color="#AD50FF"
+                  material="shader: flat"
+                  animation="property: rotation; to: 0 360 0; loop: true; dur: 20000; easing: linear"></a-sphere>
+        <a-torus position="0 12 -18" radius="3" radius-tubular="0.1"
+                 rotation="75 0 0" color="#E8A0FF"
+                 material="shader: flat; opacity: 0.7"></a-torus>
+
+        <!-- 流れ星 -->
+        <a-sphere position="-15 25 -30" radius="0.1" color="#FFFFFF"
+                  material="shader: flat"
+                  animation="property: position; to: 15 5 -10; loop: true; dur: 2000; easing: linear;
+                             delay: 3000"></a-sphere>
+      </a-entity>
+
+      <!-- 夕焼けオブジェクト（初期非表示） -->
+      <a-entity id="sky-objects-sunset" visible="false">
+        <a-sphere position="0 8 -30" radius="5" color="#FF6B35"
+                  material="shader: flat; opacity: 0.9"></a-sphere>
+        <!-- 雲 -->
+        <a-box position="-10 14 -20" scale="8 1.5 3" color="#FF9F6B"
+               material="shader: flat; opacity: 0.6"
+               animation="property: position; to: -6 14 -20; dir: alternate; loop: true; dur: 8000; easing: easeInOutSine"></a-box>
+        <a-box position="8 16 -22" scale="6 1 2.5" color="#FFB88C"
+               material="shader: flat; opacity: 0.5"
+               animation="property: position; to: 12 16 -22; dir: alternate; loop: true; dur: 10000; easing: easeInOutSine"></a-box>
+      </a-entity>
+
+      <!-- オーロラオブジェクト（初期非表示） -->
+      <a-entity id="sky-objects-aurora" visible="false">
+        <!-- オーロラ帯 -->
+        <a-plane position="0 18 -25" width="40" height="8" color="#00FF88"
+                 material="shader: flat; opacity: 0.3; side: double"
+                 rotation="10 0 5"
+                 animation="property: material.opacity; from: 0.2; to: 0.5; dir: alternate; loop: true; dur: 3000"></a-plane>
+        <a-plane position="5 20 -28" width="35" height="6" color="#00BFFF"
+                 material="shader: flat; opacity: 0.25; side: double"
+                 rotation="-5 10 -3"
+                 animation="property: material.opacity; from: 0.15; to: 0.4; dir: alternate; loop: true; dur: 4000; delay: 500"></a-plane>
+        <a-plane position="-3 16 -22" width="30" height="5" color="#8B5CF6"
+                 material="shader: flat; opacity: 0.2; side: double"
+                 rotation="8 -5 2"
+                 animation="property: material.opacity; from: 0.1; to: 0.35; dir: alternate; loop: true; dur: 3500; delay: 1000"></a-plane>
+        <!-- 星 -->
+        <a-sphere position="10 22 -20" radius="0.15" color="#FFF" material="shader: flat"></a-sphere>
+        <a-sphere position="-12 24 -25" radius="0.1" color="#FFF" material="shader: flat"></a-sphere>
+        <a-sphere position="5 26 -30" radius="0.12" color="#FFF" material="shader: flat"></a-sphere>
+      </a-entity>
+
+      <!-- ネオンオブジェクト（初期非表示） -->
+      <a-entity id="sky-objects-neon" visible="false">
+        <!-- ネオンリング -->
+        <a-torus position="0 15 -20" radius="4" radius-tubular="0.15"
+                 color="#FF00FF" material="shader: flat"
+                 animation="property: rotation; to: 360 360 0; loop: true; dur: 10000; easing: linear"></a-torus>
+        <a-torus position="0 15 -20" radius="6" radius-tubular="0.1"
+                 color="#00FFFF" material="shader: flat"
+                 animation="property: rotation; to: -360 0 360; loop: true; dur: 15000; easing: linear"></a-torus>
+        <!-- ネオンキューブ -->
+        <a-box position="-8 18 -15" scale="2 2 2" color="#FF00FF"
+               material="shader: flat; opacity: 0.7; wireframe: true"
+               animation="property: rotation; to: 360 360 0; loop: true; dur: 6000; easing: linear"></a-box>
+        <a-box position="10 12 -18" scale="1.5 1.5 1.5" color="#00FFFF"
+               material="shader: flat; opacity: 0.7; wireframe: true"
+               animation="property: rotation; to: 0 360 360; loop: true; dur: 8000; easing: linear"></a-box>
+        <!-- グリッドライン -->
+        <a-plane position="0 10 -25" width="50" height="20" color="#FF00FF"
+                 material="shader: flat; opacity: 0.1; wireframe: true"
+                 rotation="0 0 0"></a-plane>
+      </a-entity>
+
+      <a-entity light="type: ambient; intensity: 1;"></a-entity>
+    </a-entity>
+
+  </a-scene>
+
+  <script>
+    // 空エフェクト切り替え
+    const skyColors = {
+      space:  '#0a0a2e',
+      sunset: '#FF4500',
+      aurora: '#0a1628',
+      neon:   '#0a0014',
+    }
+
+    function switchSky(name) {
+      // 背景色を変更
+      const sky = document.getElementById('sky-bg')
+      if (sky) sky.setAttribute('color', skyColors[name] || '#0a0a2e')
+
+      // オブジェクトグループを切り替え
+      const groups = ['space', 'sunset', 'aurora', 'neon']
+      groups.forEach(g => {
+        const el = document.getElementById('sky-objects-' + g)
+        if (el) el.setAttribute('visible', g === name)
+      })
+
+      // ボタンのアクティブ状態を更新
+      document.querySelectorAll('#sky-switcher button').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.toLowerCase() === name)
+      })
+    }
+  </script>
+</body>
+</html>

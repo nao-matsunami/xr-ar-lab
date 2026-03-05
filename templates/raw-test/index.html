@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>XR8 Raw Test</title>
+    <style>
+      body { margin: 0; overflow: hidden; }
+    </style>
+
+    <!-- Three.js (公式サンプルと同じ importmap + module パターン) -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.172.0/build/three.module.min.js",
+          "three/addons/": "https://unpkg.com/three@0.172.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from 'three';
+      window.THREE = { ...THREE };
+    </script>
+
+    <!-- XR Extras -->
+    <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
+
+    <!-- 8th Wall Engine (ローカルバイナリ) -->
+    <script async src="../../vendor/engine/xr-standalone/xr.js" data-preload-chunks="slam"></script>
+
+    <script>
+      const onxrloaded = () => {
+        XR8.addCameraPipelineModules([
+          XR8.GlTextureRenderer.pipelineModule(),
+          XR8.Threejs.pipelineModule(),
+          XR8.XrController.pipelineModule(),
+          XRExtras.AlmostThere.pipelineModule(),
+          XRExtras.FullWindowCanvas.pipelineModule(),
+          XRExtras.Loading.pipelineModule(),
+          XRExtras.RuntimeError.pipelineModule(),
+          {
+            name: 'ar-test',
+            onStart: ({canvas}) => {
+              const {scene, camera} = XR8.Threejs.xrScene()
+
+              // ライト
+              scene.add(new THREE.DirectionalLight(0xffffff, 1))
+              scene.add(new THREE.AmbientLight(0x404040, 5))
+
+              // ボックス
+              const geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5)
+              const material = new THREE.MeshStandardMaterial({color: 0x4CC3D9})
+              const cube = new THREE.Mesh(geometry, material)
+              cube.position.set(0, 0.5, -2)
+              scene.add(cube)
+
+              // カメラ初期位置
+              camera.position.set(0, 3, 0)
+              XR8.XrController.updateCameraProjectionMatrix({
+                origin: camera.position,
+                facing: camera.quaternion,
+              })
+            },
+          },
+        ])
+
+        XR8.run({canvas: document.getElementById('camerafeed')})
+      }
+
+      // XRExtras → XR8 の順でロード完了を待つ（公式サンプルと同じパターン）
+      const load = () => { XRExtras.Loading.showLoading({onxrloaded}) }
+      window.onload = () => {
+        window.XRExtras ? load() : window.addEventListener('xrextrasloaded', load)
+      }
+    </script>
+  </head>
+
+  <body>
+    <canvas id="camerafeed"></canvas>
+  </body>
+</html>
