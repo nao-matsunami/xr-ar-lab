@@ -20,8 +20,8 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-width: 400px;
       margin: 0 auto; text-align: center;
     }
-    .target-card canvas {
-      border: 2px solid #eee; border-radius: 4px;
+    .target-card img {
+      max-width: 100%; height: auto; border: 2px solid #eee; border-radius: 4px;
       display: block; margin: 0 auto;
     }
     .target-card h3 { margin: 12px 0 4px; font-size: 1.1em; }
@@ -58,113 +58,15 @@
   </div>
 
   <div class="target-card">
-    <canvas id="target-canvas" width="300" height="300"></canvas>
-    <h3>canvas-target</h3>
-    <p>このパターンをカメラに映すと<br>Canvas動的テクスチャが表示されます</p>
+    <img src="../image-target-demo/image-targets/sample-target-1_thumbnail.jpg" alt="sample-target-1">
+    <h3>sample-target-1</h3>
+    <p>この画像にカメラを向けてください<br>Canvas動的テクスチャが表示されます</p>
   </div>
 
   <div class="btn-row">
     <button class="btn btn-print" onclick="window.print()">印刷する</button>
     <a class="btn btn-back" href="./index.html">ARデモに戻る</a>
   </div>
-
-  <script>
-    // Generate a high-contrast, feature-rich target pattern
-    (function() {
-      var c = document.getElementById('target-canvas');
-      var ctx = c.getContext('2d');
-      var W = 300;
-
-      // White background
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, W, W);
-
-      // Seeded pseudo-random for reproducibility
-      var seed = 12345;
-      function rand() {
-        seed = (seed * 16807 + 0) % 2147483647;
-        return seed / 2147483647;
-      }
-
-      // Border
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(2, 2, W - 4, W - 4);
-
-      // Corner position markers (asymmetric for orientation)
-      ctx.fillStyle = '#000';
-      // Top-left: large square
-      ctx.fillRect(10, 10, 50, 50);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(18, 18, 34, 34);
-      ctx.fillStyle = '#000';
-      ctx.fillRect(24, 24, 22, 22);
-
-      // Top-right: large square
-      ctx.fillStyle = '#000';
-      ctx.fillRect(240, 10, 50, 50);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(248, 18, 34, 34);
-      ctx.fillStyle = '#000';
-      ctx.fillRect(254, 24, 22, 22);
-
-      // Bottom-left: large square
-      ctx.fillStyle = '#000';
-      ctx.fillRect(10, 240, 50, 50);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(18, 248, 34, 34);
-      ctx.fillStyle = '#000';
-      ctx.fillRect(24, 254, 22, 22);
-
-      // Bottom-right: smaller marker (asymmetry for orientation)
-      ctx.fillStyle = '#000';
-      ctx.fillRect(255, 255, 35, 35);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(261, 261, 23, 23);
-      ctx.fillStyle = '#000';
-      ctx.fillRect(267, 267, 11, 11);
-
-      // Random data cells (QR-code style)
-      var grid = 20;
-      var cell = (W - 20) / grid;
-      ctx.fillStyle = '#000';
-      for (var y = 0; y < grid; y++) {
-        for (var x = 0; x < grid; x++) {
-          // Skip corner marker areas
-          if (x < 4 && y < 4) continue;
-          if (x > 15 && y < 4) continue;
-          if (x < 4 && y > 15) continue;
-          if (x > 16 && y > 16) continue;
-
-          if (rand() > 0.55) {
-            ctx.fillRect(10 + x * cell + 1, 10 + y * cell + 1, cell - 2, cell - 2);
-          }
-        }
-      }
-
-      // Center label
-      ctx.fillStyle = '#ff4400';
-      ctx.font = 'bold 16px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('CANVAS', W / 2, W / 2 - 8);
-      ctx.fillText('TARGET', W / 2, W / 2 + 10);
-
-      // Timing pattern (horizontal line between top markers)
-      ctx.fillStyle = '#000';
-      for (var tx = 60; tx < 240; tx += 14) {
-        if (Math.floor((tx - 60) / 14) % 2 === 0) {
-          ctx.fillRect(tx, 30, 7, 7);
-        }
-      }
-      // Timing pattern (vertical)
-      for (var ty = 60; ty < 240; ty += 14) {
-        if (Math.floor((ty - 60) / 14) % 2 === 0) {
-          ctx.fillRect(30, ty, 7, 7);
-        }
-      }
-    })();
-  </script>
 
 </body>
 </html>

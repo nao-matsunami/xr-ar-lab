@@ -9,6 +9,35 @@
   <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
   <script src="//cdn.8thwall.com/web/landing-page/landing-page.js"></script>
   <script async src="../../vendor/engine/xr-standalone/xr.js" data-preload-chunks="slam"></script>
+
+  <script>
+    // Image target data — reference image-target-demo's assets
+    var onxrloaded = function() {
+      XR8.XrController.configure({
+        imageTargetData: [
+          {
+            imagePath: '../image-target-demo/image-targets/sample-target-1_luminance.jpg',
+            metadata: null,
+            name: 'sample-target-1',
+            type: 'PLANAR',
+            properties: {
+              left: 0, top: 0, width: 995, height: 1326,
+              isRotated: false, originalWidth: 995, originalHeight: 1326,
+            },
+            resources: {
+              originalImage: 'sample-target-1_original.jpg',
+              croppedImage: 'sample-target-1_cropped.jpg',
+              thumbnailImage: 'sample-target-1_thumbnail.jpg',
+              luminanceImage: 'sample-target-1_luminance.jpg',
+            },
+            created: 1772601126877,
+            updated: 1772601126877,
+          },
+        ],
+      });
+    };
+    window.XR8 ? onxrloaded() : window.addEventListener('xrloaded', onxrloaded);
+  </script>
   <style>
     body { margin: 0; overflow: hidden; }
     #info {
@@ -122,7 +151,7 @@
     <a-camera id="camera" position="0 4 4"></a-camera>
     <a-light type="ambient" intensity="1"></a-light>
 
-    <xrextras-named-image-target name="target-a">
+    <xrextras-named-image-target name="sample-target-1">
       <a-plane id="canvas-plane" width="0.8" height="0.8"
         position="0 0 0.01" rotation="0 0 0"
         material="shader: flat; transparent: true; opacity: 0.95"
