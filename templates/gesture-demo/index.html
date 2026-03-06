@@ -18,7 +18,7 @@
       z-index: 999; background: rgba(0,0,0,0.6); color: #fff;
       padding: 10px 20px; border-radius: 20px; font-size: 14px;
       font-family: sans-serif; pointer-events: none; text-align: center;
-      line-height: 1.6; max-width: 90%;
+      line-height: 1.6; max-width: 90%; transition: opacity 0.5s;
     }
     #gesture-hint {
       position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
@@ -30,6 +30,12 @@
       border-radius: 20px; font-size: 13px; font-family: sans-serif;
       border: 1px solid rgba(255,255,255,0.3);
       min-height: 44px; display: flex; align-items: center;
+    }
+    #debug-info {
+      position: fixed; top: 60px; left: 10px; z-index: 999;
+      background: rgba(0,0,0,0.5); color: #0f0; padding: 4px 8px;
+      border-radius: 6px; font-size: 11px; font-family: monospace;
+      pointer-events: none;
     }
   </style>
 <style>
@@ -84,27 +90,26 @@
       <hr class="sep">
       <div class="row"><b>できること:</b></div>
       <ul>
-        <li>ドラッグで移動</li>
-        <li>ピンチでスケール</li>
+        <li>1本指ドラッグで移動</li>
+        <li>ピンチで拡大/縮小</li>
         <li>2本指で回転</li>
       </ul>
       <button class="close-help" onclick="toggleHelp()">閉じる</button>
     </div>
   </div>
 
-  <div id="debug-info" style="position:fixed; top:60px; left:10px; z-index:999; background:rgba(0,0,0,0.5); color:#0f0; padding:4px 8px; border-radius:6px; font-size:11px; font-family:monospace; pointer-events:none;"></div>
+  <div id="debug-info"></div>
   <div id="instructions">地面をタップして砂の城を配置</div>
   <div id="gesture-hint" style="display:none;">
-    <span class="hint-tag">☝️ 長押し+ドラッグ: 移動</span>
-    <span class="hint-tag">🤏 ピンチ: 拡大/縮小</span>
-    <span class="hint-tag">✌️ 2本指回転: 回転</span>
+    <span class="hint-tag">1本指ドラッグ: 移動</span>
+    <span class="hint-tag">ピンチ: 拡大/縮小</span>
+    <span class="hint-tag">2本指回転: 回転</span>
   </div>
 
   <a-scene
     landing-page
     xrextras-loading
     xrextras-runtime-error
-    xrextras-gesture-detector
     renderer="colorManagement: true"
     xrweb="allowedDevices: any">
 
@@ -127,120 +132,36 @@
   </a-scene>
 
   <script>
-    // Multi-touch tracking — prevent conflicts between drag/pinch/rotate
-    let touchCount = 0;
-    let isMultiTouch = false;
-    let savedScale = null;
-    let savedPosition = null;
+    // === Native Touch Gesture System ===
+    // No xrextras gesture components — handle everything with raw touch events
 
-    document.addEventListener('touchstart', (e) => {
-      touchCount = e.touches.length;
-      if (touchCount >= 2) {
-        isMultiTouch = true;
-        // Save state before multi-touch to prevent disappearing
-        const castle = document.getElementById('castle');
-        if (castle && castle.object3D) {
-          savedScale = castle.object3D.scale.clone();
-          savedPosition = castle.object3D.position.clone();
-        }
-      }
-    }, { passive: true });
-
-    document.addEventListener('touchend', (e) => {
-      touchCount = e.touches.length;
-      if (touchCount === 0) {
-        // Delay reset to let gesture handlers finish
-        setTimeout(() => { isMultiTouch = false; }, 100);
-      }
-    }, { passive: true });
-
-    document.addEventListener('touchcancel', (e) => {
-      touchCount = e.touches.length;
-      if (touchCount === 0) {
-        setTimeout(() => { isMultiTouch = false; }, 100);
-      }
-    }, { passive: true });
-
-    // Gesture scale/position watchdog — prevents object from disappearing
     const MIN_SCALE = 0.2;
-    const MAX_SCALE = 5;
-
-    AFRAME.registerComponent('gesture-guard', {
-      schema: {
-        minScale: { type: 'number', default: MIN_SCALE },
-        maxScale: { type: 'number', default: MAX_SCALE },
-      },
-      init() {
-        this._lastGoodPos = new THREE.Vector3();
-        this._lastGoodScale = new THREE.Vector3(1, 1, 1);
-        this._lastGoodPos.copy(this.el.object3D.position);
-      },
-      tick() {
-        const s = this.el.object3D.scale;
-        const p = this.el.object3D.position;
-        const d = this.data;
-
-        // Clamp scale
-        const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-        s.x = clamp(s.x, d.minScale, d.maxScale);
-        s.y = clamp(s.y, d.minScale, d.maxScale);
-        s.z = clamp(s.z, d.minScale, d.maxScale);
-
-        // Keep scale uniform (prevent distortion from multi-touch)
-        const avg = (s.x + s.y + s.z) / 3;
-        s.set(avg, avg, avg);
-
-        // Fix NaN / zero / Infinity values
-        if (isNaN(s.x) || isNaN(s.y) || isNaN(s.z) || s.x === 0 || !isFinite(s.x)) {
-          console.log('[Gesture] Bad scale detected, restoring:', this._lastGoodScale);
-          s.copy(this._lastGoodScale);
-        } else {
-          this._lastGoodScale.copy(s);
-        }
-
-        if (isNaN(p.x) || isNaN(p.y) || isNaN(p.z) || !isFinite(p.x)) {
-          console.log('[Gesture] Bad position detected, restoring');
-          p.copy(this._lastGoodPos);
-        } else {
-          this._lastGoodPos.copy(p);
-        }
-
-        // Update debug display
-        const dbg = document.getElementById('debug-info');
-        if (dbg) {
-          dbg.textContent =
-            'S: ' + s.x.toFixed(2) + ' | ' +
-            'P: ' + p.x.toFixed(1) + ',' + p.y.toFixed(1) + ',' + p.z.toFixed(1) + ' | ' +
-            'T: ' + touchCount + (isMultiTouch ? ' (multi)' : '');
-        }
-      },
-    });
+    const MAX_SCALE = 5.0;
 
     let placed = false;
+    let targetObj = null;
 
-    document.getElementById('ground').addEventListener('click', (event) => {
+    // Touch state
+    let touches = {};
+    let lastPinchDist = null;
+    let lastRotateAngle = null;
+    let activeTouchCount = 0;
+
+    // Place object on ground tap
+    document.getElementById('ground').addEventListener('click', function(event) {
       if (placed) return;
-      // Block placement if multi-touching
-      if (isMultiTouch || touchCount >= 2) return;
+      if (activeTouchCount >= 2) return;
       placed = true;
 
-      const point = event.detail.intersection.point;
+      var point = event.detail.intersection.point;
 
-      const castle = document.createElement('a-entity');
-      castle.setAttribute('id', 'castle');
+      var castle = document.createElement('a-entity');
+      castle.setAttribute('id', 'target-object');
       castle.setAttribute('class', 'cantap');
       castle.setAttribute('position', point);
       castle.setAttribute('gltf-model', '#castleModel');
       castle.setAttribute('scale', '0.001 0.001 0.001');
       castle.setAttribute('shadow', 'cast: true; receive: false');
-
-      // Gesture components — with stricter bounds
-      castle.setAttribute('xrextras-hold-drag', '');
-      castle.setAttribute('xrextras-two-finger-rotate', '');
-      castle.setAttribute('xrextras-pinch-scale', 'min: ' + MIN_SCALE + '; max: ' + MAX_SCALE);
-
-      // Guard against disappearing
-      castle.setAttribute('gesture-guard', 'minScale: ' + MIN_SCALE + '; maxScale: ' + MAX_SCALE);
 
       // Appear animation
       castle.setAttribute('animation', {
@@ -251,15 +172,122 @@
       });
 
       document.querySelector('a-scene').appendChild(castle);
+      targetObj = castle;
 
       // Update UI
       document.getElementById('instructions').textContent = 'ジェスチャーで操作してください';
       document.getElementById('gesture-hint').style.display = 'flex';
 
-      setTimeout(() => {
+      setTimeout(function() {
         document.getElementById('instructions').style.opacity = '0';
       }, 3000);
     });
+
+    // === Touch event handlers ===
+    document.addEventListener('touchstart', function(e) {
+      activeTouchCount = e.touches.length;
+      for (var i = 0; i < e.touches.length; i++) {
+        var t = e.touches[i];
+        touches[t.identifier] = { x: t.clientX, y: t.clientY };
+      }
+      lastPinchDist = null;
+      lastRotateAngle = null;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function(e) {
+      if (!targetObj) return;
+      e.preventDefault();
+
+      var touchList = e.touches;
+      activeTouchCount = touchList.length;
+
+      if (touchList.length === 1) {
+        // 1-finger drag: move object
+        var t = touchList[0];
+        var prev = touches[t.identifier];
+        if (prev) {
+          var dx = (t.clientX - prev.x) * 0.01;
+          var dz = (t.clientY - prev.y) * 0.01;
+          var pos = targetObj.getAttribute('position');
+          targetObj.setAttribute('position', {
+            x: pos.x + dx,
+            y: pos.y,
+            z: pos.z + dz
+          });
+        }
+        touches[t.identifier] = { x: t.clientX, y: t.clientY };
+
+      } else if (touchList.length === 2) {
+        // 2-finger: pinch scale + rotate
+        var t1 = touchList[0];
+        var t2 = touchList[1];
+        var dx = t2.clientX - t1.clientX;
+        var dy = t2.clientY - t1.clientY;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        var angle = Math.atan2(dy, dx);
+
+        // Pinch → scale
+        if (lastPinchDist !== null) {
+          var scaleDelta = dist / lastPinchDist;
+          var currentScale = targetObj.getAttribute('scale');
+          var newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, currentScale.x * scaleDelta));
+          targetObj.setAttribute('scale', {x: newScale, y: newScale, z: newScale});
+        }
+
+        // Rotate
+        if (lastRotateAngle !== null) {
+          var angleDelta = (angle - lastRotateAngle) * (180 / Math.PI);
+          var currentRot = targetObj.getAttribute('rotation');
+          targetObj.setAttribute('rotation', {
+            x: currentRot.x,
+            y: currentRot.y + angleDelta,
+            z: currentRot.z
+          });
+        }
+
+        lastPinchDist = dist;
+        lastRotateAngle = angle;
+        touches[t1.identifier] = { x: t1.clientX, y: t1.clientY };
+        touches[t2.identifier] = { x: t2.clientX, y: t2.clientY };
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchend', function(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        delete touches[e.changedTouches[i].identifier];
+      }
+      activeTouchCount = e.touches.length;
+      if (e.touches.length < 2) {
+        lastPinchDist = null;
+        lastRotateAngle = null;
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchcancel', function(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        delete touches[e.changedTouches[i].identifier];
+      }
+      activeTouchCount = e.touches.length;
+      lastPinchDist = null;
+      lastRotateAngle = null;
+    }, { passive: true });
+
+    // Debug display update
+    setInterval(function() {
+      var dbg = document.getElementById('debug-info');
+      if (!targetObj) {
+        dbg.textContent = 'T: ' + activeTouchCount + ' | waiting for placement';
+        return;
+      }
+      var s = targetObj.getAttribute('scale');
+      var r = targetObj.getAttribute('rotation');
+      var p = targetObj.getAttribute('position');
+      dbg.textContent =
+        'S: ' + s.x.toFixed(2) +
+        ' | R: ' + r.y.toFixed(0) +
+        ' | P: ' + p.x.toFixed(1) + ',' + p.y.toFixed(1) + ',' + p.z.toFixed(1) +
+        ' | T: ' + activeTouchCount;
+    }, 100);
   </script>
 
   <script>
