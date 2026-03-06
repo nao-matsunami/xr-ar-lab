@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AR Target Images</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #fff; color: #333; padding: 20px;
+    }
+    h1 { text-align: center; margin-bottom: 6px; font-size: 1.5rem; }
+    .subtitle { text-align: center; color: #888; font-size: 0.85rem; margin-bottom: 8px; }
+    .instructions {
+      text-align: center; color: #555; font-size: 0.9rem; margin-bottom: 24px;
+      line-height: 1.6; max-width: 500px; margin-left: auto; margin-right: auto;
+    }
+    .print-btn {
+      display: block; margin: 0 auto 24px; padding: 12px 24px;
+      background: #333; color: #fff; border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .targets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px; max-width: 960px; margin: 0 auto;
+    }
+    .target-card {
+      border: 2px solid #ddd; border-radius: 12px; padding: 20px;
+      text-align: center; page-break-inside: avoid; break-inside: avoid;
+    }
+    .target-card h3 { font-size: 1.1rem; margin-bottom: 4px; }
+    .target-card .desc { font-size: 0.8rem; color: #888; margin-bottom: 12px; }
+    .target-canvas { display: block; margin: 0 auto 12px; border: 1px solid #eee; }
+    .target-note {
+      font-size: 0.75rem; color: #999; margin-top: 8px; line-height: 1.5;
+    }
+    .qr-section {
+      margin-top: 40px; padding: 20px; background: #f8f8f8;
+      border-radius: 12px; max-width: 960px; margin-left: auto; margin-right: auto;
+      text-align: center;
+    }
+    .qr-section h2 { font-size: 1.1rem; margin-bottom: 16px; }
+    .qr-grid {
+      display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;
+    }
+    .qr-item { text-align: center; }
+    .qr-item .qr-box { display: inline-block; }
+    .qr-item .qr-label { font-size: 0.75rem; color: #666; margin-top: 6px; }
+    footer {
+      text-align: center; margin-top: 30px; color: #999; font-size: 0.8rem;
+    }
+    @media print {
+      body { padding: 10px; }
+      .print-btn, .qr-section, footer, .instructions { display: none; }
+      .target-card { border: 1px solid #ccc; padding: 15px; }
+      .targets-grid { gap: 15px; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>AR Target Images</h1>
+  <p class="subtitle">image-target-demo / multi-target-demo / canvas-target-demo 用</p>
+
+  <div class="instructions">
+    この画像をスマホの画面やプリントで表示し、<br>
+    別のデバイスでARデモを開いてカメラでかざしてください。
+  </div>
+
+  <button class="print-btn" onclick="window.print()">印刷する</button>
+
+  <div class="targets-grid">
+    <div class="target-card">
+      <h3>Target A</h3>
+      <div class="desc">赤いQRコード風パターン（高コントラスト）</div>
+      <canvas id="target-a" class="target-canvas" width="300" height="300"></canvas>
+      <div class="target-note">この画像をARデモでかざしてください</div>
+    </div>
+
+    <div class="target-card">
+      <h3>Target B</h3>
+      <div class="desc">青い幾何学模様</div>
+      <canvas id="target-b" class="target-canvas" width="300" height="300"></canvas>
+      <div class="target-note">この画像をARデモでかざしてください</div>
+    </div>
+
+    <div class="target-card">
+      <h3>Target C</h3>
+      <div class="desc">緑の同心円パターン</div>
+      <canvas id="target-c" class="target-canvas" width="300" height="300"></canvas>
+      <div class="target-note">この画像をARデモでかざしてください</div>
+    </div>
+  </div>
+
+  <div class="qr-section">
+    <h2>QR Codes — このページ &amp; 関連デモ</h2>
+    <div class="qr-grid">
+      <div class="qr-item">
+        <div class="qr-box" id="qr-this-page"></div>
+        <div class="qr-label">このページ</div>
+      </div>
+      <div class="qr-item">
+        <div class="qr-box" id="qr-image-target"></div>
+        <div class="qr-label">Image Target Demo</div>
+      </div>
+      <div class="qr-item">
+        <div class="qr-box" id="qr-multi-target"></div>
+        <div class="qr-label">Multi Target Demo</div>
+      </div>
+      <div class="qr-item">
+        <div class="qr-box" id="qr-canvas-target"></div>
+        <div class="qr-label">Canvas Target Demo</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <a href="/templates/" style="color:#666;">デモ一覧に戻る</a>
+  </footer>
+
+  <script>
+    // ========== Target A: QR-like red pattern ==========
+    (function() {
+      const c = document.getElementById('target-a');
+      const ctx = c.getContext('2d');
+      const W = 300;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, W, W);
+
+      const grid = 15;
+      const cell = W / grid;
+      // Seed-based pseudo-random for reproducibility
+      let seed = 42;
+      function rand() { seed = (seed * 16807 + 0) % 2147483647; return seed / 2147483647; }
+
+      // Corner position markers (like QR)
+      function drawFinder(cx, cy, size) {
+        ctx.fillStyle = '#cc0000';
+        ctx.fillRect(cx - size/2, cy - size/2, size, size);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(cx - size/2 + cell, cy - size/2 + cell, size - cell*2, size - cell*2);
+        ctx.fillStyle = '#cc0000';
+        ctx.fillRect(cx - cell*0.75, cy - cell*0.75, cell*1.5, cell*1.5);
+      }
+      drawFinder(cell * 2.5, cell * 2.5, cell * 5);
+      drawFinder(W - cell * 2.5, cell * 2.5, cell * 5);
+      drawFinder(cell * 2.5, W - cell * 2.5, cell * 5);
+
+      // Data cells
+      ctx.fillStyle = '#cc0000';
+      for (let y = 0; y < grid; y++) {
+        for (let x = 0; x < grid; x++) {
+          // Skip finder areas
+          if (x < 5 && y < 5) continue;
+          if (x > 9 && y < 5) continue;
+          if (x < 5 && y > 9) continue;
+          if (rand() > 0.5) {
+            ctx.fillRect(x * cell + 1, y * cell + 1, cell - 2, cell - 2);
+          }
+        }
+      }
+
+      // Center logo
+      ctx.fillStyle = '#ff3333';
+      ctx.font = 'bold 24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('A', W/2, W/2);
+    })();
+
+    // ========== Target B: Blue geometric pattern ==========
+    (function() {
+      const c = document.getElementById('target-b');
+      const ctx = c.getContext('2d');
+      const W = 300;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, W, W);
+
+      ctx.strokeStyle = '#1a5276';
+      ctx.lineWidth = 2;
+
+      // Concentric rotated squares
+      for (let i = 0; i < 8; i++) {
+        const size = 30 + i * 30;
+        ctx.save();
+        ctx.translate(W/2, W/2);
+        ctx.rotate(i * Math.PI / 16);
+        ctx.strokeRect(-size/2, -size/2, size, size);
+        ctx.restore();
+      }
+
+      // Diagonal lines
+      ctx.strokeStyle = '#2980b9';
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 12; i++) {
+        ctx.save();
+        ctx.translate(W/2, W/2);
+        ctx.rotate(i * Math.PI / 6);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -W/2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Circles at intersections
+      ctx.fillStyle = '#2471a3';
+      for (let i = 0; i < 12; i++) {
+        const angle = i * Math.PI / 6;
+        for (let r = 50; r <= 130; r += 40) {
+          ctx.beginPath();
+          ctx.arc(W/2 + Math.cos(angle) * r, W/2 + Math.sin(angle) * r, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Corner triangles
+      ctx.fillStyle = '#1a5276';
+      const corners = [[0,0, 40,0, 0,40], [W,0, W-40,0, W,40], [0,W, 40,W, 0,W-40], [W,W, W-40,W, W,W-40]];
+      corners.forEach(pts => {
+        ctx.beginPath();
+        ctx.moveTo(pts[0], pts[1]);
+        ctx.lineTo(pts[2], pts[3]);
+        ctx.lineTo(pts[4], pts[5]);
+        ctx.closePath();
+        ctx.fill();
+      });
+
+      // Center label
+      ctx.fillStyle = '#1a5276';
+      ctx.font = 'bold 28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('B', W/2, W/2);
+    })();
+
+    // ========== Target C: Green concentric circles ==========
+    (function() {
+      const c = document.getElementById('target-c');
+      const ctx = c.getContext('2d');
+      const W = 300;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, W, W);
+
+      // Concentric circles
+      for (let i = 1; i <= 7; i++) {
+        ctx.strokeStyle = i % 2 === 0 ? '#196f3d' : '#27ae60';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(W/2, W/2, i * 18, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Radial dashes
+      ctx.strokeStyle = '#1e8449';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 24; i++) {
+        const angle = i * Math.PI / 12;
+        ctx.beginPath();
+        ctx.moveTo(W/2 + Math.cos(angle) * 30, W/2 + Math.sin(angle) * 30);
+        ctx.lineTo(W/2 + Math.cos(angle) * 140, W/2 + Math.sin(angle) * 140);
+        ctx.stroke();
+      }
+
+      // Corner markers (asymmetric for orientation)
+      ctx.fillStyle = '#196f3d';
+      ctx.fillRect(10, 10, 30, 30);
+      ctx.fillRect(W-40, 10, 30, 15);
+      ctx.fillRect(10, W-25, 15, 15);
+
+      // Dots at specific radii
+      ctx.fillStyle = '#27ae60';
+      for (let i = 0; i < 8; i++) {
+        const angle = i * Math.PI / 4;
+        ctx.beginPath();
+        ctx.arc(W/2 + Math.cos(angle) * 100, W/2 + Math.sin(angle) * 100, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Center label
+      ctx.fillStyle = '#196f3d';
+      ctx.font = 'bold 28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('C', W/2, W/2);
+    })();
+
+    // ========== QR Codes ==========
+    const BASE = 'https://xr-ar-lab.netlify.app';
+    const qrs = [
+      { id: 'qr-this-page', url: BASE + '/targets/' },
+      { id: 'qr-image-target', url: BASE + '/templates/image-target-demo/' },
+      { id: 'qr-multi-target', url: BASE + '/templates/multi-target-demo/' },
+      { id: 'qr-canvas-target', url: BASE + '/templates/canvas-target-demo/' },
+    ];
+    qrs.forEach(q => {
+      new QRCode(document.getElementById(q.id), {
+        text: q.url,
+        width: 100,
+        height: 100,
+        colorDark: '#333',
+        colorLight: '#fff',
+      });
+    });
+  </script>
+</body>
+</html>
