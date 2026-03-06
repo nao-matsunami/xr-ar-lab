@@ -10,8 +10,8 @@
   <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
   <script src="//cdn.8thwall.com/web/landing-page/landing-page.js"></script>
 
-  <!-- Physics Engine -->
-  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
+  <!-- Physics Engine (cannon.js driver) -->
+  <script src="https://cdn.jsdelivr.net/gh/n5ro/aframe-physics-system@v4.0.1/dist/aframe-physics-system.min.js"></script>
 
   <script async src="../../vendor/engine/xr-standalone/xr.js" data-preload-chunks="slam"></script>
 
@@ -97,7 +97,7 @@
     xrextras-loading
     xrextras-runtime-error
     renderer="colorManagement: true"
-    physics="gravity: -9.8; restitution: 0.6; friction: 0.1; iterations: 2"
+    physics="driver: local; gravity: -9.8; debug: false"
     xrweb="allowedDevices: any">
 
     <a-assets>
@@ -117,8 +117,7 @@
       rotation="-90 0 0"
       material="shader: shadow; transparent: true; opacity: 0.4"
       shadow="receive: true"
-      body="type: static; shape: box; restitution: 0.6"
-      shape="shape: box; halfExtents: 50 50 0.01"></a-entity>
+      static-body="restitution: 0.8"></a-entity>
   </a-scene>
 
   <script>
@@ -153,17 +152,17 @@
       tomato.setAttribute('scale', '1 1 1');
       tomato.setAttribute('shadow', 'cast: true');
 
-      // Physics body
-      tomato.setAttribute('body', {
-        type: 'dynamic',
-        sphereRadius: 0.35,
+      // Physics body — use dynamic-body component (cannon.js driver)
+      tomato.setAttribute('dynamic-body', {
         shape: 'sphere',
-        restitution: 0.6,
-        linearDamping: 0.1,
+        sphereRadius: 0.15,
+        restitution: 0.8,
+        linearDamping: 0.01,
+        angularDamping: 0.01,
       });
 
-      // Calculate velocity in camera direction
-      const direction = new THREE.Vector3(0, 0, -10);
+      // Calculate velocity in camera direction (stronger throw)
+      const direction = new THREE.Vector3(0, 0, -14);
       direction.applyQuaternion(camera.object3D.quaternion);
       tomato.setAttribute('velocity', direction);
 
