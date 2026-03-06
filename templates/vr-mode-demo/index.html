@@ -52,20 +52,20 @@
   </div>
   <div id="info">スマホを動かして360°パノラマを体験<br><small>ジャイロ / マウスドラッグ対応</small></div>
   <div id="scene-buttons">
-    <button class="active" onclick="setScene('space')">🌌 宇宙</button>
-    <button onclick="setScene('sunset')">🌅 夕焼け</button>
-    <button onclick="setScene('aurora')">🌊 オーロラ</button>
-    <button onclick="setScene('neon')">🌃 ネオン</button>
+    <button class="active" data-scene="space" onclick="setScene('space',this)">宇宙</button>
+    <button data-scene="sunset" onclick="setScene('sunset',this)">夕焼け</button>
+    <button data-scene="aurora" onclick="setScene('aurora',this)">オーロラ</button>
+    <button data-scene="neon" onclick="setScene('neon',this)">ネオン</button>
   </div>
-  <button id="vr-toggle" onclick="toggleVR()">🥽 VR Mode</button>
+  <button id="vr-toggle" onclick="toggleVR()">VR Mode</button>
 
   <a-scene vr-mode-ui="enabled: true" renderer="colorManagement: true">
     <a-camera look-controls="magicWindowTrackingEnabled: true; touchEnabled: true"
       wasd-controls="enabled: false"></a-camera>
 
-    <a-sky id="sky-sphere" color="#000011" animation__color="property: material.color; dur: 1000"></a-sky>
+    <a-sky id="sky-sphere" material="shader: flat; color: #000022"></a-sky>
 
-    <!-- Stars (for space scene) -->
+    <!-- Stars (for space/aurora scenes) -->
     <a-entity id="stars"></a-entity>
 
     <!-- Floating objects -->
@@ -77,19 +77,134 @@
     const starsEl = document.getElementById('stars');
     const objectsEl = document.getElementById('scene-objects');
 
+    // Canvas sky texture generators
+    function generateSkyTexture(name) {
+      const c = document.createElement('canvas');
+      c.width = 1024;
+      c.height = 512;
+      const ctx = c.getContext('2d');
+
+      switch (name) {
+        case 'space': {
+          const g = ctx.createLinearGradient(0, 0, 0, 512);
+          g.addColorStop(0, '#000022');
+          g.addColorStop(0.5, '#0a0a3e');
+          g.addColorStop(1, '#000011');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, 1024, 512);
+          // Stars
+          for (let i = 0; i < 300; i++) {
+            ctx.fillStyle = `rgba(255,255,255,${0.3 + Math.random() * 0.7})`;
+            const r = Math.random() * 2;
+            ctx.beginPath();
+            ctx.arc(Math.random() * 1024, Math.random() * 512, r, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          break;
+        }
+        case 'sunset': {
+          const g = ctx.createLinearGradient(0, 0, 0, 512);
+          g.addColorStop(0, '#1a0a2e');
+          g.addColorStop(0.3, '#c0392b');
+          g.addColorStop(0.5, '#FF6B35');
+          g.addColorStop(0.7, '#FFD700');
+          g.addColorStop(1, '#1a0a2e');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, 1024, 512);
+          // Sun glow
+          const sg = ctx.createRadialGradient(512, 300, 20, 512, 300, 150);
+          sg.addColorStop(0, 'rgba(255,215,0,0.8)');
+          sg.addColorStop(0.5, 'rgba(255,107,53,0.3)');
+          sg.addColorStop(1, 'rgba(255,107,53,0)');
+          ctx.fillStyle = sg;
+          ctx.fillRect(0, 0, 1024, 512);
+          break;
+        }
+        case 'aurora': {
+          const g = ctx.createLinearGradient(0, 0, 0, 512);
+          g.addColorStop(0, '#0a1628');
+          g.addColorStop(0.5, '#0c1e3a');
+          g.addColorStop(1, '#0a1628');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, 1024, 512);
+          // Aurora bands
+          for (let band = 0; band < 3; band++) {
+            const colors = ['#00ff88', '#00ccff', '#8B5CF6'];
+            ctx.strokeStyle = colors[band];
+            ctx.lineWidth = 15 + Math.random() * 10;
+            ctx.globalAlpha = 0.3 + Math.random() * 0.2;
+            ctx.beginPath();
+            for (let x = 0; x <= 1024; x += 4) {
+              const y = 100 + band * 60 + Math.sin(x * 0.01 + band * 2) * 40 + Math.sin(x * 0.005) * 20;
+              x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+          }
+          ctx.globalAlpha = 1;
+          // Stars
+          for (let i = 0; i < 150; i++) {
+            ctx.fillStyle = `rgba(255,255,255,${0.3 + Math.random() * 0.7})`;
+            ctx.beginPath();
+            ctx.arc(Math.random() * 1024, Math.random() * 512, Math.random() * 1.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          break;
+        }
+        case 'neon': {
+          ctx.fillStyle = '#0a0015';
+          ctx.fillRect(0, 0, 1024, 512);
+          // Neon grid lines
+          ctx.strokeStyle = '#ff00ff';
+          ctx.lineWidth = 1;
+          ctx.globalAlpha = 0.3;
+          for (let x = 0; x < 1024; x += 64) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 512); ctx.stroke();
+          }
+          for (let y = 0; y < 512; y += 64) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1024, y); ctx.stroke();
+          }
+          ctx.globalAlpha = 1;
+          // Neon glows
+          const glows = [
+            { x: 300, y: 200, color: '#ff00ff' },
+            { x: 700, y: 150, color: '#00ffff' },
+            { x: 500, y: 350, color: '#ffff00' },
+          ];
+          glows.forEach(gl => {
+            const rg = ctx.createRadialGradient(gl.x, gl.y, 5, gl.x, gl.y, 80);
+            rg.addColorStop(0, gl.color);
+            rg.addColorStop(1, 'transparent');
+            ctx.fillStyle = rg;
+            ctx.globalAlpha = 0.4;
+            ctx.fillRect(0, 0, 1024, 512);
+          });
+          ctx.globalAlpha = 1;
+          break;
+        }
+      }
+      return c;
+    }
+
+    // Pre-generate textures
+    const skyTextures = {};
+    ['space', 'sunset', 'aurora', 'neon'].forEach(name => {
+      const canvas = generateSkyTexture(name);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      skyTextures[name] = tex;
+    });
+
     const SCENES = {
       space: {
-        skyColor: '#000011',
         objects: [
-          { geo: 'sphere', color: '#FFD700', pos: '0 3 -8', scale: '0.5 0.5 0.5', anim: 'property: rotation; to: 0 360 0; dur: 20000; loop: true; easing: linear' },
-          { geo: 'sphere', color: '#CD853F', pos: '-5 1 -6', scale: '0.8 0.8 0.8', anim: 'property: rotation; to: 0 360 15; dur: 30000; loop: true; easing: linear' },
-          { geo: 'torus', color: '#B8860B', pos: '-5 1 -6', scale: '1.2 1.2 0.1', rot: '30 0 0', anim: 'property: rotation; to: 30 360 0; dur: 25000; loop: true; easing: linear' },
-          { geo: 'sphere', color: '#4169E1', pos: '6 -1 -7', scale: '1.2 1.2 1.2', anim: 'property: position; dir: alternate; dur: 8000; loop: true; to: 6 0 -7; easing: easeInOutSine' },
+          { geo: 'sphere', color: '#FFD700', pos: '0 3 -8', scale: '0.5 0.5 0.5', mat: 'shader: flat', anim: 'property: rotation; to: 0 360 0; dur: 20000; loop: true; easing: linear' },
+          { geo: 'sphere', color: '#CD853F', pos: '-5 1 -6', scale: '0.8 0.8 0.8', mat: 'shader: flat', anim: 'property: rotation; to: 0 360 15; dur: 30000; loop: true; easing: linear' },
+          { geo: 'torus', color: '#B8860B', pos: '-5 1 -6', scale: '1.2 1.2 0.1', rot: '30 0 0', mat: 'shader: flat', anim: 'property: rotation; to: 30 360 0; dur: 25000; loop: true; easing: linear' },
+          { geo: 'sphere', color: '#4169E1', pos: '6 -1 -7', scale: '1.2 1.2 1.2', mat: 'shader: flat', anim: 'property: position; dir: alternate; dur: 8000; loop: true; to: 6 0 -7; easing: easeInOutSine' },
         ],
         showStars: true
       },
       sunset: {
-        skyColor: '#FF6B35',
         objects: [
           { geo: 'sphere', color: '#FFD700', pos: '0 -2 -15', scale: '4 4 4', mat: 'shader: flat' },
           { geo: 'plane', color: '#1a0a2e', pos: '0 -3 0', rot: '-90 0 0', scale: '100 100 1', mat: 'shader: flat' },
@@ -97,17 +212,14 @@
         showStars: false
       },
       aurora: {
-        skyColor: '#0a1628',
         objects: [
           { geo: 'plane', color: '#00ff88', pos: '-3 6 -10', scale: '8 0.3 1', mat: 'shader: flat; opacity: 0.4; transparent: true', anim: 'property: position; dir: alternate; dur: 5000; loop: true; to: 3 7 -10; easing: easeInOutSine' },
           { geo: 'plane', color: '#00ccff', pos: '2 5 -10', scale: '6 0.2 1', mat: 'shader: flat; opacity: 0.3; transparent: true', anim: 'property: position; dir: alternate; dur: 7000; loop: true; to: -2 6 -10; easing: easeInOutSine' },
           { geo: 'plane', color: '#ff00ff', pos: '0 7 -10', scale: '5 0.15 1', mat: 'shader: flat; opacity: 0.25; transparent: true', anim: 'property: position; dir: alternate; dur: 4000; loop: true; to: 1 8 -10; easing: easeInOutSine' },
-          { geo: 'plane', color: '#f0f0f0', pos: '0 -2 0', rot: '-90 0 0', scale: '100 100 1', mat: 'shader: flat; opacity: 0.1; transparent: true' },
         ],
         showStars: true
       },
       neon: {
-        skyColor: '#0a0015',
         objects: [
           { geo: 'box', color: '#ff00ff', pos: '-4 2 -6', scale: '0.5 4 0.5', mat: 'shader: flat', anim: 'property: material.color; from: #ff00ff; to: #00ffff; dir: alternate; dur: 2000; loop: true' },
           { geo: 'box', color: '#00ffff', pos: '4 1.5 -6', scale: '0.5 3 0.5', mat: 'shader: flat', anim: 'property: material.color; from: #00ffff; to: #ff00ff; dir: alternate; dur: 3000; loop: true' },
@@ -119,7 +231,7 @@
       }
     };
 
-    // Generate stars
+    // Generate star entities
     function createStars() {
       starsEl.innerHTML = '';
       for (let i = 0; i < 200; i++) {
@@ -128,7 +240,7 @@
         const phi = Math.random() * Math.PI;
         const r = 30 + Math.random() * 20;
         star.setAttribute('position', `${r*Math.sin(phi)*Math.cos(theta)} ${r*Math.cos(phi)} ${r*Math.sin(phi)*Math.sin(theta)}`);
-        star.setAttribute('radius', 0.02 + Math.random() * 0.05);
+        star.setAttribute('radius', 0.03 + Math.random() * 0.06);
         star.setAttribute('material', 'shader: flat; color: #ffffff');
         star.setAttribute('animation', `property: material.opacity; from: ${0.3 + Math.random()*0.7}; to: ${Math.random()*0.5}; dir: alternate; dur: ${1000+Math.random()*3000}; loop: true`);
         starsEl.appendChild(star);
@@ -136,11 +248,26 @@
     }
     createStars();
 
-    function setScene(name) {
+    function applySkyTexture(name) {
+      const skyObj = sky.getObject3D('mesh');
+      if (skyObj && skyObj.material) {
+        skyObj.material = new THREE.MeshBasicMaterial({
+          map: skyTextures[name],
+          side: THREE.BackSide,
+        });
+        skyObj.material.needsUpdate = true;
+      } else {
+        // Fallback: wait for sky mesh to be ready
+        setTimeout(() => applySkyTexture(name), 200);
+      }
+    }
+
+    function setScene(name, btn) {
       const cfg = SCENES[name];
       if (!cfg) return;
 
-      sky.setAttribute('animation__color', `property: material.color; to: ${cfg.skyColor}; dur: 1000`);
+      // Apply canvas texture to sky
+      applySkyTexture(name);
 
       // Toggle stars
       starsEl.setAttribute('visible', cfg.showStars);
@@ -150,7 +277,7 @@
       cfg.objects.forEach(obj => {
         const el = document.createElement('a-entity');
         el.setAttribute('geometry', `primitive: ${obj.geo}${obj.geo === 'torus' ? '; radius: 1; radiusTubular: 0.05' : ''}`);
-        el.setAttribute('material', obj.mat || `color: ${obj.color}`);
+        el.setAttribute('material', obj.mat || `shader: flat; color: ${obj.color}`);
         el.setAttribute('position', obj.pos);
         if (obj.scale) el.setAttribute('scale', obj.scale);
         if (obj.rot) el.setAttribute('rotation', obj.rot);
@@ -159,9 +286,16 @@
       });
 
       // Update button states
-      document.querySelectorAll('#scene-buttons button').forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
+      document.querySelectorAll('#scene-buttons button').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
     }
+
+    // Apply initial scene once a-scene is loaded
+    document.querySelector('a-scene').addEventListener('loaded', () => {
+      applySkyTexture('space');
+    });
+    // Fallback if loaded already fired
+    setTimeout(() => applySkyTexture('space'), 500);
 
     function toggleVR() {
       const scene = document.querySelector('a-scene');
