@@ -79,15 +79,18 @@
     <button onclick="setEffect('off')">Off</button>
   </div>
 
-  <div id="fallback-notice">
-    <div class="title">⚠️ ハンドトラッキング未対応</div>
-    このデバイスまたはエンジンビルドではハンドトラッキングが利用できません。<br>
-    ハンドトラッキングには 8th Wall クラウドエンジン（有料）が必要な場合があります。
+  <div id="fallback-notice" style="display: flex;">
+    <div class="title">Hand Tracking について</div>
+    8th Wall オープンソース版では<br>Hand Trackingは現在非対応です。<br><br>
+    対応予定: 8thwall.org の<br>アップデートをお待ちください。
     <div class="note">
-      オープンソース版エンジンでは hand チャンクが含まれていない可能性があります。<br>
-      対応状況: iOS Safari (一部), Android Chrome (一部)
+      クラウド版 8th Wall（有料）では利用可能です。<br>
+      このデモはエンジン更新後に有効になります。
     </div>
-    <button onclick="this.parentElement.style.display='none'">閉じる</button>
+    <a href="/templates/" style="display:block; margin-top:16px; padding:10px 24px; border:none;
+      border-radius:8px; background:#00f0ff; color:#000; font-size:14px; font-weight:700;
+      cursor:pointer; text-decoration:none; text-align:center;">デモ一覧に戻る</a>
+    <button onclick="this.parentElement.style.display='none'" style="margin-top:8px;">このまま試す（非対応）</button>
   </div>
 
   <a-scene
