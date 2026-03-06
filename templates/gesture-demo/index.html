@@ -31,12 +31,6 @@
       border: 1px solid rgba(255,255,255,0.3);
       min-height: 44px; display: flex; align-items: center;
     }
-    #debug-info {
-      position: fixed; top: 60px; left: 10px; z-index: 999;
-      background: rgba(0,0,0,0.5); color: #0f0; padding: 4px 8px;
-      border-radius: 6px; font-size: 11px; font-family: monospace;
-      pointer-events: none;
-    }
   </style>
 <style>
   #help-btn {
@@ -98,7 +92,6 @@
     </div>
   </div>
 
-  <div id="debug-info"></div>
   <div id="instructions">地面をタップして砂の城を配置</div>
   <div id="gesture-hint" style="display:none;">
     <span class="hint-tag">1本指ドラッグ: 移動</span>
@@ -275,22 +268,6 @@
       lastRotateAngle = null;
     }, { passive: true });
 
-    // Debug display update
-    setInterval(function() {
-      var dbg = document.getElementById('debug-info');
-      if (!targetObj) {
-        dbg.textContent = 'T: ' + activeTouchCount + ' | waiting for placement';
-        return;
-      }
-      var s = targetObj.getAttribute('scale');
-      var r = targetObj.getAttribute('rotation');
-      var p = targetObj.getAttribute('position');
-      dbg.textContent =
-        'S: ' + s.x.toFixed(2) +
-        ' | R: ' + r.y.toFixed(0) +
-        ' | P: ' + p.x.toFixed(1) + ',' + p.y.toFixed(1) + ',' + p.z.toFixed(1) +
-        ' | T: ' + activeTouchCount;
-    }, 100);
   </script>
 
   <script>
