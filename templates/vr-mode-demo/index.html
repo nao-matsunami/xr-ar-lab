@@ -112,106 +112,228 @@
     <a-camera look-controls="magicWindowTrackingEnabled: true; touchEnabled: true"
       wasd-controls="enabled: false"></a-camera>
 
-    <a-sky id="sky" color="#000022"></a-sky>
+    <a-sky id="sky" color="#000005"></a-sky>
 
-    <!-- Stars -->
+    <!-- Stars container -->
     <a-entity id="stars"></a-entity>
 
-    <!-- Scene objects -->
+    <!-- Scene objects container -->
     <a-entity id="scene-objects"></a-entity>
   </a-scene>
 
   <script>
-    const sky = document.getElementById('sky');
-    const starsEl = document.getElementById('stars');
-    const objectsEl = document.getElementById('scene-objects');
+    var sky = document.getElementById('sky');
+    var starsEl = document.getElementById('stars');
+    var objectsEl = document.getElementById('scene-objects');
 
-    const SCENES = {
-      space: {
-        skyColor: '#000022',
-        objects: [
-          { geo: 'sphere', color: '#FFD700', pos: '0 3 -8', scale: '0.5 0.5 0.5', mat: 'shader: flat', anim: 'property: rotation; to: 0 360 0; dur: 20000; loop: true; easing: linear' },
-          { geo: 'sphere', color: '#CD853F', pos: '-5 1 -6', scale: '0.8 0.8 0.8', mat: 'shader: flat', anim: 'property: rotation; to: 0 360 15; dur: 30000; loop: true; easing: linear' },
-          { geo: 'torus', color: '#B8860B', pos: '-5 1 -6', scale: '1.2 1.2 0.1', rot: '30 0 0', mat: 'shader: flat', anim: 'property: rotation; to: 30 360 0; dur: 25000; loop: true; easing: linear' },
-          { geo: 'sphere', color: '#4169E1', pos: '6 -1 -7', scale: '1.2 1.2 1.2', mat: 'shader: flat', anim: 'property: position; dir: alternate; dur: 8000; loop: true; to: 6 0 -7; easing: easeInOutSine' },
-        ],
-        showStars: true
-      },
-      sunset: {
-        skyColor: '#FF6B35',
-        objects: [
-          { geo: 'sphere', color: '#FFD700', pos: '0 -2 -15', scale: '4 4 4', mat: 'shader: flat' },
-          { geo: 'plane', color: '#1a0a2e', pos: '0 -3 0', rot: '-90 0 0', scale: '100 100 1', mat: 'shader: flat' },
-        ],
-        showStars: false
-      },
-      aurora: {
-        skyColor: '#0a1628',
-        objects: [
-          { geo: 'plane', color: '#00ff88', pos: '-3 6 -10', scale: '8 0.3 1', mat: 'shader: flat; opacity: 0.4; transparent: true', anim: 'property: position; dir: alternate; dur: 5000; loop: true; to: 3 7 -10; easing: easeInOutSine' },
-          { geo: 'plane', color: '#00ccff', pos: '2 5 -10', scale: '6 0.2 1', mat: 'shader: flat; opacity: 0.3; transparent: true', anim: 'property: position; dir: alternate; dur: 7000; loop: true; to: -2 6 -10; easing: easeInOutSine' },
-          { geo: 'plane', color: '#ff00ff', pos: '0 7 -10', scale: '5 0.15 1', mat: 'shader: flat; opacity: 0.25; transparent: true', anim: 'property: position; dir: alternate; dur: 4000; loop: true; to: 1 8 -10; easing: easeInOutSine' },
-        ],
-        showStars: true
-      },
-      neon: {
-        skyColor: '#0a0015',
-        objects: [
-          { geo: 'box', color: '#ff00ff', pos: '-4 2 -6', scale: '0.5 4 0.5', mat: 'shader: flat', anim: 'property: material.color; from: #ff00ff; to: #00ffff; dir: alternate; dur: 2000; loop: true' },
-          { geo: 'box', color: '#00ffff', pos: '4 1.5 -6', scale: '0.5 3 0.5', mat: 'shader: flat', anim: 'property: material.color; from: #00ffff; to: #ff00ff; dir: alternate; dur: 3000; loop: true' },
-          { geo: 'torus', color: '#ff0066', pos: '0 3 -8', scale: '2 2 2', mat: 'shader: flat', anim: 'property: rotation; to: 0 360 360; dur: 10000; loop: true; easing: linear' },
-          { geo: 'box', color: '#ffff00', pos: '-2 0.5 -4', scale: '0.3 1 0.3', mat: 'shader: flat', anim: 'property: material.color; from: #ffff00; to: #ff6600; dir: alternate; dur: 1500; loop: true' },
-          { geo: 'box', color: '#00ff66', pos: '2 0.5 -4', scale: '0.3 1 0.3', mat: 'shader: flat', anim: 'property: material.color; from: #00ff66; to: #0066ff; dir: alternate; dur: 1800; loop: true' },
-        ],
-        showStars: false
-      }
-    };
-
-    // Generate star entities
-    function createStars() {
-      for (var i = 0; i < 200; i++) {
+    // ============ Star generation ============
+    function createStars(count) {
+      starsEl.innerHTML = '';
+      for (var i = 0; i < count; i++) {
         var star = document.createElement('a-sphere');
         var theta = Math.random() * Math.PI * 2;
         var phi = Math.random() * Math.PI;
         var r = 30 + Math.random() * 20;
-        star.setAttribute('position', (r*Math.sin(phi)*Math.cos(theta)).toFixed(2) + ' ' + (r*Math.cos(phi)).toFixed(2) + ' ' + (r*Math.sin(phi)*Math.sin(theta)).toFixed(2));
-        star.setAttribute('radius', (0.03 + Math.random() * 0.06).toFixed(3));
+        var x = r * Math.sin(phi) * Math.cos(theta);
+        var y = r * Math.cos(phi);
+        var z = r * Math.sin(phi) * Math.sin(theta);
+        star.setAttribute('position', x.toFixed(2) + ' ' + y.toFixed(2) + ' ' + z.toFixed(2));
+        star.setAttribute('radius', (0.01 + Math.random() * 0.04).toFixed(3));
         star.setAttribute('material', 'shader: flat; color: #ffffff');
-        var fromOpacity = (0.3 + Math.random() * 0.7).toFixed(2);
-        var toOpacity = (Math.random() * 0.5).toFixed(2);
-        var dur = Math.round(1000 + Math.random() * 3000);
-        star.setAttribute('animation', 'property: material.opacity; from: ' + fromOpacity + '; to: ' + toOpacity + '; dir: alternate; dur: ' + dur + '; loop: true');
+        var fromOp = (0.4 + Math.random() * 0.6).toFixed(2);
+        var toOp = (Math.random() * 0.3).toFixed(2);
+        var dur = Math.round(800 + Math.random() * 3000);
+        star.setAttribute('animation', 'property: material.opacity; from: ' + fromOp + '; to: ' + toOp + '; dir: alternate; dur: ' + dur + '; loop: true');
         starsEl.appendChild(star);
       }
     }
-    createStars();
 
-    function setScene(name, btn) {
-      var cfg = SCENES[name];
-      if (!cfg) return;
-
-      // Set sky color directly
-      sky.setAttribute('color', cfg.skyColor);
-
-      // Toggle stars
-      starsEl.setAttribute('visible', cfg.showStars);
-
-      // Replace scene objects
+    // ============ Scene definitions ============
+    function buildSpace() {
+      sky.setAttribute('color', '#000005');
+      createStars(250);
+      starsEl.setAttribute('visible', true);
       objectsEl.innerHTML = '';
-      cfg.objects.forEach(function(obj) {
-        var el = document.createElement('a-entity');
-        var geoStr = 'primitive: ' + obj.geo;
-        if (obj.geo === 'torus') geoStr += '; radius: 1; radiusTubular: 0.05';
-        el.setAttribute('geometry', geoStr);
-        el.setAttribute('material', obj.mat || ('shader: flat; color: ' + obj.color));
-        el.setAttribute('position', obj.pos);
-        if (obj.scale) el.setAttribute('scale', obj.scale);
-        if (obj.rot) el.setAttribute('rotation', obj.rot);
-        if (obj.anim) el.setAttribute('animation', obj.anim);
-        objectsEl.appendChild(el);
-      });
 
-      // Update buttons
+      // Blue planet
+      var planet1 = '<a-sphere position="8 2 -20" radius="3" color="#2244aa" material="shader: flat" ' +
+        'animation="property: rotation; to: 0 360 10; dur: 40000; loop: true; easing: linear"></a-sphere>';
+      // Red planet
+      var planet2 = '<a-sphere position="-12 -3 -18" radius="2" color="#aa3322" material="shader: flat" ' +
+        'animation="property: rotation; to: 0 360 -5; dur: 30000; loop: true; easing: linear"></a-sphere>';
+      // Saturn with ring
+      var saturn = '<a-entity position="-6 5 -15" animation="property: rotation; to: 10 360 0; dur: 50000; loop: true; easing: linear">' +
+        '<a-sphere radius="1.8" color="#C4A265" material="shader: flat"></a-sphere>' +
+        '<a-torus radius="3" radius-tubular="0.08" rotation="75 0 0" color="#B8860B" material="shader: flat; opacity: 0.6; transparent: true" segments-tubular="48"></a-torus>' +
+        '</a-entity>';
+      // Nebula clouds (large semi-transparent spheres)
+      var nebula1 = '<a-sphere position="15 8 -25" radius="6" material="shader: flat; color: #4400aa; opacity: 0.12; transparent: true"></a-sphere>';
+      var nebula2 = '<a-sphere position="-20 -5 -30" radius="8" material="shader: flat; color: #aa0044; opacity: 0.08; transparent: true"></a-sphere>';
+      var nebula3 = '<a-sphere position="5 -10 -22" radius="5" material="shader: flat; color: #0044aa; opacity: 0.1; transparent: true"></a-sphere>';
+      // Small golden star
+      var star1 = '<a-sphere position="0 3 -8" radius="0.3" color="#FFD700" material="shader: flat" ' +
+        'animation="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dir: alternate; dur: 1000; loop: true"></a-sphere>';
+
+      objectsEl.innerHTML = planet1 + planet2 + saturn + nebula1 + nebula2 + nebula3 + star1;
+    }
+
+    function buildSunset() {
+      sky.setAttribute('color', '#ff6b35');
+      createStars(0);
+      starsEl.setAttribute('visible', false);
+      objectsEl.innerHTML = '';
+
+      // Sun
+      var sun = '<a-sphere position="0 -1 -20" radius="5" color="#FFD700" material="shader: flat">' +
+        '</a-sphere>';
+      // Sun glow
+      var glow = '<a-sphere position="0 -1 -20" radius="7" material="shader: flat; color: #FF8C00; opacity: 0.3; transparent: true"></a-sphere>';
+      // Ground
+      var ground = '<a-plane position="0 -3 0" rotation="-90 0 0" width="200" height="200" color="#8B4513" material="shader: flat"></a-plane>';
+      // Clouds
+      var clouds = '';
+      var cloudPositions = [
+        {x:-8, y:4, z:-12, sx:4, sy:0.4, sz:2},
+        {x:6, y:5, z:-15, sx:5, sy:0.3, sz:2.5},
+        {x:-3, y:6, z:-18, sx:6, sy:0.35, sz:3},
+        {x:10, y:3.5, z:-10, sx:3.5, sy:0.3, sz:1.8},
+        {x:-12, y:5.5, z:-14, sx:4.5, sy:0.35, sz:2.2},
+      ];
+      for (var i = 0; i < cloudPositions.length; i++) {
+        var c = cloudPositions[i];
+        var dur = 15000 + Math.random() * 20000;
+        var toX = c.x + (Math.random() > 0.5 ? 5 : -5);
+        clouds += '<a-box position="' + c.x + ' ' + c.y + ' ' + c.z + '" ' +
+          'scale="' + c.sx + ' ' + c.sy + ' ' + c.sz + '" ' +
+          'material="shader: flat; color: #ffccaa; opacity: 0.4; transparent: true" ' +
+          'animation="property: position; to: ' + toX + ' ' + c.y + ' ' + c.z + '; dir: alternate; dur: ' + Math.round(dur) + '; loop: true; easing: easeInOutSine">' +
+          '</a-box>';
+      }
+      // Birds (small dark triangles moving across)
+      var bird1 = '<a-entity position="-15 6 -8" animation="property: position; to: 15 7 -10; dur: 25000; loop: true; easing: linear">' +
+        '<a-triangle color="#333" vertex-a="0 0 0" vertex-b="-0.3 0.15 0" vertex-c="-0.15 0 0" material="shader: flat"></a-triangle>' +
+        '</a-entity>';
+
+      objectsEl.innerHTML = sun + glow + ground + clouds + bird1;
+    }
+
+    function buildAurora() {
+      sky.setAttribute('color', '#001a0a');
+      createStars(80);
+      starsEl.setAttribute('visible', true);
+      objectsEl.innerHTML = '';
+
+      // Aurora bands — large semi-transparent planes with wave animations
+      var auroraBands = '';
+      var bandConfigs = [
+        { color: '#00ff88', y: 8, z: -15, sx: 20, sy: 3, opacity: 0.2, dur: 6000, toY: 9 },
+        { color: '#00ccff', y: 6, z: -12, sx: 18, sy: 2.5, opacity: 0.18, dur: 8000, toY: 7.5 },
+        { color: '#8B5CF6', y: 10, z: -18, sx: 22, sy: 2, opacity: 0.15, dur: 5000, toY: 11 },
+        { color: '#00ff88', y: 7, z: -20, sx: 15, sy: 4, opacity: 0.12, dur: 7000, toY: 8.5 },
+        { color: '#00aaff', y: 9, z: -14, sx: 16, sy: 2, opacity: 0.16, dur: 9000, toY: 10 },
+      ];
+      for (var i = 0; i < bandConfigs.length; i++) {
+        var b = bandConfigs[i];
+        var xOff = (i - 2) * 3;
+        auroraBands += '<a-plane position="' + xOff + ' ' + b.y + ' ' + b.z + '" ' +
+          'width="' + b.sx + '" height="' + b.sy + '" ' +
+          'material="shader: flat; color: ' + b.color + '; opacity: ' + b.opacity + '; transparent: true; side: double" ' +
+          'animation="property: position; to: ' + (xOff + 2) + ' ' + b.toY + ' ' + b.z + '; dir: alternate; dur: ' + b.dur + '; loop: true; easing: easeInOutSine" ' +
+          'animation__scale="property: scale; from: 1 1 1; to: 1.1 1.3 1; dir: alternate; dur: ' + (b.dur + 2000) + '; loop: true; easing: easeInOutSine" ' +
+          'animation__opacity="property: material.opacity; from: ' + b.opacity + '; to: ' + (b.opacity * 1.8).toFixed(2) + '; dir: alternate; dur: ' + (b.dur + 1000) + '; loop: true">' +
+          '</a-plane>';
+      }
+
+      // Snowy ground
+      var ground = '<a-plane position="0 -2 0" rotation="-90 0 0" width="200" height="200" color="#1a2a3a" material="shader: flat"></a-plane>';
+
+      // Distant mountains
+      var mountains = '';
+      for (var m = 0; m < 8; m++) {
+        var mx = -20 + m * 5 + Math.random() * 3;
+        var mh = 2 + Math.random() * 3;
+        mountains += '<a-cone position="' + mx + ' ' + (mh / 2 - 2) + ' -25" radius-bottom="' + (1.5 + Math.random() * 2) + '" radius-top="0" height="' + mh + '" color="#0a1520" material="shader: flat"></a-cone>';
+      }
+
+      objectsEl.innerHTML = auroraBands + ground + mountains;
+    }
+
+    function buildNeon() {
+      sky.setAttribute('color', '#0d0d1a');
+      createStars(0);
+      starsEl.setAttribute('visible', false);
+      objectsEl.innerHTML = '';
+
+      // Neon grid floor
+      var gridLines = '';
+      for (var gi = -10; gi <= 10; gi++) {
+        // X lines
+        gridLines += '<a-box position="' + gi + ' -0.01 0" scale="0.02 0.01 20" color="#ff00ff" material="shader: flat; opacity: 0.3; transparent: true"></a-box>';
+        // Z lines
+        gridLines += '<a-box position="0 -0.01 ' + gi + '" scale="20 0.01 0.02" color="#00ffff" material="shader: flat; opacity: 0.3; transparent: true"></a-box>';
+      }
+
+      // Neon torus rings
+      var torus1 = '<a-torus position="0 4 -8" radius="2" radius-tubular="0.05" color="#ff0066" ' +
+        'material="shader: flat; emissive: #ff0066; emissiveIntensity: 0.5" ' +
+        'animation="property: rotation; to: 360 360 0; dur: 8000; loop: true; easing: linear"></a-torus>';
+      var torus2 = '<a-torus position="0 4 -8" radius="2.5" radius-tubular="0.04" color="#00ffff" ' +
+        'material="shader: flat; emissive: #00ffff; emissiveIntensity: 0.5" rotation="90 0 0" ' +
+        'animation="property: rotation; to: 90 360 360; dur: 12000; loop: true; easing: linear"></a-torus>';
+
+      // Floating neon spheres
+      var spheres = '';
+      var sphereConfigs = [
+        { x: -4, y: 3, z: -5, r: 0.4, color: '#ff00ff', dur: 3000, toY: 4.5 },
+        { x: 4, y: 2, z: -6, r: 0.3, color: '#00ffff', dur: 4000, toY: 3.5 },
+        { x: -2, y: 5, z: -7, r: 0.5, color: '#ffff00', dur: 3500, toY: 6 },
+        { x: 3, y: 4, z: -4, r: 0.25, color: '#ff6600', dur: 2500, toY: 5.5 },
+        { x: -5, y: 1.5, z: -8, r: 0.35, color: '#00ff66', dur: 4500, toY: 3 },
+        { x: 6, y: 3.5, z: -9, r: 0.45, color: '#ff3399', dur: 5000, toY: 5 },
+      ];
+      for (var si = 0; si < sphereConfigs.length; si++) {
+        var sc = sphereConfigs[si];
+        spheres += '<a-sphere position="' + sc.x + ' ' + sc.y + ' ' + sc.z + '" radius="' + sc.r + '" ' +
+          'color="' + sc.color + '" material="shader: flat; emissive: ' + sc.color + '; emissiveIntensity: 0.3" ' +
+          'animation="property: position; to: ' + sc.x + ' ' + sc.toY + ' ' + sc.z + '; dir: alternate; dur: ' + sc.dur + '; loop: true; easing: easeInOutSine" ' +
+          'animation__pulse="property: scale; from: 1 1 1; to: 1.2 1.2 1.2; dir: alternate; dur: ' + (sc.dur / 2) + '; loop: true"></a-sphere>';
+      }
+
+      // Neon pillars
+      var pillars = '';
+      var pillarConfigs = [
+        { x: -4, z: -6, h: 5, color: '#ff00ff', toColor: '#00ffff' },
+        { x: 4, z: -6, h: 4, color: '#00ffff', toColor: '#ff00ff' },
+        { x: -7, z: -10, h: 6, color: '#ffff00', toColor: '#ff6600' },
+        { x: 7, z: -10, h: 3.5, color: '#00ff66', toColor: '#0066ff' },
+      ];
+      for (var pi = 0; pi < pillarConfigs.length; pi++) {
+        var pc = pillarConfigs[pi];
+        pillars += '<a-box position="' + pc.x + ' ' + (pc.h / 2) + ' ' + pc.z + '" ' +
+          'scale="0.3 ' + pc.h + ' 0.3" color="' + pc.color + '" ' +
+          'material="shader: flat; emissive: ' + pc.color + '; emissiveIntensity: 0.4" ' +
+          'animation="property: material.color; from: ' + pc.color + '; to: ' + pc.toColor + '; dir: alternate; dur: 2000; loop: true" ' +
+          'animation__emissive="property: material.emissive; from: ' + pc.color + '; to: ' + pc.toColor + '; dir: alternate; dur: 2000; loop: true">' +
+          '</a-box>';
+      }
+
+      // Diamond shape
+      var diamond = '<a-octahedron position="0 2 -5" radius="0.6" color="#ffffff" ' +
+        'material="shader: flat; emissive: #ffffff; emissiveIntensity: 0.3; opacity: 0.8; transparent: true" ' +
+        'animation="property: rotation; to: 0 360 180; dur: 6000; loop: true; easing: linear" ' +
+        'animation__float="property: position; to: 0 3 -5; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine"></a-octahedron>';
+
+      objectsEl.innerHTML = gridLines + torus1 + torus2 + spheres + pillars + diamond;
+    }
+
+    // ============ Scene switching ============
+    function setScene(name, btn) {
+      switch (name) {
+        case 'space': buildSpace(); break;
+        case 'sunset': buildSunset(); break;
+        case 'aurora': buildAurora(); break;
+        case 'neon': buildNeon(); break;
+      }
       document.querySelectorAll('#scene-buttons button').forEach(function(b) {
         b.classList.remove('active');
       });
@@ -229,6 +351,12 @@
 
     window.setScene = setScene;
     window.toggleVR = toggleVR;
+
+    // Initial scene
+    document.querySelector('a-scene').addEventListener('loaded', function() {
+      buildSpace();
+    });
+    setTimeout(function() { buildSpace(); }, 1000);
   </script>
 
   <script>
