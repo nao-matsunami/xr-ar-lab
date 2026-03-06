@@ -38,6 +38,15 @@
   </style>
 </head>
 <body>
+
+  <!-- Unified Error Overlay -->
+  <div id="error-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center; padding:20px; box-sizing:border-box;">
+    <div style="font-size:48px; margin-bottom:16px;" id="error-icon"></div>
+    <div style="font-size:20px; font-weight:bold; margin-bottom:12px;" id="error-title">Error</div>
+    <div style="font-size:14px; line-height:1.6; max-width:300px; white-space:pre-line;" id="error-message"></div>
+    <button onclick="location.reload()" style="margin-top:24px; padding:12px 24px; background:#fff; color:#000; border:none; border-radius:8px; font-size:16px; cursor:pointer;">再試行</button>
+    <a href="/templates/" style="margin-top:12px; color:#aaa; font-size:14px; text-decoration:none;">デモ一覧に戻る</a>
+  </div>
   <div id="info">地面をタップしてオーディオソースを配置<br><small>カメラを向けると音が大きくなります</small></div>
   <button id="start-btn" onclick="startAudio()">🔊 オーディオ開始</button>
   <div id="audio-info">
@@ -206,6 +215,29 @@
         }
       }, 50);
     });
+  </script>
+
+  <script>
+    // Unified error handling
+    function showError(type) {
+      var messages = {
+        camera: { icon: '📷', title: 'カメラへのアクセスが必要です', message: 'ブラウザの設定からカメラのアクセスを許可してください。\n\nSettings > Safari/Chrome > Camera > Allow' },
+        gps: { icon: '📍', title: '位置情報へのアクセスが必要です', message: 'このデモはGPS位置情報を使用します。\nブラウザの設定から位置情報のアクセスを許可してください。' },
+        browser: { icon: '🌐', title: 'ブラウザが対応していません', message: 'このARデモはiOS Safari またはAndroid Chromeでご利用ください。\n\niOS: Safari最新版\nAndroid: Chrome最新版' },
+        https: { icon: '🔒', title: 'HTTPSが必要です', message: 'このデモはHTTPS環境が必要です。\nhttps://xr-ar-lab.netlify.app からアクセスしてください。' }
+      };
+      var m = messages[type] || messages.browser;
+      document.getElementById('error-icon').textContent = m.icon;
+      document.getElementById('error-title').textContent = m.title;
+      document.getElementById('error-message').textContent = m.message;
+      document.getElementById('error-overlay').style.display = 'flex';
+    }
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      showError('https');
+    }
+    if (typeof navigator.mediaDevices === 'undefined' || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      showError('browser');
+    }
   </script>
 </body>
 </html>
