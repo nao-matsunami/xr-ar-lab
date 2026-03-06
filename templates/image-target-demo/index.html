@@ -166,16 +166,6 @@
     <a-light type="directional" intensity="0.5" position="1 1 1"></a-light>
     <a-light type="ambient" intensity="1"></a-light>
 
-    <!--
-      Image Target の使い方:
-      1. compile-targets.mjs でターゲット画像をコンパイル（既存サンプル画像あり）
-         node compile-targets.mjs
-      2. image-targets/ に JSON と処理済み画像が出力される
-      3. 上部の onxrloaded 内の imageTargetData 配列を更新する
-      4. <xrextras-named-image-target> の name を JSON の name と一致させる
-      5. target-display.html でターゲット画像を確認・印刷
-    -->
-
     <!-- ターゲット 1: 3Dオブジェクト表示 -->
     <xrextras-named-image-target name="sample-target-1">
       <a-entity>
