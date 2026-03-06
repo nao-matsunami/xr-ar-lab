@@ -81,7 +81,7 @@
     let placed = false;
     let particleInterval = null;
     let particles = [];
-    const MAX_PARTICLES = 80;
+    const MAX_PARTICLES = 200;
 
     function setEffect(name) {
       currentEffect = name;
@@ -105,30 +105,31 @@
         case 'rain':
           return {
             color: '#4FC3F7',
-            size: { w: 0.005, h: 0.04 },
+            size: { w: 0.015, h: 0.15 },
             shape: 'box',
-            speed: 0.06,
-            spread: 1.5,
-            startY: 2.5,
+            speed: 0.12,
+            spread: 2.5,
+            startY: 3.5,
             gravity: true
           };
         case 'snow':
           return {
             color: '#FFFFFF',
-            size: { r: 0.015 },
+            size: { r: 0.04 },
             shape: 'sphere',
-            speed: 0.01,
-            spread: 2,
-            startY: 2.5,
-            gravity: false
+            speed: 0.008,
+            spread: 3,
+            startY: 3.5,
+            gravity: false,
+            wobble: true
           };
         case 'fire':
           return {
-            colors: ['#FF4500', '#FF6347', '#FFD700', '#FF8C00'],
-            size: { r: 0.03 },
+            colors: ['#FF4500', '#FF6347', '#FFD700', '#FF8C00', '#FF2200'],
+            size: { r: 0.08 },
             shape: 'sphere',
-            speed: 0.03,
-            spread: 0.3,
+            speed: 0.04,
+            spread: 0.5,
             startY: 0,
             gravity: false,
             goUp: true
@@ -166,9 +167,11 @@
       const targetY = cfg.goUp ? oy + 2 : origin.y;
       const dur = cfg.goUp ? 1500 + Math.random() * 1000 : (2000 / cfg.speed) + Math.random() * 500;
 
+      const driftX = cfg.wobble ? (Math.random() - 0.5) * 1.0 : (Math.random() - 0.5) * 0.3;
+      const driftZ = cfg.wobble ? (Math.random() - 0.5) * 1.0 : (Math.random() - 0.5) * 0.3;
       el.setAttribute('animation', {
         property: 'position',
-        to: `${ox + (Math.random() - 0.5) * 0.3} ${targetY} ${oz + (Math.random() - 0.5) * 0.3}`,
+        to: `${ox + driftX} ${targetY} ${oz + driftZ}`,
         dur: dur,
         easing: cfg.gravity ? 'easeInQuad' : 'linear'
       });
@@ -217,7 +220,7 @@
       if (particleInterval) clearInterval(particleInterval);
       particleInterval = setInterval(() => {
         if (effectOrigin) {
-          for (let i = 0; i < 3; i++) spawnParticle(effectOrigin);
+          for (let i = 0; i < 8; i++) spawnParticle(effectOrigin);
         }
       }, 100);
     });
