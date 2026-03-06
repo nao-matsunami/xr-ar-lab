@@ -78,31 +78,37 @@
     <a-entity xrlayerscene="name: sky; edgeSmoothness: 0.6">
 
       <!-- 空の背景（切り替え可能） -->
-      <a-sky id="sky-bg" color="#0a0a2e"></a-sky>
+      <a-sky id="sky-bg" color="#0f1555"></a-sky>
 
       <!-- 浮遊するオブジェクト群 -->
       <a-entity id="sky-objects-space">
-        <!-- 星々 -->
-        <a-sphere position="5 15 -20" radius="0.3" color="#FFFFFF"
+        <!-- 星々（大きく明るく） -->
+        <a-sphere position="5 15 -20" radius="0.5" color="#FFFFFF"
                   material="shader: flat"
                   animation="property: position; to: 5 16 -20; dir: alternate; loop: true; dur: 3000; easing: easeInOutSine"></a-sphere>
-        <a-sphere position="-8 20 -15" radius="0.2" color="#FFFFCC"
+        <a-sphere position="-8 20 -15" radius="0.4" color="#FFFFCC"
                   material="shader: flat"
                   animation="property: position; to: -8 21 -15; dir: alternate; loop: true; dur: 2500; easing: easeInOutSine"></a-sphere>
-        <a-sphere position="12 18 -25" radius="0.15" color="#CCCCFF"
+        <a-sphere position="12 18 -25" radius="0.35" color="#CCCCFF"
                   material="shader: flat"
                   animation="property: position; to: 12 19 -25; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine"></a-sphere>
+        <a-sphere position="-12 22 -18" radius="0.3" color="#FFFFFF"
+                  material="shader: flat"
+                  animation="property: material.opacity; from: 1; to: 0.3; dir: alternate; loop: true; dur: 2000"></a-sphere>
+        <a-sphere position="8 25 -22" radius="0.25" color="#FFFFEE"
+                  material="shader: flat"
+                  animation="property: material.opacity; from: 0.8; to: 0.2; dir: alternate; loop: true; dur: 3500"></a-sphere>
 
-        <!-- 惑星 -->
-        <a-sphere position="0 12 -18" radius="2" color="#AD50FF"
+        <!-- 惑星（大きく） -->
+        <a-sphere position="0 12 -18" radius="3" color="#AD50FF"
                   material="shader: flat"
                   animation="property: rotation; to: 0 360 0; loop: true; dur: 20000; easing: linear"></a-sphere>
-        <a-torus position="0 12 -18" radius="3" radius-tubular="0.1"
+        <a-torus position="0 12 -18" radius="4.5" radius-tubular="0.15"
                  rotation="75 0 0" color="#E8A0FF"
-                 material="shader: flat; opacity: 0.7"></a-torus>
+                 material="shader: flat; opacity: 0.8"></a-torus>
 
         <!-- 流れ星 -->
-        <a-sphere position="-15 25 -30" radius="0.1" color="#FFFFFF"
+        <a-sphere position="-15 25 -30" radius="0.2" color="#FFFFFF"
                   material="shader: flat"
                   animation="property: position; to: 15 5 -10; loop: true; dur: 2000; easing: linear;
                              delay: 3000"></a-sphere>
@@ -110,57 +116,74 @@
 
       <!-- 夕焼けオブジェクト（初期非表示） -->
       <a-entity id="sky-objects-sunset" visible="false">
-        <a-sphere position="0 8 -30" radius="5" color="#FF6B35"
-                  material="shader: flat; opacity: 0.9"></a-sphere>
-        <!-- 雲 -->
-        <a-box position="-10 14 -20" scale="8 1.5 3" color="#FF9F6B"
-               material="shader: flat; opacity: 0.6"
+        <!-- 太陽（大きく明るく） -->
+        <a-sphere position="0 8 -30" radius="7" color="#FFD700"
+                  material="shader: flat; opacity: 1"></a-sphere>
+        <a-sphere position="0 8 -30" radius="9" color="#FF6B35"
+                  material="shader: flat; opacity: 0.4; transparent: true"></a-sphere>
+        <!-- 雲（大きく鮮やかに） -->
+        <a-box position="-10 14 -20" scale="12 2 4" color="#FF9F6B"
+               material="shader: flat; opacity: 0.7"
                animation="property: position; to: -6 14 -20; dir: alternate; loop: true; dur: 8000; easing: easeInOutSine"></a-box>
-        <a-box position="8 16 -22" scale="6 1 2.5" color="#FFB88C"
-               material="shader: flat; opacity: 0.5"
+        <a-box position="8 16 -22" scale="10 1.5 3.5" color="#FFB88C"
+               material="shader: flat; opacity: 0.6"
                animation="property: position; to: 12 16 -22; dir: alternate; loop: true; dur: 10000; easing: easeInOutSine"></a-box>
+        <a-box position="-4 18 -25" scale="8 1 3" color="#FF7F50"
+               material="shader: flat; opacity: 0.5"
+               animation="property: position; to: 0 18 -25; dir: alternate; loop: true; dur: 12000; easing: easeInOutSine"></a-box>
       </a-entity>
 
       <!-- オーロラオブジェクト（初期非表示） -->
       <a-entity id="sky-objects-aurora" visible="false">
-        <!-- オーロラ帯 -->
-        <a-plane position="0 18 -25" width="40" height="8" color="#00FF88"
-                 material="shader: flat; opacity: 0.3; side: double"
+        <!-- オーロラ帯（より明るく幅広く） -->
+        <a-plane position="0 18 -25" width="50" height="10" color="#00FF88"
+                 material="shader: flat; opacity: 0.5; side: double; transparent: true"
                  rotation="10 0 5"
-                 animation="property: material.opacity; from: 0.2; to: 0.5; dir: alternate; loop: true; dur: 3000"></a-plane>
-        <a-plane position="5 20 -28" width="35" height="6" color="#00BFFF"
-                 material="shader: flat; opacity: 0.25; side: double"
+                 animation="property: material.opacity; from: 0.3; to: 0.7; dir: alternate; loop: true; dur: 3000"></a-plane>
+        <a-plane position="5 20 -28" width="45" height="8" color="#00BFFF"
+                 material="shader: flat; opacity: 0.4; side: double; transparent: true"
                  rotation="-5 10 -3"
-                 animation="property: material.opacity; from: 0.15; to: 0.4; dir: alternate; loop: true; dur: 4000; delay: 500"></a-plane>
-        <a-plane position="-3 16 -22" width="30" height="5" color="#8B5CF6"
-                 material="shader: flat; opacity: 0.2; side: double"
+                 animation="property: material.opacity; from: 0.25; to: 0.6; dir: alternate; loop: true; dur: 4000; delay: 500"></a-plane>
+        <a-plane position="-3 16 -22" width="40" height="7" color="#8B5CF6"
+                 material="shader: flat; opacity: 0.35; side: double; transparent: true"
                  rotation="8 -5 2"
-                 animation="property: material.opacity; from: 0.1; to: 0.35; dir: alternate; loop: true; dur: 3500; delay: 1000"></a-plane>
+                 animation="property: material.opacity; from: 0.2; to: 0.55; dir: alternate; loop: true; dur: 3500; delay: 1000"></a-plane>
+        <a-plane position="3 22 -26" width="35" height="6" color="#00ff44"
+                 material="shader: flat; opacity: 0.3; side: double; transparent: true"
+                 rotation="-3 5 8"
+                 animation="property: material.opacity; from: 0.15; to: 0.45; dir: alternate; loop: true; dur: 5000; delay: 700"></a-plane>
         <!-- 星 -->
-        <a-sphere position="10 22 -20" radius="0.15" color="#FFF" material="shader: flat"></a-sphere>
-        <a-sphere position="-12 24 -25" radius="0.1" color="#FFF" material="shader: flat"></a-sphere>
-        <a-sphere position="5 26 -30" radius="0.12" color="#FFF" material="shader: flat"></a-sphere>
+        <a-sphere position="10 22 -20" radius="0.3" color="#FFF" material="shader: flat"></a-sphere>
+        <a-sphere position="-12 24 -25" radius="0.25" color="#FFF" material="shader: flat"></a-sphere>
+        <a-sphere position="5 26 -30" radius="0.2" color="#FFF" material="shader: flat"></a-sphere>
+        <a-sphere position="-6 28 -22" radius="0.15" color="#FFF" material="shader: flat"></a-sphere>
       </a-entity>
 
       <!-- ネオンオブジェクト（初期非表示） -->
       <a-entity id="sky-objects-neon" visible="false">
-        <!-- ネオンリング -->
-        <a-torus position="0 15 -20" radius="4" radius-tubular="0.15"
+        <!-- ネオンリング（大きく明るく） -->
+        <a-torus position="0 15 -20" radius="5" radius-tubular="0.25"
                  color="#FF00FF" material="shader: flat"
                  animation="property: rotation; to: 360 360 0; loop: true; dur: 10000; easing: linear"></a-torus>
-        <a-torus position="0 15 -20" radius="6" radius-tubular="0.1"
+        <a-torus position="0 15 -20" radius="7.5" radius-tubular="0.2"
                  color="#00FFFF" material="shader: flat"
                  animation="property: rotation; to: -360 0 360; loop: true; dur: 15000; easing: linear"></a-torus>
-        <!-- ネオンキューブ -->
-        <a-box position="-8 18 -15" scale="2 2 2" color="#FF00FF"
-               material="shader: flat; opacity: 0.7; wireframe: true"
+        <a-torus position="0 15 -20" radius="3" radius-tubular="0.15"
+                 color="#FFFF00" material="shader: flat"
+                 animation="property: rotation; to: 0 -360 360; loop: true; dur: 8000; easing: linear"></a-torus>
+        <!-- ネオンキューブ（大きく） -->
+        <a-box position="-8 18 -15" scale="3 3 3" color="#FF00FF"
+               material="shader: flat; opacity: 0.8; wireframe: true"
                animation="property: rotation; to: 360 360 0; loop: true; dur: 6000; easing: linear"></a-box>
-        <a-box position="10 12 -18" scale="1.5 1.5 1.5" color="#00FFFF"
-               material="shader: flat; opacity: 0.7; wireframe: true"
+        <a-box position="10 12 -18" scale="2.5 2.5 2.5" color="#00FFFF"
+               material="shader: flat; opacity: 0.8; wireframe: true"
                animation="property: rotation; to: 0 360 360; loop: true; dur: 8000; easing: linear"></a-box>
+        <a-box position="-5 10 -20" scale="2 2 2" color="#FF6600"
+               material="shader: flat; opacity: 0.7; wireframe: true"
+               animation="property: rotation; to: 360 0 360; loop: true; dur: 7000; easing: linear"></a-box>
         <!-- グリッドライン -->
         <a-plane position="0 10 -25" width="50" height="20" color="#FF00FF"
-                 material="shader: flat; opacity: 0.1; wireframe: true"
+                 material="shader: flat; opacity: 0.15; wireframe: true; transparent: true"
                  rotation="0 0 0"></a-plane>
       </a-entity>
 
@@ -172,10 +195,10 @@
   <script>
     // 空エフェクト切り替え
     const skyColors = {
-      space:  '#0a0a2e',
-      sunset: '#FF4500',
-      aurora: '#0a1628',
-      neon:   '#0a0014',
+      space:  '#0f1555',
+      sunset: '#FF6B35',
+      aurora: '#0c1e3a',
+      neon:   '#12002a',
     }
 
     function switchSky(name) {
