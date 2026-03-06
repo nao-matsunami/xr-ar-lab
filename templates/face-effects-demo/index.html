@@ -92,7 +92,7 @@
       <hr class="sep">
       <div class="row"><b>できること:</b></div>
       <ul>
-        <li>顔にメッシュ・グラス・クラウンのエフェクト</li>
+        <li>顔にグラス・クラウンのエフェクト</li>
         <li>ボタンで切り替え</li>
       </ul>
       <button class="close-help" onclick="toggleHelp()">閉じる</button>
@@ -100,9 +100,7 @@
   </div>
 
   <div id="effect-switcher">
-    <button class="active" onclick="switchEffect('mesh')">Mesh</button>
-    <button onclick="switchEffect('paint')">Paint</button>
-    <button onclick="switchEffect('glasses')">Glasses</button>
+    <button class="active" onclick="switchEffect('glasses')">Glasses</button>
     <button onclick="switchEffect('crown')">Crown</button>
     <button onclick="switchEffect('')">Off</button>
   </div>
@@ -119,17 +117,14 @@
     <a-light type="ambient" intensity="1.5"></a-light>
     <a-light type="directional" intensity="0.8" position="0 1 1"></a-light>
 
-    <!-- 顔メッシュ（JSから直接マテリアル制御） -->
-    <xrextras-face-mesh id="face-mesh"></xrextras-face-mesh>
-
     <!-- 3Dエフェクト -->
     <a-entity xrextras-faceanchor>
 
       <!-- メガネ（noseBridge） -->
       <a-entity xrextras-face-attachment="point: noseBridge">
-        <a-entity id="glasses-effect" visible="false" scale="8 8 8" rotation="0 180 0">
-          <!-- ブリッジ -->
-          <a-box position="0 0 0.01" width="0.08" height="0.008" depth="0.006"
+        <a-entity id="glasses-effect" visible="true" scale="8 8 8" rotation="0 180 0">
+          <!-- ブリッジ（短縮: 0.08 → 0.05） -->
+          <a-box position="0 0 0.01" width="0.05" height="0.008" depth="0.006"
                  color="#222" material="shader: flat"></a-box>
           <!-- 左レンズ枠 -->
           <a-torus position="-0.04 0 0.01" radius="0.028" radius-tubular="0.004"
@@ -190,151 +185,11 @@
   </a-scene>
 
   <script>
-    // === Face Mesh マテリアル管理 ===
-    // xrextras-face-mesh はカスタム要素なので A-Frame コンポーネントが動かない。
-    // MutationObserver + ポーリングで headMesh の生成を検出し、
-    // Three.js マテリアルを直接差し替える。
-
-    const materials = {}
-    let paintTexture = null
-    let currentEffect = 'mesh'
-    let headMeshNode = null
-
-    // テクスチャを事前ロード
-    function loadPaintTexture() {
-      const loader = new THREE.TextureLoader()
-      loader.load('./assets/face-alpha.png', (tex) => {
-        tex.flipY = false
-        paintTexture = tex
-        // paint モードが選択済みなら適用
-        if (currentEffect === 'paint' && headMeshNode) {
-          applyMaterial('paint')
-        }
-      })
-    }
-
-    // マテリアル生成（遅延初期化）
-    function getMaterial(name) {
-      if (materials[name]) return materials[name]
-
-      if (name === 'mesh') {
-        materials[name] = new THREE.MeshBasicMaterial({
-          color: 0x00ff88,
-          wireframe: true,
-          opacity: 0.8,
-          transparent: true,
-          depthWrite: false,
-          side: THREE.DoubleSide,
-        })
-      } else if (name === 'paint' && paintTexture) {
-        materials[name] = new THREE.MeshBasicMaterial({
-          map: paintTexture,
-          alphaMap: paintTexture,
-          transparent: true,
-          opacity: 0.75,
-          color: 0xFFFFFF,
-          side: THREE.DoubleSide,
-        })
-      } else if (name === 'off') {
-        materials[name] = new THREE.MeshBasicMaterial({
-          transparent: true,
-          opacity: 0,
-        })
-      }
-      return materials[name]
-    }
-
-    // headMesh にマテリアルを適用
-    function applyMaterial(name) {
-      if (!headMeshNode) return
-      const mat = getMaterial(name)
-      if (!mat) return
-      headMeshNode.traverse((node) => {
-        if (node.isMesh) {
-          node.material = mat
-          node.material.needsUpdate = true
-        }
-      })
-    }
-
-    // xrextras-face-mesh の内部 headMesh を探す（ポーリング）
-    function findHeadMesh() {
-      const meshEl = document.getElementById('face-mesh')
-      if (!meshEl) return false
-
-      // xrextras-face-mesh コンポーネントの内部構造を探索
-      // 方法1: コンポーネント経由
-      if (meshEl.components && meshEl.components['xrextras-face-mesh']) {
-        const comp = meshEl.components['xrextras-face-mesh']
-        if (comp.headMesh && comp.headMesh.mesh) {
-          headMeshNode = comp.headMesh.mesh
-          return true
-        }
-      }
-
-      // 方法2: object3D を直接探索
-      if (meshEl.object3D) {
-        let found = false
-        meshEl.object3D.traverse((node) => {
-          if (node.isMesh && !found) {
-            headMeshNode = meshEl.object3D
-            found = true
-          }
-        })
-        if (found) return true
-      }
-
-      // 方法3: 子要素の Three.js オブジェクトを探索
-      const children = meshEl.children
-      for (let i = 0; i < children.length; i++) {
-        if (children[i].object3D) {
-          let found = false
-          children[i].object3D.traverse((node) => {
-            if (node.isMesh && !found) {
-              headMeshNode = children[i].object3D
-              found = true
-            }
-          })
-          if (found) return true
-        }
-      }
-
-      return false
-    }
-
-    // ポーリングで headMesh を探し、見つかったらマテリアル適用
-    let pollCount = 0
-    function pollForHeadMesh() {
-      if (findHeadMesh()) {
-        console.log('[FaceEffects] headMesh found, applying:', currentEffect)
-        applyMaterial(currentEffect)
-        // face-mesh は毎フレーム visible=true を強制するが、
-        // マテリアルは書き換えないので一度設定すればOK。
-        // ただし xrextras が独自マテリアルを再適用する場合に備えて定期的にチェック
-        setInterval(() => {
-          applyMaterial(currentEffect)
-        }, 500)
-        return
-      }
-      pollCount++
-      if (pollCount < 100) {  // 最大10秒
-        setTimeout(pollForHeadMesh, 100)
-      } else {
-        console.log('[FaceEffects] headMesh not found after 10s')
-      }
-    }
-
     // === エフェクト切り替え ===
+    let currentEffect = 'glasses'
+
     function switchEffect(name) {
       currentEffect = name
-      console.log('[FaceEffects] switchEffect:', name, 'headMeshNode:', !!headMeshNode)
-
-      // 顔メッシュ: mesh or paint or off
-      if (name === 'mesh' || name === 'paint') {
-        applyMaterial(name)
-      } else {
-        applyMaterial('off')
-      }
 
       // 3Dアタッチメント
       const el3d = {glasses: 'glasses-effect', crown: 'crown-effect'}
@@ -349,13 +204,6 @@
         btn.classList.toggle('active', t === name || (name === '' && t === 'off'))
       })
     }
-
-    // === 初期化 ===
-    window.addEventListener('DOMContentLoaded', () => {
-      loadPaintTexture()
-      // XR8 ロード後にポーリング開始
-      setTimeout(pollForHeadMesh, 1000)
-    })
   </script>
 
   <script>
