@@ -4,96 +4,109 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>Hand Tracking AR Demo</title>
+  <title>Hand Tracking — MediaPipe</title>
 
-  <script src="//cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
-  <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
-  <script src="//cdn.8thwall.com/web/landing-page/landing-page.js"></script>
-  <script async src="../../vendor/engine/xr-standalone/xr.js" data-preload-chunks="hand"></script>
+  <!-- MediaPipe Hands -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
 
   <style>
-    body { margin: 0; overflow: hidden; }
-    #status {
-      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-      z-index: 999; background: rgba(0,0,0,0.7); color: #fff;
-      padding: 10px 20px; border-radius: 20px; font-size: 13px;
-      font-family: sans-serif; pointer-events: none; text-align: center;
-      max-width: 90%;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #000; font-family: sans-serif; }
+
+    #video-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+    #input-video {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      object-fit: cover; transform: scaleX(-1);
     }
-    #effect-switcher {
+    #overlay-canvas {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      transform: scaleX(-1);
+    }
+    #effects-canvas {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+    }
+
+    #gesture-label {
+      position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+      z-index: 999; background: rgba(0,0,0,0.6); color: #fff;
+      padding: 10px 24px; border-radius: 25px; font-size: 16px;
+      font-weight: 700; pointer-events: none; transition: all 0.2s;
+      min-height: 44px; display: flex; align-items: center;
+    }
+    #fps-display {
+      position: fixed; top: 20px; right: 20px; z-index: 999;
+      background: rgba(0,0,0,0.5); color: #0f0; padding: 6px 12px;
+      border-radius: 8px; font-size: 12px; font-family: monospace;
+    }
+    #back-btn {
       position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-      z-index: 999; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
-      padding-bottom: env(safe-area-inset-bottom);
-    }
-    #effect-switcher button {
-      padding: 12px 20px; border: 2px solid rgba(255,255,255,0.5);
+      z-index: 999; padding: 12px 24px; border: 2px solid rgba(255,255,255,0.5);
       border-radius: 25px; background: rgba(0,0,0,0.5);
       color: #fff; font-size: 14px; font-weight: 600;
-      min-height: 44px;
-      cursor: pointer; -webkit-tap-highlight-color: transparent;
-      transition: all 0.2s;
+      min-height: 44px; cursor: pointer; text-decoration: none;
+      display: flex; align-items: center; gap: 6px;
+      padding-bottom: calc(12px + env(safe-area-inset-bottom));
     }
-    #effect-switcher button.active {
-      border-color: #00f0ff; color: #00f0ff;
-      background: rgba(0,240,255,0.15);
-    }
-    #effect-switcher button:active { transform: scale(0.95); }
-    #fallback-notice {
+    #loading-msg {
       position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      z-index: 9999; background: rgba(0,0,0,0.9); color: #fff;
-      padding: 24px 30px; border-radius: 16px; font-size: 14px;
-      font-family: sans-serif; text-align: center; line-height: 1.8;
-      max-width: 85%; display: none;
-      border: 1px solid rgba(0,240,255,0.3);
+      z-index: 1000; color: #fff; font-size: 16px; text-align: center;
+      line-height: 1.8;
     }
-    #fallback-notice .title {
-      font-size: 18px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;
+    #loading-msg .spinner {
+      display: inline-block; width: 30px; height: 30px;
+      border: 3px solid rgba(255,255,255,0.3); border-top-color: #00f0ff;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
     }
-    #fallback-notice .note {
-      font-size: 12px; color: #94a3b8; margin-top: 12px;
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Help overlay */
+    #help-btn {
+      position: fixed; top: 20px; left: 20px; z-index: 998;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.4);
+      color: #fff; font-size: 18px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
     }
-    #fallback-notice button {
-      margin-top: 16px; padding: 10px 24px; border: none;
-      border-radius: 8px; background: #00f0ff; color: #000;
-      font-size: 14px; font-weight: 700; cursor: pointer;
+    #help-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 9998; background: rgba(0,0,0,0.85);
+      align-items: center; justify-content: center;
+    }
+    #help-overlay.visible { display: flex; }
+    #help-content {
+      background: #1a1a2e; border: 1px solid rgba(0,240,255,0.3);
+      border-radius: 16px; padding: 24px; max-width: 320px; width: 90%;
+      color: #fff; font-family: sans-serif;
+    }
+    #help-content h3 { margin: 0 0 12px; font-size: 18px; color: #00f0ff; }
+    #help-content .sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 10px 0; }
+    #help-content .row { font-size: 13px; line-height: 1.8; }
+    #help-content .row b { color: #00f0ff; }
+    #help-content ul { margin: 4px 0 0 0; padding-left: 18px; font-size: 13px; line-height: 2; color: #ccc; }
+    #help-content .powered { font-size: 11px; color: #666; margin-top: 12px; text-align: center; }
+    #help-content .close-help {
+      margin-top: 16px; width: 100%; padding: 10px; border: none;
+      border-radius: 8px; background: rgba(0,240,255,0.15); color: #00f0ff;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+
+    /* Error overlay */
+    #error-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85); z-index: 9999;
+      flex-direction: column; align-items: center; justify-content: center;
+      color: white; text-align: center; padding: 20px;
     }
   </style>
-<style>
-  #help-btn {
-    position: fixed; top: 20px; right: 20px; z-index: 998;
-    width: 36px; height: 36px; border-radius: 50%;
-    background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.4);
-    color: #fff; font-size: 18px; font-weight: 700;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    -webkit-tap-highlight-color: transparent;
-  }
-  #help-overlay {
-    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    z-index: 9998; background: rgba(0,0,0,0.8);
-    align-items: center; justify-content: center;
-  }
-  #help-overlay.visible { display: flex; }
-  #help-content {
-    background: #1a1a2e; border: 1px solid rgba(0,240,255,0.3);
-    border-radius: 16px; padding: 24px; max-width: 300px; width: 90%;
-    color: #fff; font-family: sans-serif;
-  }
-  #help-content h3 { margin: 0 0 12px; font-size: 18px; color: #00f0ff; }
-  #help-content .sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 10px 0; }
-  #help-content .row { font-size: 13px; line-height: 1.8; }
-  #help-content .row b { color: #00f0ff; }
-  #help-content ul { margin: 4px 0 0 0; padding-left: 18px; font-size: 13px; line-height: 1.8; color: #ccc; }
-  #help-content .close-help {
-    margin-top: 16px; width: 100%; padding: 10px; border: none;
-    border-radius: 8px; background: rgba(0,240,255,0.15); color: #00f0ff;
-    font-size: 14px; font-weight: 600; cursor: pointer;
-  }
-</style>
 </head>
 <body>
 
-  <!-- Unified Error Overlay -->
-  <div id="error-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center; padding:20px; box-sizing:border-box;">
+  <!-- Error Overlay -->
+  <div id="error-overlay">
     <div style="font-size:48px; margin-bottom:16px;" id="error-icon"></div>
     <div style="font-size:20px; font-weight:bold; margin-bottom:12px;" id="error-title">Error</div>
     <div style="font-size:14px; line-height:1.6; max-width:300px; white-space:pre-line;" id="error-message"></div>
@@ -101,209 +114,51 @@
     <a href="/templates/" style="margin-top:12px; color:#aaa; font-size:14px; text-decoration:none;">デモ一覧に戻る</a>
   </div>
 
+  <!-- Help -->
   <button id="help-btn" onclick="toggleHelp()">?</button>
   <div id="help-overlay" onclick="toggleHelp()">
     <div id="help-content" onclick="event.stopPropagation()">
-      <h3>Hand Tracking</h3>
+      <h3>MediaPipe Hand Tracking</h3>
       <hr class="sep">
-      <div class="row"><b>使い方:</b> 非対応（将来実装予定）</div>
+      <div class="row"><b>使い方:</b> カメラに手をかざす</div>
       <hr class="sep">
       <div class="row"><b>できること:</b></div>
       <ul>
-        <li>ハンドトラッキングによるジェスチャー操作</li>
+        <li>手の骨格リアルタイム認識</li>
+        <li>&#x270C;&#xFE0F; ピース → 星エフェクト</li>
+        <li>&#x1F44D; サムズアップ → Good!</li>
+        <li>&#x270A; グー → シェイク</li>
+        <li>&#x1F590;&#xFE0F; パー → オーラ</li>
+        <li>&#x261D;&#xFE0F; 人差し指 → 軌跡</li>
       </ul>
+      <div class="powered">Powered by Google MediaPipe</div>
       <button class="close-help" onclick="toggleHelp()">閉じる</button>
     </div>
   </div>
 
-  <div id="status">✋ 手をカメラに向けてください</div>
-
-  <div id="effect-switcher">
-    <button class="active" onclick="setEffect('mesh')">Mesh</button>
-    <button onclick="setEffect('sparkle')">Sparkle</button>
-    <button onclick="setEffect('trail')">Trail</button>
-    <button onclick="setEffect('off')">Off</button>
+  <!-- Loading -->
+  <div id="loading-msg">
+    <div class="spinner"></div><br>
+    MediaPipe Hands を読み込み中...
   </div>
 
-  <div id="fallback-notice" style="display: flex;">
-    <div class="title">Hand Tracking について</div>
-    8th Wall オープンソース版では<br>Hand Trackingは現在非対応です。<br><br>
-    対応予定: 8thwall.org の<br>アップデートをお待ちください。
-    <div class="note">
-      クラウド版 8th Wall（有料）では利用可能です。<br>
-      このデモはエンジン更新後に有効になります。
-    </div>
-    <a href="/templates/" style="display:block; margin-top:16px; padding:10px 24px; border:none;
-      border-radius:8px; background:#00f0ff; color:#000; font-size:14px; font-weight:700;
-      cursor:pointer; text-decoration:none; text-align:center;">デモ一覧に戻る</a>
-    <button onclick="this.parentElement.style.display='none'" style="margin-top:8px;">このまま試す（非対応）</button>
+  <!-- Video + Canvas -->
+  <div id="video-container">
+    <video id="input-video" playsinline></video>
+    <canvas id="overlay-canvas"></canvas>
+    <canvas id="effects-canvas"></canvas>
   </div>
 
-  <a-scene
-    landing-page
-    xrextras-loading
-    xrextras-runtime-error
-    renderer="colorManagement: true"
-    xrhand="allowedDevices: any; cameraDirection: front">
-
-    <a-camera id="camera" position="0 4 4"></a-camera>
-
-    <a-light type="ambient" intensity="1.5"></a-light>
-    <a-light type="directional" intensity="0.6" position="0 1 1"></a-light>
-
-    <!-- Hand mesh (wireframe by default) -->
-    <xrextras-hand-mesh id="hand-mesh" wireframe="true"></xrextras-hand-mesh>
-
-    <!-- Hand anchor with attachments -->
-    <a-entity xrextras-hand-anchor>
-
-      <!-- Palm effect -->
-      <a-entity xrextras-hand-attachment="point: palm">
-        <a-entity id="palm-effect">
-          <a-sphere radius="0.02" color="#00f0ff"
-            material="shader: flat; emissive: #00f0ff; emissiveIntensity: 0.5; opacity: 0.8; transparent: true">
-          </a-sphere>
-        </a-entity>
-      </a-entity>
-
-      <!-- Index finger tip -->
-      <a-entity xrextras-hand-attachment="point: index; pointType: outer">
-        <a-entity id="index-effect">
-          <a-sphere radius="0.015" color="#ff6b9d"
-            material="shader: flat; emissive: #ff6b9d; emissiveIntensity: 0.5; opacity: 0.8; transparent: true">
-          </a-sphere>
-        </a-entity>
-      </a-entity>
-
-      <!-- Thumb tip -->
-      <a-entity xrextras-hand-attachment="point: thumb; pointType: outer">
-        <a-entity id="thumb-effect">
-          <a-sphere radius="0.015" color="#fbbf24"
-            material="shader: flat; emissive: #fbbf24; emissiveIntensity: 0.5; opacity: 0.8; transparent: true">
-          </a-sphere>
-        </a-entity>
-      </a-entity>
-
-      <!-- Middle finger -->
-      <a-entity xrextras-hand-attachment="point: middle; pointType: outer">
-        <a-entity id="middle-effect">
-          <a-sphere radius="0.012" color="#4ade80"
-            material="shader: flat; emissive: #4ade80; emissiveIntensity: 0.5; opacity: 0.8; transparent: true">
-          </a-sphere>
-        </a-entity>
-      </a-entity>
-
-      <!-- Ring finger -->
-      <a-entity xrextras-hand-attachment="point: ring; pointType: outer">
-        <a-entity id="ring-effect">
-          <a-sphere radius="0.012" color="#a78bfa"
-            material="shader: flat; emissive: #a78bfa; emissiveIntensity: 0.5; opacity: 0.8; transparent: true">
-          </a-sphere>
-        </a-entity>
-      </a-entity>
-
-    </a-entity>
-
-  </a-scene>
+  <div id="gesture-label">手をかざしてください</div>
+  <div id="fps-display">FPS: --</div>
+  <a id="back-btn" href="/templates/">デモ一覧に戻る</a>
 
   <script>
-    let currentEffect = 'mesh';
-    let handDetected = false;
-    let fallbackTimer = null;
-
-    // Hand detection events
-    const scene = document.querySelector('a-scene');
-
-    scene.addEventListener('xrhandfound', () => {
-      handDetected = true;
-      if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; }
-      document.getElementById('status').textContent = '✋ 手を検出しました';
-      document.getElementById('status').style.background = 'rgba(0,180,100,0.7)';
-      setTimeout(() => {
-        document.getElementById('status').style.opacity = '0';
-      }, 3000);
-    });
-
-    scene.addEventListener('xrhandlost', () => {
-      handDetected = false;
-      document.getElementById('status').textContent = '✋ 手をカメラに向けてください';
-      document.getElementById('status').style.background = 'rgba(0,0,0,0.7)';
-      document.getElementById('status').style.opacity = '1';
-    });
-
-    // Fallback: if no hand detected after 15 seconds, show notice
-    fallbackTimer = setTimeout(() => {
-      if (!handDetected) {
-        document.getElementById('fallback-notice').style.display = 'block';
-      }
-    }, 15000);
-
-    // Also detect if xrhand fails to initialize
-    scene.addEventListener('xrerror', (e) => {
-      document.getElementById('fallback-notice').style.display = 'block';
-    });
-
-    // Effect switching
-    function setEffect(name) {
-      currentEffect = name;
-
-      // Update mesh visibility
-      const meshEl = document.getElementById('hand-mesh');
-      if (name === 'mesh') {
-        meshEl.setAttribute('wireframe', 'true');
-        meshEl.setAttribute('visible', 'true');
-      } else if (name === 'off') {
-        meshEl.setAttribute('visible', 'false');
-      } else {
-        meshEl.setAttribute('wireframe', 'true');
-        meshEl.setAttribute('visible', 'true');
-      }
-
-      // Update fingertip effects
-      const effects = ['palm-effect', 'index-effect', 'thumb-effect', 'middle-effect', 'ring-effect'];
-      effects.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-          el.setAttribute('visible', name === 'sparkle' || name === 'trail' || name === 'mesh');
-        }
-      });
-
-      // Update buttons
-      document.querySelectorAll('#effect-switcher button').forEach(btn => {
-        const t = btn.textContent.toLowerCase();
-        btn.classList.toggle('active', t === name);
-      });
-    }
-    window.setEffect = setEffect;
-
-    // Sparkle animation on palm
-    let sparkleFrame = 0;
-    function animateSparkle() {
-      sparkleFrame++;
-      if (currentEffect === 'sparkle' && handDetected) {
-        const palmEl = document.getElementById('palm-effect');
-        if (palmEl) {
-          const sphere = palmEl.querySelector('a-sphere');
-          if (sphere) {
-            const scale = 1 + Math.sin(sparkleFrame * 0.1) * 0.5;
-            sphere.setAttribute('scale', `${scale} ${scale} ${scale}`);
-            const hue = (sparkleFrame * 5) % 360;
-            sphere.setAttribute('color', `hsl(${hue}, 100%, 60%)`);
-          }
-        }
-      }
-      requestAnimationFrame(animateSparkle);
-    }
-    animateSparkle();
-  </script>
-
-  <script>
-    // Unified error handling
+    // === Error handling ===
     function showError(type) {
       var messages = {
         camera: { icon: '📷', title: 'カメラへのアクセスが必要です', message: 'ブラウザの設定からカメラのアクセスを許可してください。\n\nSettings > Safari/Chrome > Camera > Allow' },
-        gps: { icon: '📍', title: '位置情報へのアクセスが必要です', message: 'このデモはGPS位置情報を使用します。\nブラウザの設定から位置情報のアクセスを許可してください。' },
-        browser: { icon: '🌐', title: 'ブラウザが対応していません', message: 'このARデモはiOS Safari またはAndroid Chromeでご利用ください。\n\niOS: Safari最新版\nAndroid: Chrome最新版' },
+        browser: { icon: '🌐', title: 'ブラウザが対応していません', message: 'このデモはiOS Safari またはAndroid Chromeでご利用ください。' },
         https: { icon: '🔒', title: 'HTTPSが必要です', message: 'このデモはHTTPS環境が必要です。\nhttps://xr-ar-lab.netlify.app からアクセスしてください。' }
       };
       var m = messages[type] || messages.browser;
@@ -315,27 +170,260 @@
     if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
       showError('https');
     }
-    if (typeof navigator.mediaDevices === 'undefined' || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-      showError('browser');
-    }
-  </script>
 
-  <script>
-  // Help overlay
-  function toggleHelp() {
-    document.getElementById('help-overlay').classList.toggle('visible');
-  }
-  // Auto-show after 1s, auto-hide after 5s or on first touch
-  setTimeout(function() {
-    document.getElementById('help-overlay').classList.add('visible');
+    // === Help overlay ===
+    function toggleHelp() {
+      document.getElementById('help-overlay').classList.toggle('visible');
+    }
     setTimeout(function() {
+      document.getElementById('help-overlay').classList.add('visible');
+      setTimeout(function() {
+        document.getElementById('help-overlay').classList.remove('visible');
+      }, 5000);
+    }, 2000);
+    document.addEventListener('touchstart', function _h() {
       document.getElementById('help-overlay').classList.remove('visible');
-    }, 5000);
-  }, 1000);
-  document.addEventListener('touchstart', function _h() {
-    document.getElementById('help-overlay').classList.remove('visible');
-    document.removeEventListener('touchstart', _h);
-  });
-</script>
+      document.removeEventListener('touchstart', _h);
+    });
+
+    // === Main ===
+    const videoEl = document.getElementById('input-video');
+    const overlayCanvas = document.getElementById('overlay-canvas');
+    const effectsCanvas = document.getElementById('effects-canvas');
+    const overlayCtx = overlayCanvas.getContext('2d');
+    const effectsCtx = effectsCanvas.getContext('2d');
+    const gestureLabel = document.getElementById('gesture-label');
+    const fpsDisplay = document.getElementById('fps-display');
+
+    // FPS tracking
+    let frameCount = 0;
+    let lastFpsTime = performance.now();
+
+    // Trail history for point gesture
+    let trails = [];
+    const MAX_TRAIL = 30;
+
+    // Shake effect
+    let shakeIntensity = 0;
+
+    // Star particles for peace gesture
+    let stars = [];
+
+    // Gesture detection
+    function detectGesture(lm) {
+      const indexUp = lm[8].y < lm[6].y;
+      const middleUp = lm[12].y < lm[10].y;
+      const ringDown = lm[16].y > lm[14].y;
+      const pinkyDown = lm[20].y > lm[18].y;
+      const thumbUp = lm[4].y < lm[3].y;
+      const allUp = indexUp && middleUp && !ringDown && !pinkyDown;
+
+      if (indexUp && middleUp && ringDown && pinkyDown) return 'peace';
+      if (thumbUp && !indexUp && !middleUp && ringDown && pinkyDown) return 'thumbsup';
+      if (!indexUp && !middleUp && !thumbUp && ringDown && pinkyDown) return 'fist';
+      if (allUp && thumbUp) return 'open';
+      if (indexUp && !middleUp && ringDown && pinkyDown) return 'point';
+      return 'none';
+    }
+
+    const GESTURE_LABELS = {
+      peace: '✌️ ピース',
+      thumbsup: '👍 Good!',
+      fist: '✊ グー',
+      open: '🖐 パー',
+      point: '☝️ ポイント',
+      none: '...',
+    };
+
+    function onResults(results) {
+      // FPS
+      frameCount++;
+      const now = performance.now();
+      if (now - lastFpsTime >= 1000) {
+        fpsDisplay.textContent = 'FPS: ' + frameCount;
+        frameCount = 0;
+        lastFpsTime = now;
+      }
+
+      const W = overlayCanvas.width;
+      const H = overlayCanvas.height;
+
+      // Clear overlay
+      overlayCtx.clearRect(0, 0, W, H);
+
+      // Fade effects canvas
+      effectsCtx.fillStyle = 'rgba(0,0,0,0.08)';
+      effectsCtx.fillRect(0, 0, W, H);
+
+      // Apply shake
+      if (shakeIntensity > 0) {
+        document.getElementById('video-container').style.transform =
+          `translate(${(Math.random()-0.5)*shakeIntensity}px, ${(Math.random()-0.5)*shakeIntensity}px)`;
+        shakeIntensity *= 0.9;
+        if (shakeIntensity < 0.5) {
+          shakeIntensity = 0;
+          document.getElementById('video-container').style.transform = '';
+        }
+      }
+
+      // Update stars
+      stars = stars.filter(s => {
+        s.x += s.vx;
+        s.y += s.vy;
+        s.life -= 0.02;
+        if (s.life <= 0) return false;
+        effectsCtx.save();
+        effectsCtx.globalAlpha = s.life;
+        effectsCtx.fillStyle = s.color;
+        effectsCtx.font = `${s.size}px sans-serif`;
+        effectsCtx.fillText('*', s.x * W, s.y * H);
+        effectsCtx.restore();
+        return true;
+      });
+
+      if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+        gestureLabel.textContent = '手をかざしてください';
+        return;
+      }
+
+      const handColors = ['#4FC3F7', '#EF5350']; // left: blue, right: red
+
+      results.multiHandLandmarks.forEach((landmarks, handIdx) => {
+        const handedness = results.multiHandedness[handIdx];
+        const isRight = handedness.label === 'Right';
+        const color = handColors[isRight ? 1 : 0];
+
+        // Draw skeleton using drawingUtils
+        drawConnectors(overlayCtx, landmarks, HAND_CONNECTIONS, { color: color, lineWidth: 3 });
+        drawLandmarks(overlayCtx, landmarks, { color: '#fff', lineWidth: 1, radius: 3 });
+
+        // Gesture detection
+        const gesture = detectGesture(landmarks);
+
+        if (handIdx === 0) {
+          gestureLabel.textContent = GESTURE_LABELS[gesture] || '...';
+        }
+
+        // Gesture effects
+        const palmX = landmarks[0].x;
+        const palmY = landmarks[0].y;
+        const indexTip = landmarks[8];
+
+        switch (gesture) {
+          case 'peace':
+            // Star particles from fingertips
+            for (let i = 0; i < 3; i++) {
+              stars.push({
+                x: landmarks[8].x + (Math.random()-0.5)*0.05,
+                y: landmarks[8].y + (Math.random()-0.5)*0.05,
+                vx: (Math.random()-0.5)*0.01,
+                vy: -Math.random()*0.01 - 0.005,
+                life: 1,
+                size: 12 + Math.random() * 16,
+                color: ['#FFD700','#FF69B4','#00FFFF','#7FFF00'][Math.floor(Math.random()*4)],
+              });
+            }
+            break;
+
+          case 'thumbsup':
+            // "Good!" text near thumb
+            effectsCtx.save();
+            effectsCtx.font = 'bold 36px sans-serif';
+            effectsCtx.fillStyle = '#FFD700';
+            effectsCtx.shadowColor = '#FFD700';
+            effectsCtx.shadowBlur = 15;
+            effectsCtx.fillText('Good!', landmarks[4].x * W - 40, landmarks[4].y * H - 20);
+            effectsCtx.restore();
+            break;
+
+          case 'fist':
+            // Shake effect
+            shakeIntensity = 12;
+            break;
+
+          case 'open':
+            // Aura around hand
+            effectsCtx.save();
+            const cx = palmX * W;
+            const cy = palmY * H;
+            const r = 80 + Math.sin(now * 0.005) * 20;
+            const grad = effectsCtx.createRadialGradient(cx, cy, 10, cx, cy, r);
+            grad.addColorStop(0, `rgba(0,240,255,0.4)`);
+            grad.addColorStop(0.5, `rgba(0,240,255,0.15)`);
+            grad.addColorStop(1, `rgba(0,240,255,0)`);
+            effectsCtx.fillStyle = grad;
+            effectsCtx.fillRect(cx - r, cy - r, r * 2, r * 2);
+            effectsCtx.restore();
+            break;
+
+          case 'point':
+            // Trail from index finger
+            trails.push({ x: indexTip.x, y: indexTip.y, t: now });
+            if (trails.length > MAX_TRAIL) trails.shift();
+            effectsCtx.save();
+            effectsCtx.strokeStyle = color;
+            effectsCtx.lineWidth = 4;
+            effectsCtx.lineCap = 'round';
+            effectsCtx.beginPath();
+            trails.forEach((pt, i) => {
+              const px = pt.x * W;
+              const py = pt.y * H;
+              if (i === 0) effectsCtx.moveTo(px, py);
+              else effectsCtx.lineTo(px, py);
+            });
+            effectsCtx.globalAlpha = 0.8;
+            effectsCtx.stroke();
+            effectsCtx.restore();
+            break;
+        }
+      });
+    }
+
+    // === Initialize MediaPipe Hands ===
+    const hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+    });
+    hands.setOptions({
+      maxNumHands: 2,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.5,
+    });
+    hands.onResults(onResults);
+
+    // === Start Camera ===
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+        });
+        videoEl.srcObject = stream;
+        await videoEl.play();
+
+        // Set canvas sizes
+        overlayCanvas.width = videoEl.videoWidth || 640;
+        overlayCanvas.height = videoEl.videoHeight || 480;
+        effectsCanvas.width = overlayCanvas.width;
+        effectsCanvas.height = overlayCanvas.height;
+
+        document.getElementById('loading-msg').style.display = 'none';
+
+        // Start processing
+        const camera = new Camera(videoEl, {
+          onFrame: async () => {
+            await hands.send({ image: videoEl });
+          },
+          width: 640,
+          height: 480,
+        });
+        camera.start();
+      } catch (err) {
+        console.error('Camera error:', err);
+        showError('camera');
+      }
+    }
+
+    startCamera();
+  </script>
 </body>
 </html>
