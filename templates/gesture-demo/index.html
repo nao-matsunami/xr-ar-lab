@@ -92,6 +92,7 @@
     </div>
   </div>
 
+  <div id="debug-info" style="position:fixed; top:60px; left:10px; z-index:999; background:rgba(0,0,0,0.5); color:#0f0; padding:4px 8px; border-radius:6px; font-size:11px; font-family:monospace; pointer-events:none;"></div>
   <div id="instructions">地面をタップして砂の城を配置</div>
   <div id="gesture-hint" style="display:none;">
     <span class="hint-tag">☝️ 長押し+ドラッグ: 移動</span>
@@ -126,11 +127,53 @@
   </a-scene>
 
   <script>
+    // Multi-touch tracking — prevent conflicts between drag/pinch/rotate
+    let touchCount = 0;
+    let isMultiTouch = false;
+    let savedScale = null;
+    let savedPosition = null;
+
+    document.addEventListener('touchstart', (e) => {
+      touchCount = e.touches.length;
+      if (touchCount >= 2) {
+        isMultiTouch = true;
+        // Save state before multi-touch to prevent disappearing
+        const castle = document.getElementById('castle');
+        if (castle && castle.object3D) {
+          savedScale = castle.object3D.scale.clone();
+          savedPosition = castle.object3D.position.clone();
+        }
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+      touchCount = e.touches.length;
+      if (touchCount === 0) {
+        // Delay reset to let gesture handlers finish
+        setTimeout(() => { isMultiTouch = false; }, 100);
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchcancel', (e) => {
+      touchCount = e.touches.length;
+      if (touchCount === 0) {
+        setTimeout(() => { isMultiTouch = false; }, 100);
+      }
+    }, { passive: true });
+
     // Gesture scale/position watchdog — prevents object from disappearing
+    const MIN_SCALE = 0.2;
+    const MAX_SCALE = 5;
+
     AFRAME.registerComponent('gesture-guard', {
       schema: {
-        minScale: { type: 'number', default: 0.1 },
-        maxScale: { type: 'number', default: 5 },
+        minScale: { type: 'number', default: MIN_SCALE },
+        maxScale: { type: 'number', default: MAX_SCALE },
+      },
+      init() {
+        this._lastGoodPos = new THREE.Vector3();
+        this._lastGoodScale = new THREE.Vector3(1, 1, 1);
+        this._lastGoodPos.copy(this.el.object3D.position);
       },
       tick() {
         const s = this.el.object3D.scale;
@@ -143,17 +186,32 @@
         s.y = clamp(s.y, d.minScale, d.maxScale);
         s.z = clamp(s.z, d.minScale, d.maxScale);
 
-        // Fix NaN values
-        if (isNaN(p.x) || isNaN(p.y) || isNaN(p.z)) {
-          console.log('[Gesture] NaN position detected, resetting');
-          p.set(this._lastGoodPos.x, this._lastGoodPos.y, this._lastGoodPos.z);
+        // Keep scale uniform (prevent distortion from multi-touch)
+        const avg = (s.x + s.y + s.z) / 3;
+        s.set(avg, avg, avg);
+
+        // Fix NaN / zero / Infinity values
+        if (isNaN(s.x) || isNaN(s.y) || isNaN(s.z) || s.x === 0 || !isFinite(s.x)) {
+          console.log('[Gesture] Bad scale detected, restoring:', this._lastGoodScale);
+          s.copy(this._lastGoodScale);
         } else {
-          if (!this._lastGoodPos) this._lastGoodPos = new THREE.Vector3();
+          this._lastGoodScale.copy(s);
+        }
+
+        if (isNaN(p.x) || isNaN(p.y) || isNaN(p.z) || !isFinite(p.x)) {
+          console.log('[Gesture] Bad position detected, restoring');
+          p.copy(this._lastGoodPos);
+        } else {
           this._lastGoodPos.copy(p);
         }
-        if (isNaN(s.x) || isNaN(s.y) || isNaN(s.z)) {
-          console.log('[Gesture] NaN scale detected, resetting');
-          s.set(1, 1, 1);
+
+        // Update debug display
+        const dbg = document.getElementById('debug-info');
+        if (dbg) {
+          dbg.textContent =
+            'S: ' + s.x.toFixed(2) + ' | ' +
+            'P: ' + p.x.toFixed(1) + ',' + p.y.toFixed(1) + ',' + p.z.toFixed(1) + ' | ' +
+            'T: ' + touchCount + (isMultiTouch ? ' (multi)' : '');
         }
       },
     });
@@ -162,6 +220,8 @@
 
     document.getElementById('ground').addEventListener('click', (event) => {
       if (placed) return;
+      // Block placement if multi-touching
+      if (isMultiTouch || touchCount >= 2) return;
       placed = true;
 
       const point = event.detail.intersection.point;
@@ -174,13 +234,13 @@
       castle.setAttribute('scale', '0.001 0.001 0.001');
       castle.setAttribute('shadow', 'cast: true; receive: false');
 
-      // Gesture components
+      // Gesture components — with stricter bounds
       castle.setAttribute('xrextras-hold-drag', '');
       castle.setAttribute('xrextras-two-finger-rotate', '');
-      castle.setAttribute('xrextras-pinch-scale', 'min: 0.1; max: 5');
+      castle.setAttribute('xrextras-pinch-scale', 'min: ' + MIN_SCALE + '; max: ' + MAX_SCALE);
 
       // Guard against disappearing
-      castle.setAttribute('gesture-guard', 'minScale: 0.1; maxScale: 5');
+      castle.setAttribute('gesture-guard', 'minScale: ' + MIN_SCALE + '; maxScale: ' + MAX_SCALE);
 
       // Appear animation
       castle.setAttribute('animation', {
@@ -191,12 +251,6 @@
       });
 
       document.querySelector('a-scene').appendChild(castle);
-
-      // Debug: log gesture events
-      castle.addEventListener('scale-changed', (e) => {
-        const s = castle.object3D.scale;
-        console.log('[Gesture] scale:', s.x.toFixed(2), s.y.toFixed(2), s.z.toFixed(2));
-      });
 
       // Update UI
       document.getElementById('instructions').textContent = 'ジェスチャーで操作してください';
