@@ -51,8 +51,8 @@
   <button id="start-btn" onclick="startAudio()">🔊 オーディオ開始</button>
   <div id="audio-info">
     <span class="audio-tag" style="color:#E74C3C;">● 低音 220Hz</span>
-    <span class="audio-tag" style="color:#3498DB;">● 中音 440Hz</span>
-    <span class="audio-tag" style="color:#2ECC71;">● 高音 880Hz</span>
+    <span class="audio-tag" style="color:#3498DB;">● 中音 880Hz</span>
+    <span class="audio-tag" style="color:#2ECC71;">● 高音 2200Hz</span>
   </div>
 
   <a-scene
@@ -80,9 +80,9 @@
     let sources = [];
 
     const SOURCE_DEFS = [
-      { freq: 220, color: '#E74C3C', label: '低音 220Hz', offset: { x: 0, z: -1.5 } },
-      { freq: 440, color: '#3498DB', label: '中音 440Hz', offset: { x: 1.3, z: 0.75 } },
-      { freq: 880, color: '#2ECC71', label: '高音 880Hz', offset: { x: -1.3, z: 0.75 } },
+      { freq: 220, type: 'sawtooth', color: '#E74C3C', label: '低音 220Hz', offset: { x: 0, z: -2 } },
+      { freq: 880, type: 'square', color: '#3498DB', label: '中音 880Hz', offset: { x: 1.8, z: 1 } },
+      { freq: 2200, type: 'sine', color: '#2ECC71', label: '高音 2200Hz', offset: { x: -1.8, z: 1 } },
     ];
 
     function startAudio() {
@@ -112,17 +112,17 @@
         marker.setAttribute('position', `${x} ${y} ${z}`);
 
         const sphere = document.createElement('a-sphere');
-        sphere.setAttribute('radius', '0.15');
+        sphere.setAttribute('radius', '0.2');
         sphere.setAttribute('color', def.color);
-        sphere.setAttribute('material', 'shader: flat; opacity: 0.7; transparent: true');
+        sphere.setAttribute('material', 'shader: flat; opacity: 0.8; transparent: true');
         sphere.setAttribute('animation', {
           property: 'scale',
           dir: 'alternate',
-          dur: 1000 + i * 200,
+          dur: 600 + i * 100,
           easing: 'easeInOutSine',
           loop: true,
           from: '1 1 1',
-          to: '1.3 1.3 1.3'
+          to: '1.5 1.5 1.5'
         });
         marker.appendChild(sphere);
 
@@ -154,10 +154,10 @@
         // Label
         const text = document.createElement('a-text');
         text.setAttribute('value', def.label);
-        text.setAttribute('position', '0 0.35 0');
+        text.setAttribute('position', '0 0.45 0');
         text.setAttribute('align', 'center');
         text.setAttribute('color', def.color);
-        text.setAttribute('scale', '0.5 0.5 0.5');
+        text.setAttribute('scale', '0.8 0.8 0.8');
         text.setAttribute('side', 'double');
         marker.appendChild(text);
 
@@ -165,18 +165,18 @@
 
         // Web Audio API: oscillator + panner
         const osc = audioCtx.createOscillator();
-        osc.type = 'sine';
+        osc.type = def.type || 'sine';
         osc.frequency.value = def.freq;
 
         const gain = audioCtx.createGain();
-        gain.gain.value = 0.15;
+        gain.gain.value = 0.3;
 
         const panner = audioCtx.createPanner();
         panner.panningModel = 'HRTF';
         panner.distanceModel = 'inverse';
-        panner.refDistance = 1;
+        panner.refDistance = 0.5;
         panner.maxDistance = 10;
-        panner.rolloffFactor = 1;
+        panner.rolloffFactor = 3;
         panner.setPosition(x, y, z);
 
         osc.connect(gain);
@@ -184,7 +184,7 @@
         panner.connect(audioCtx.destination);
         osc.start();
 
-        sources.push({ osc, gain, panner, marker, x, y, z });
+        sources.push({ osc, gain, panner, marker, x, y, z, sphere });
       });
 
       document.getElementById('info').textContent = 'カメラを各ソースに向けてみてください';
