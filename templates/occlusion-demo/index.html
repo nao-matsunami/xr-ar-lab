@@ -1,0 +1,189 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Occlusion AR Demo</title>
+  <script src="//cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
+  <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
+  <script src="//cdn.8thwall.com/web/landing-page/landing-page.js"></script>
+  <script async src="../../vendor/engine/xr-standalone/xr.js" data-preload-chunks="slam"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #info {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 999; background: rgba(0,0,0,0.6); color: #fff;
+      padding: 8px 16px; border-radius: 20px; font-size: 13px;
+      font-family: sans-serif; pointer-events: none; text-align: center;
+    }
+    #controls {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      z-index: 999; display: flex; gap: 8px; align-items: center;
+    }
+    #controls button {
+      padding: 10px 18px; border: 2px solid rgba(255,255,255,0.5);
+      border-radius: 25px; background: rgba(0,0,0,0.5);
+      color: #fff; font-size: 13px; font-weight: 600;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: all 0.2s;
+    }
+    #controls button.active {
+      border-color: #00f0ff; color: #00f0ff;
+      background: rgba(0,240,255,0.15);
+    }
+    #occlusion-label {
+      position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+      z-index: 999; padding: 6px 14px; border-radius: 12px;
+      font-size: 12px; font-family: sans-serif; font-weight: 600;
+      transition: all 0.3s;
+    }
+    #occlusion-label.on {
+      background: rgba(74,222,128,0.15); color: #4ade80;
+      border: 1px solid #4ade80;
+    }
+    #occlusion-label.off {
+      background: rgba(239,68,68,0.15); color: #ef4444;
+      border: 1px solid #ef4444;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">地面をタップしてオブジェクトを配置</div>
+  <div id="occlusion-label" class="on">Occlusion: ON</div>
+  <div id="controls">
+    <button class="active" onclick="toggleOcclusion()">🔲 Occlusion Toggle</button>
+    <button onclick="resetScene()">🗑️ Reset</button>
+  </div>
+
+  <a-scene
+    landing-page
+    xrextras-loading
+    xrextras-runtime-error
+    renderer="colorManagement: true"
+    xrweb="allowedDevices: any">
+
+    <a-camera id="camera" position="0 4 4"
+      raycaster="objects: .cantap" cursor="fuse: false; rayOrigin: mouse;"></a-camera>
+
+    <a-light type="ambient" intensity="0.6"></a-light>
+    <a-light type="directional" intensity="0.8" position="2 4 1" castShadow="true"
+      shadow="mapSize: 2048 2048; camera-near: 0.1; camera-far: 50"></a-light>
+
+    <a-entity id="ground" class="cantap"
+      geometry="primitive: plane; width: 100; height: 100"
+      rotation="-90 0 0"
+      material="shader: shadow; transparent: true; opacity: 0.4"
+      shadow="receive: true"></a-entity>
+
+    <!-- Container for spawned objects -->
+    <a-entity id="objects-container"></a-entity>
+
+    <!-- Occluder wall (hider material) -->
+    <a-entity id="occluder-group">
+      <a-box id="occluder-wall" position="0 0.5 -1.5"
+        width="1.5" height="1" depth="0.1"
+        xrextras-hider-material
+        visible="true">
+      </a-box>
+      <!-- Visual indicator of wall position (wireframe) -->
+      <a-box id="wall-wireframe" position="0 0.5 -1.5"
+        width="1.5" height="1" depth="0.1"
+        material="wireframe: true; color: #00f0ff; opacity: 0.3; transparent: true">
+      </a-box>
+      <!-- Label -->
+      <a-text value="Occluder Wall" position="0 1.15 -1.5" align="center"
+        color="#00f0ff" scale="0.4 0.4 0.4" side="double"></a-text>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    let occlusionOn = true;
+    let objectCount = 0;
+    let placed = false;
+    let occluderPlaced = false;
+
+    const SHAPES = [
+      { geo: 'sphere', color: '#E74C3C', scale: '0.15 0.15 0.15' },
+      { geo: 'box', color: '#3498DB', scale: '0.12 0.12 0.12' },
+      { geo: 'cone', color: '#2ECC71', scale: '0.12 0.2 0.12' },
+      { geo: 'dodecahedron', color: '#F39C12', scale: '0.12 0.12 0.12' },
+      { geo: 'torus', color: '#9B59B6', scale: '0.12 0.12 0.12' },
+    ];
+
+    document.getElementById('ground').addEventListener('click', (event) => {
+      const point = event.detail.intersection.point;
+      const container = document.getElementById('objects-container');
+
+      if (!occluderPlaced) {
+        // First tap places the occluder
+        occluderPlaced = true;
+        const group = document.getElementById('occluder-group');
+        group.setAttribute('position', `${point.x} ${point.y} ${point.z}`);
+        document.getElementById('info').textContent = 'タップでオブジェクトを追加（壁の裏で隠れます）';
+        return;
+      }
+
+      const shape = SHAPES[objectCount % SHAPES.length];
+      objectCount++;
+
+      const el = document.createElement('a-entity');
+      el.setAttribute('geometry', `primitive: ${shape.geo}`);
+      el.setAttribute('material', `color: ${shape.color}`);
+      el.setAttribute('position', `${point.x} ${point.y + 0.15} ${point.z}`);
+      el.setAttribute('scale', '0.001 0.001 0.001');
+      el.setAttribute('shadow', 'cast: true');
+
+      // Spawn animation
+      el.setAttribute('animation', `property: scale; to: ${shape.scale}; dur: 500; easing: easeOutElastic`);
+      // Floating animation
+      el.setAttribute('animation__float', {
+        property: 'position',
+        to: `${point.x} ${point.y + 0.3} ${point.z}`,
+        dir: 'alternate',
+        dur: 2000 + Math.random() * 1000,
+        loop: true,
+        easing: 'easeInOutSine'
+      });
+      // Rotation
+      el.setAttribute('animation__rotate', {
+        property: 'rotation',
+        to: `${Math.random()*360} ${Math.random()*360} ${Math.random()*360}`,
+        dur: 5000 + Math.random() * 3000,
+        loop: true,
+        easing: 'linear'
+      });
+
+      container.appendChild(el);
+
+      if (!placed) {
+        placed = true;
+        setTimeout(() => { document.getElementById('info').style.opacity = '0'; }, 2000);
+      }
+    });
+
+    function toggleOcclusion() {
+      occlusionOn = !occlusionOn;
+      const wall = document.getElementById('occluder-wall');
+      const wireframe = document.getElementById('wall-wireframe');
+      const label = document.getElementById('occlusion-label');
+      const btn = document.querySelector('#controls button');
+
+      wall.setAttribute('visible', occlusionOn);
+      wireframe.setAttribute('material', `wireframe: true; color: ${occlusionOn ? '#00f0ff' : '#666'}; opacity: ${occlusionOn ? 0.3 : 0.15}; transparent: true`);
+
+      label.textContent = `Occlusion: ${occlusionOn ? 'ON' : 'OFF'}`;
+      label.className = occlusionOn ? 'on' : 'off';
+      btn.classList.toggle('active', occlusionOn);
+    }
+    window.toggleOcclusion = toggleOcclusion;
+
+    function resetScene() {
+      document.getElementById('objects-container').innerHTML = '';
+      objectCount = 0;
+      placed = false;
+    }
+    window.resetScene = resetScene;
+  </script>
+</body>
+</html>

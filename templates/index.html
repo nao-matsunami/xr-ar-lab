@@ -116,6 +116,14 @@
     .tag-anim   { background: rgba(243,156,18,0.15); color: #f39c12; }
     .tag-hand   { background: rgba(255,107,107,0.15); color: #ff6b6b; }
     .tag-portal { background: rgba(0,206,209,0.15); color: #00ced1; }
+    .tag-multi  { background: rgba(241,196,15,0.15); color: #f1c40f; }
+    .tag-curved { background: rgba(230,126,34,0.15); color: #e67e22; }
+    .tag-world  { background: rgba(52,152,219,0.15); color: #3498db; }
+    .tag-audio  { background: rgba(155,89,182,0.15); color: #9b59b6; }
+    .tag-vr     { background: rgba(52,73,94,0.15); color: #7f8c8d; }
+    .tag-canvas { background: rgba(46,204,113,0.15); color: #2ecc71; }
+    .tag-occlusion { background: rgba(0,206,209,0.15); color: #00ced1; }
+    .tag-geo    { background: rgba(231,76,60,0.15); color: #e74c3c; }
 
     footer {
       text-align: center;
@@ -238,6 +246,53 @@
       </div>
     </a>
 
+    <div class="section-title" style="grid-column: 1 / -1;">Image Target Variants</div>
+
+    <a class="card" href="./multi-target-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F3AF;</div>
+        <div class="card-title">Multi Target</div>
+      </div>
+      <div class="card-desc">
+        複数画像同時認識 — 3つのターゲットを同時検出し、それぞれ異なる3Dオブジェクトを表示
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-multi">Multi Target</span>
+        <span class="tag tag-image">Image Target</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <a class="card" href="./curved-target-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F4E6;</div>
+        <div class="card-title">Curved Target</div>
+      </div>
+      <div class="card-desc">
+        曲面トラッキング — 缶やボトルなどの円筒面を認識し、シリンダーオーバーレイを表示
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-curved">Curved Surface</span>
+        <span class="tag tag-image">Image Target</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <a class="card" href="./canvas-target-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F3A8;</div>
+        <div class="card-title">Canvas Target</div>
+      </div>
+      <div class="card-desc">
+        動的テクスチャ — HTML Canvas で生成したアニメーション（時計・Wave・Matrix）を画像ターゲット上に表示
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-canvas">Canvas</span>
+        <span class="tag tag-image">Image Target</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
     <div class="section-title" style="grid-column: 1 / -1;">Advanced</div>
 
     <a class="card" href="./portal-demo/">
@@ -296,6 +351,82 @@
       <div class="card-tags">
         <span class="tag tag-hand">Hand</span>
         <span class="tag tag-face">Tracking</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <a class="card" href="./world-effects-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x2728;</div>
+        <div class="card-title">World Effects</div>
+      </div>
+      <div class="card-desc">
+        環境エフェクト — タップで雨・雪・炎のパーティクルエフェクトを空間に配置
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-world">Particles</span>
+        <span class="tag tag-slam">SLAM</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <a class="card" href="./audio-ar-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F50A;</div>
+        <div class="card-title">Spatial Audio</div>
+      </div>
+      <div class="card-desc">
+        空間オーディオ — Web Audio API + HRTF で3つの音源を空間配置、カメラで音の方向が変化
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-audio">Audio</span>
+        <span class="tag tag-slam">SLAM</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <a class="card" href="./occlusion-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F532;</div>
+        <div class="card-title">Occlusion</div>
+      </div>
+      <div class="card-desc">
+        リアル遮蔽 — hider-material の壁でオブジェクトが隠れる遮蔽効果のON/OFF切り替え
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-occlusion">Occlusion</span>
+        <span class="tag tag-slam">SLAM</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <div class="section-title" style="grid-column: 1 / -1;">Experimental</div>
+
+    <a class="card" href="./vr-mode-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F97D;</div>
+        <div class="card-title">VR Mode</div>
+      </div>
+      <div class="card-desc">
+        VR 360°パノラマ — 非ARモードで宇宙・夕焼け・オーロラ・ネオンの仮想空間を体験
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-vr">VR</span>
+        <span class="tag tag-aframe">A-Frame</span>
+      </div>
+    </a>
+
+    <a class="card" href="./geo-ar-demo/">
+      <div class="card-header">
+        <div class="card-icon">&#x1F4CD;</div>
+        <div class="card-title">Geo AR</div>
+      </div>
+      <div class="card-desc">
+        GPS位置情報AR — 現在地のGPS座標とコンパスを表示、POIマーカーを配置
+      </div>
+      <div class="card-tags">
+        <span class="tag tag-geo">GPS</span>
+        <span class="tag tag-slam">SLAM</span>
         <span class="tag tag-aframe">A-Frame</span>
       </div>
     </a>

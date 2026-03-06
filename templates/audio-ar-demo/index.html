@@ -1,0 +1,210 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Audio AR Demo</title>
+  <script src="//cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
+  <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
+  <script src="//cdn.8thwall.com/web/landing-page/landing-page.js"></script>
+  <script async src="../../vendor/engine/xr-standalone/xr.js" data-preload-chunks="slam"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #info {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 999; background: rgba(0,0,0,0.6); color: #fff;
+      padding: 10px 20px; border-radius: 20px; font-size: 13px;
+      font-family: sans-serif; pointer-events: none; text-align: center;
+      line-height: 1.5;
+    }
+    #start-btn {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      z-index: 999; padding: 14px 28px; border: 2px solid #00f0ff;
+      border-radius: 25px; background: rgba(0,240,255,0.15);
+      color: #00f0ff; font-size: 15px; font-weight: 700;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    #audio-info {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      z-index: 999; display: none; gap: 8px; flex-wrap: wrap; justify-content: center;
+    }
+    .audio-tag {
+      padding: 6px 12px; border-radius: 12px; font-size: 11px;
+      font-family: monospace; font-weight: 600;
+      background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);
+    }
+  </style>
+</head>
+<body>
+  <div id="info">地面をタップしてオーディオソースを配置<br><small>カメラを向けると音が大きくなります</small></div>
+  <button id="start-btn" onclick="startAudio()">🔊 オーディオ開始</button>
+  <div id="audio-info">
+    <span class="audio-tag" style="color:#E74C3C;">● 低音 220Hz</span>
+    <span class="audio-tag" style="color:#3498DB;">● 中音 440Hz</span>
+    <span class="audio-tag" style="color:#2ECC71;">● 高音 880Hz</span>
+  </div>
+
+  <a-scene
+    landing-page
+    xrextras-loading
+    xrextras-runtime-error
+    renderer="colorManagement: true"
+    xrweb="allowedDevices: any">
+
+    <a-camera id="camera" position="0 4 4"
+      raycaster="objects: .cantap" cursor="fuse: false; rayOrigin: mouse;"></a-camera>
+
+    <a-light type="ambient" intensity="0.8"></a-light>
+    <a-light type="directional" intensity="0.5" position="1 4 2"></a-light>
+
+    <a-entity id="ground" class="cantap"
+      geometry="primitive: plane; width: 100; height: 100"
+      rotation="-90 0 0"
+      material="shader: shadow; transparent: true; opacity: 0.4"></a-entity>
+  </a-scene>
+
+  <script>
+    let audioCtx = null;
+    let audioStarted = false;
+    let sources = [];
+
+    const SOURCE_DEFS = [
+      { freq: 220, color: '#E74C3C', label: '低音 220Hz', offset: { x: 0, z: -1.5 } },
+      { freq: 440, color: '#3498DB', label: '中音 440Hz', offset: { x: 1.3, z: 0.75 } },
+      { freq: 880, color: '#2ECC71', label: '高音 880Hz', offset: { x: -1.3, z: 0.75 } },
+    ];
+
+    function startAudio() {
+      if (audioStarted) return;
+      audioStarted = true;
+
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      document.getElementById('start-btn').style.display = 'none';
+      document.getElementById('audio-info').style.display = 'flex';
+    }
+
+    let placed = false;
+    document.getElementById('ground').addEventListener('click', (event) => {
+      if (!audioStarted || placed) return;
+      placed = true;
+
+      const point = event.detail.intersection.point;
+      const scene = document.querySelector('a-scene');
+
+      SOURCE_DEFS.forEach((def, i) => {
+        const x = point.x + def.offset.x;
+        const y = point.y + 0.3;
+        const z = point.z + def.offset.z;
+
+        // Visual marker
+        const marker = document.createElement('a-entity');
+        marker.setAttribute('position', `${x} ${y} ${z}`);
+
+        const sphere = document.createElement('a-sphere');
+        sphere.setAttribute('radius', '0.15');
+        sphere.setAttribute('color', def.color);
+        sphere.setAttribute('material', 'shader: flat; opacity: 0.7; transparent: true');
+        sphere.setAttribute('animation', {
+          property: 'scale',
+          dir: 'alternate',
+          dur: 1000 + i * 200,
+          easing: 'easeInOutSine',
+          loop: true,
+          from: '1 1 1',
+          to: '1.3 1.3 1.3'
+        });
+        marker.appendChild(sphere);
+
+        // Pulse ring
+        const ring = document.createElement('a-torus');
+        ring.setAttribute('radius', '0.25');
+        ring.setAttribute('radius-tubular', '0.01');
+        ring.setAttribute('color', def.color);
+        ring.setAttribute('material', 'shader: flat; opacity: 0.4; transparent: true');
+        ring.setAttribute('rotation', '90 0 0');
+        ring.setAttribute('animation', {
+          property: 'scale',
+          from: '0.5 0.5 0.5',
+          to: '2 2 2',
+          dur: 2000,
+          loop: true,
+          easing: 'linear'
+        });
+        ring.setAttribute('animation__fade', {
+          property: 'material.opacity',
+          from: 0.4,
+          to: 0,
+          dur: 2000,
+          loop: true,
+          easing: 'linear'
+        });
+        marker.appendChild(ring);
+
+        // Label
+        const text = document.createElement('a-text');
+        text.setAttribute('value', def.label);
+        text.setAttribute('position', '0 0.35 0');
+        text.setAttribute('align', 'center');
+        text.setAttribute('color', def.color);
+        text.setAttribute('scale', '0.5 0.5 0.5');
+        text.setAttribute('side', 'double');
+        marker.appendChild(text);
+
+        scene.appendChild(marker);
+
+        // Web Audio API: oscillator + panner
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = def.freq;
+
+        const gain = audioCtx.createGain();
+        gain.gain.value = 0.15;
+
+        const panner = audioCtx.createPanner();
+        panner.panningModel = 'HRTF';
+        panner.distanceModel = 'inverse';
+        panner.refDistance = 1;
+        panner.maxDistance = 10;
+        panner.rolloffFactor = 1;
+        panner.setPosition(x, y, z);
+
+        osc.connect(gain);
+        gain.connect(panner);
+        panner.connect(audioCtx.destination);
+        osc.start();
+
+        sources.push({ osc, gain, panner, marker, x, y, z });
+      });
+
+      document.getElementById('info').textContent = 'カメラを各ソースに向けてみてください';
+      setTimeout(() => { document.getElementById('info').style.opacity = '0'; }, 3000);
+
+      // Update listener position from camera
+      const camera = document.getElementById('camera');
+      setInterval(() => {
+        if (!audioCtx || !camera.object3D) return;
+        const pos = camera.object3D.position;
+        const dir = new THREE.Vector3(0, 0, -1);
+        dir.applyQuaternion(camera.object3D.quaternion);
+        const up = new THREE.Vector3(0, 1, 0);
+
+        if (audioCtx.listener.positionX) {
+          audioCtx.listener.positionX.value = pos.x;
+          audioCtx.listener.positionY.value = pos.y;
+          audioCtx.listener.positionZ.value = pos.z;
+          audioCtx.listener.forwardX.value = dir.x;
+          audioCtx.listener.forwardY.value = dir.y;
+          audioCtx.listener.forwardZ.value = dir.z;
+          audioCtx.listener.upX.value = up.x;
+          audioCtx.listener.upY.value = up.y;
+          audioCtx.listener.upZ.value = up.z;
+        } else {
+          audioCtx.listener.setPosition(pos.x, pos.y, pos.z);
+          audioCtx.listener.setOrientation(dir.x, dir.y, dir.z, up.x, up.y, up.z);
+        }
+      }, 50);
+    });
+  </script>
+</body>
+</html>

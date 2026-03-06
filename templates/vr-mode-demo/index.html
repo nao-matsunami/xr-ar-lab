@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>VR Mode Demo — 360° Panorama</title>
+  <script src="//cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #info {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 999; background: rgba(0,0,0,0.6); color: #fff;
+      padding: 8px 16px; border-radius: 20px; font-size: 13px;
+      font-family: sans-serif; pointer-events: none; text-align: center;
+    }
+    #scene-buttons {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      z-index: 999; display: flex; gap: 8px;
+    }
+    #scene-buttons button {
+      padding: 10px 18px; border: 2px solid rgba(255,255,255,0.5);
+      border-radius: 25px; background: rgba(0,0,0,0.5);
+      color: #fff; font-size: 13px; font-weight: 600;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: all 0.2s;
+    }
+    #scene-buttons button.active {
+      border-color: #00f0ff; color: #00f0ff;
+      background: rgba(0,240,255,0.15);
+    }
+    #vr-toggle {
+      position: fixed; top: 20px; right: 20px; z-index: 999;
+      padding: 10px 16px; border: 2px solid #fff; border-radius: 12px;
+      background: rgba(0,0,0,0.5); color: #fff; font-size: 13px;
+      font-weight: 600; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">スマホを動かして360°パノラマを体験<br><small>ジャイロ / マウスドラッグ対応</small></div>
+  <div id="scene-buttons">
+    <button class="active" onclick="setScene('space')">🌌 宇宙</button>
+    <button onclick="setScene('sunset')">🌅 夕焼け</button>
+    <button onclick="setScene('aurora')">🌊 オーロラ</button>
+    <button onclick="setScene('neon')">🌃 ネオン</button>
+  </div>
+  <button id="vr-toggle" onclick="toggleVR()">🥽 VR Mode</button>
+
+  <a-scene vr-mode-ui="enabled: true" renderer="colorManagement: true">
+    <a-camera look-controls="magicWindowTrackingEnabled: true; touchEnabled: true"
+      wasd-controls="enabled: false"></a-camera>
+
+    <a-sky id="sky-sphere" color="#000011" animation__color="property: material.color; dur: 1000"></a-sky>
+
+    <!-- Stars (for space scene) -->
+    <a-entity id="stars"></a-entity>
+
+    <!-- Floating objects -->
+    <a-entity id="scene-objects"></a-entity>
+  </a-scene>
+
+  <script>
+    const sky = document.getElementById('sky-sphere');
+    const starsEl = document.getElementById('stars');
+    const objectsEl = document.getElementById('scene-objects');
+
+    const SCENES = {
+      space: {
+        skyColor: '#000011',
+        objects: [
+          { geo: 'sphere', color: '#FFD700', pos: '0 3 -8', scale: '0.5 0.5 0.5', anim: 'property: rotation; to: 0 360 0; dur: 20000; loop: true; easing: linear' },
+          { geo: 'sphere', color: '#CD853F', pos: '-5 1 -6', scale: '0.8 0.8 0.8', anim: 'property: rotation; to: 0 360 15; dur: 30000; loop: true; easing: linear' },
+          { geo: 'torus', color: '#B8860B', pos: '-5 1 -6', scale: '1.2 1.2 0.1', rot: '30 0 0', anim: 'property: rotation; to: 30 360 0; dur: 25000; loop: true; easing: linear' },
+          { geo: 'sphere', color: '#4169E1', pos: '6 -1 -7', scale: '1.2 1.2 1.2', anim: 'property: position; dir: alternate; dur: 8000; loop: true; to: 6 0 -7; easing: easeInOutSine' },
+        ],
+        showStars: true
+      },
+      sunset: {
+        skyColor: '#FF6B35',
+        objects: [
+          { geo: 'sphere', color: '#FFD700', pos: '0 -2 -15', scale: '4 4 4', mat: 'shader: flat' },
+          { geo: 'plane', color: '#1a0a2e', pos: '0 -3 0', rot: '-90 0 0', scale: '100 100 1', mat: 'shader: flat' },
+        ],
+        showStars: false
+      },
+      aurora: {
+        skyColor: '#0a1628',
+        objects: [
+          { geo: 'plane', color: '#00ff88', pos: '-3 6 -10', scale: '8 0.3 1', mat: 'shader: flat; opacity: 0.4; transparent: true', anim: 'property: position; dir: alternate; dur: 5000; loop: true; to: 3 7 -10; easing: easeInOutSine' },
+          { geo: 'plane', color: '#00ccff', pos: '2 5 -10', scale: '6 0.2 1', mat: 'shader: flat; opacity: 0.3; transparent: true', anim: 'property: position; dir: alternate; dur: 7000; loop: true; to: -2 6 -10; easing: easeInOutSine' },
+          { geo: 'plane', color: '#ff00ff', pos: '0 7 -10', scale: '5 0.15 1', mat: 'shader: flat; opacity: 0.25; transparent: true', anim: 'property: position; dir: alternate; dur: 4000; loop: true; to: 1 8 -10; easing: easeInOutSine' },
+          { geo: 'plane', color: '#f0f0f0', pos: '0 -2 0', rot: '-90 0 0', scale: '100 100 1', mat: 'shader: flat; opacity: 0.1; transparent: true' },
+        ],
+        showStars: true
+      },
+      neon: {
+        skyColor: '#0a0015',
+        objects: [
+          { geo: 'box', color: '#ff00ff', pos: '-4 2 -6', scale: '0.5 4 0.5', mat: 'shader: flat', anim: 'property: material.color; from: #ff00ff; to: #00ffff; dir: alternate; dur: 2000; loop: true' },
+          { geo: 'box', color: '#00ffff', pos: '4 1.5 -6', scale: '0.5 3 0.5', mat: 'shader: flat', anim: 'property: material.color; from: #00ffff; to: #ff00ff; dir: alternate; dur: 3000; loop: true' },
+          { geo: 'torus', color: '#ff0066', pos: '0 3 -8', scale: '2 2 2', mat: 'shader: flat', anim: 'property: rotation; to: 0 360 360; dur: 10000; loop: true; easing: linear' },
+          { geo: 'box', color: '#ffff00', pos: '-2 0.5 -4', scale: '0.3 1 0.3', mat: 'shader: flat', anim: 'property: material.color; from: #ffff00; to: #ff6600; dir: alternate; dur: 1500; loop: true' },
+          { geo: 'box', color: '#00ff66', pos: '2 0.5 -4', scale: '0.3 1 0.3', mat: 'shader: flat', anim: 'property: material.color; from: #00ff66; to: #0066ff; dir: alternate; dur: 1800; loop: true' },
+        ],
+        showStars: false
+      }
+    };
+
+    // Generate stars
+    function createStars() {
+      starsEl.innerHTML = '';
+      for (let i = 0; i < 200; i++) {
+        const star = document.createElement('a-sphere');
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.random() * Math.PI;
+        const r = 30 + Math.random() * 20;
+        star.setAttribute('position', `${r*Math.sin(phi)*Math.cos(theta)} ${r*Math.cos(phi)} ${r*Math.sin(phi)*Math.sin(theta)}`);
+        star.setAttribute('radius', 0.02 + Math.random() * 0.05);
+        star.setAttribute('material', 'shader: flat; color: #ffffff');
+        star.setAttribute('animation', `property: material.opacity; from: ${0.3 + Math.random()*0.7}; to: ${Math.random()*0.5}; dir: alternate; dur: ${1000+Math.random()*3000}; loop: true`);
+        starsEl.appendChild(star);
+      }
+    }
+    createStars();
+
+    function setScene(name) {
+      const cfg = SCENES[name];
+      if (!cfg) return;
+
+      sky.setAttribute('animation__color', `property: material.color; to: ${cfg.skyColor}; dur: 1000`);
+
+      // Toggle stars
+      starsEl.setAttribute('visible', cfg.showStars);
+
+      // Replace objects
+      objectsEl.innerHTML = '';
+      cfg.objects.forEach(obj => {
+        const el = document.createElement('a-entity');
+        el.setAttribute('geometry', `primitive: ${obj.geo}${obj.geo === 'torus' ? '; radius: 1; radiusTubular: 0.05' : ''}`);
+        el.setAttribute('material', obj.mat || `color: ${obj.color}`);
+        el.setAttribute('position', obj.pos);
+        if (obj.scale) el.setAttribute('scale', obj.scale);
+        if (obj.rot) el.setAttribute('rotation', obj.rot);
+        if (obj.anim) el.setAttribute('animation', obj.anim);
+        objectsEl.appendChild(el);
+      });
+
+      // Update button states
+      document.querySelectorAll('#scene-buttons button').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+
+    function toggleVR() {
+      const scene = document.querySelector('a-scene');
+      if (scene.is('vr-mode')) {
+        scene.exitVR();
+      } else {
+        scene.enterVR();
+      }
+    }
+    window.setScene = setScene;
+    window.toggleVR = toggleVR;
+  </script>
+</body>
+</html>
