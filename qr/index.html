@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>xr-ar-lab Demo QR Codes</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #ffffff;
+      color: #1a1a1a;
+      padding: 2rem;
+      line-height: 1.4;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 0.95rem;
+      color: #666;
+      margin-bottom: 2rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .card {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      background: #fff;
+    }
+
+    .card .qr-container {
+      width: 160px;
+      height: 160px;
+      margin-bottom: 0.75rem;
+    }
+
+    .card .qr-container img {
+      display: block;
+      width: 160px !important;
+      height: 160px !important;
+    }
+
+    .card .qr-container canvas {
+      display: none;
+    }
+
+    .card .demo-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      color: #1a1a1a;
+    }
+
+    .card .demo-url {
+      font-size: 0.7rem;
+      color: #888;
+      word-break: break-all;
+    }
+
+    /* Responsive: 3 columns on medium screens */
+    @media (max-width: 960px) {
+      .grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    /* Responsive: 2 columns on small screens */
+    @media (max-width: 640px) {
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+
+      body {
+        padding: 1rem;
+      }
+
+      .card .qr-container,
+      .card .qr-container img {
+        width: 128px !important;
+        height: 128px !important;
+      }
+    }
+
+    /* Print styles */
+    @media print {
+      body {
+        background: #fff;
+        padding: 0;
+        margin: 0;
+      }
+
+      .grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.75rem;
+        max-width: 100%;
+      }
+
+      .card {
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 0.75rem;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .card .qr-container,
+      .card .qr-container img {
+        width: 120px !important;
+        height: 120px !important;
+      }
+
+      .card .demo-name {
+        font-size: 0.8rem;
+      }
+
+      .card .demo-url {
+        font-size: 0.6rem;
+      }
+
+      h1 {
+        font-size: 1.4rem;
+        margin-bottom: 0.25rem;
+      }
+
+      .subtitle {
+        margin-bottom: 1rem;
+        font-size: 0.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>xr-ar-lab Demo QR Codes</h1>
+  <p class="subtitle">Scan any QR code to launch the demo on your device</p>
+
+  <div class="grid" id="qr-grid"></div>
+
+  <script>
+    const BASE_URL = "https://xr-ar-lab.netlify.app";
+
+    const demos = [
+      { path: "/templates/", name: "Template Gallery" },
+      { path: "/templates/image-target-demo/", name: "Image Target" },
+      { path: "/templates/face-effects-demo/", name: "Face Effects" },
+      { path: "/templates/sky-effects-demo/", name: "Sky Effects" },
+      { path: "/templates/world-slam-demo/", name: "World SLAM" },
+      { path: "/templates/capture-demo/", name: "Capture" },
+      { path: "/templates/gesture-demo/", name: "Gesture" },
+      { path: "/templates/portal-demo/", name: "Portal" },
+      { path: "/templates/physics-demo/", name: "Physics" },
+      { path: "/templates/alpha-video-demo/", name: "Alpha Video" },
+      { path: "/templates/animation-demo/", name: "Animation" },
+      { path: "/templates/hand-tracking-demo/", name: "Hand Tracking" },
+      { path: "/templates/multi-target-demo/", name: "Multi Target" },
+      { path: "/templates/curved-target-demo/", name: "Curved Target" },
+      { path: "/templates/canvas-target-demo/", name: "Canvas Target" },
+      { path: "/templates/world-effects-demo/", name: "World Effects" },
+      { path: "/templates/audio-ar-demo/", name: "Spatial Audio" },
+      { path: "/templates/vr-mode-demo/", name: "VR Mode" },
+      { path: "/templates/occlusion-demo/", name: "Occlusion" },
+      { path: "/templates/geo-ar-demo/", name: "Geo AR" },
+      { path: "/showcase/", name: "Showcase" }
+    ];
+
+    const grid = document.getElementById("qr-grid");
+
+    demos.forEach(function (demo) {
+      var fullUrl = BASE_URL + demo.path;
+
+      var card = document.createElement("div");
+      card.className = "card";
+
+      var qrContainer = document.createElement("div");
+      qrContainer.className = "qr-container";
+
+      var nameEl = document.createElement("div");
+      nameEl.className = "demo-name";
+      nameEl.textContent = demo.name;
+
+      var urlEl = document.createElement("div");
+      urlEl.className = "demo-url";
+      urlEl.textContent = fullUrl;
+
+      card.appendChild(qrContainer);
+      card.appendChild(nameEl);
+      card.appendChild(urlEl);
+      grid.appendChild(card);
+
+      new QRCode(qrContainer, {
+        text: fullUrl,
+        width: 160,
+        height: 160,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    });
+  </script>
+
+</body>
+</html>
