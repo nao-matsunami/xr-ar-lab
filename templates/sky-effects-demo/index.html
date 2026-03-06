@@ -103,10 +103,10 @@
   </div>
 
   <div id="sky-switcher">
-    <button class="active" onclick="switchSky('space')">Space</button>
-    <button onclick="switchSky('sunset')">Sunset</button>
-    <button onclick="switchSky('aurora')">Aurora</button>
-    <button onclick="switchSky('neon')">Neon</button>
+    <button class="active" data-sky="space" onclick="switchSky('space')">Space</button>
+    <button data-sky="sunset" onclick="switchSky('sunset')">Sunset</button>
+    <button data-sky="aurora" onclick="switchSky('aurora')">Aurora</button>
+    <button data-sky="neon" onclick="switchSky('neon')">Neon</button>
   </div>
 
   <a-scene
@@ -261,7 +261,7 @@
 
       // ボタンのアクティブ状態を更新
       document.querySelectorAll('#sky-switcher button').forEach(btn => {
-        btn.classList.toggle('active', btn.textContent.toLowerCase() === name)
+        btn.classList.toggle('active', btn.dataset.sky === name)
       })
     }
   </script>
