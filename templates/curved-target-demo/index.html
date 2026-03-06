@@ -30,6 +30,31 @@
       color: #4ade80; border-color: #4ade80;
       background: rgba(74,222,128,0.15);
     }
+    /* Scan guide */
+    #scan-guide {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      z-index: 990; pointer-events: none; transition: opacity 0.5s;
+    }
+    #scan-guide.hidden { opacity: 0; }
+    .scan-ring {
+      width: 160px; height: 160px; border-radius: 50%;
+      border: 2px dashed rgba(0,240,255,0.5);
+      animation: scan-rotate 4s linear infinite;
+    }
+    .scan-line {
+      position: absolute; top: 50%; left: -10px; right: -10px;
+      height: 2px; background: linear-gradient(90deg, transparent, #00f0ff, transparent);
+      animation: scan-sweep 2s ease-in-out infinite;
+    }
+    .scan-text {
+      position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%);
+      white-space: nowrap; color: #00f0ff; font-size: 12px; font-family: sans-serif;
+    }
+    @keyframes scan-rotate { to { transform: rotate(360deg); } }
+    @keyframes scan-sweep {
+      0%, 100% { transform: translateY(-40px); opacity: 0; }
+      50% { transform: translateY(40px); opacity: 1; }
+    }
   </style>
 <style>
   #help-btn {
@@ -79,16 +104,35 @@
     <div id="help-content" onclick="event.stopPropagation()">
       <h3>Curved Target</h3>
       <hr class="sep">
-      <div class="row"><b>使い方:</b> 缶・ボトルにカメラを向ける</div>
+      <div class="row"><b>使い方:</b></div>
+      <ul>
+        <li>缶・ボトルのラベルにカメラを向ける</li>
+        <li>ゆっくり左右に動かしてスキャン</li>
+        <li>20〜30cm の距離が最適</li>
+      </ul>
+      <hr class="sep">
+      <div class="row"><b>必要なもの:</b></div>
+      <ul>
+        <li>アルミ缶（350ml/500ml）</li>
+        <li>ペットボトル（ラベル付き）</li>
+        <li>その他 円柱形の容器</li>
+      </ul>
       <hr class="sep">
       <div class="row"><b>できること:</b></div>
       <ul>
         <li>湾曲面トラッキング</li>
-        <li>円柱形オブジェクトへのAR</li>
+        <li>円柱形オブジェクトへのAR表示</li>
       </ul>
       <button class="close-help" onclick="toggleHelp()">閉じる</button>
     </div>
   </div>
+  <div id="scan-guide">
+    <div class="scan-ring">
+      <div class="scan-line"></div>
+    </div>
+    <div class="scan-text">缶・ボトルを映してください</div>
+  </div>
+
   <div id="info">缶やボトルのラベルにカメラをかざしてください<br><small>Curved Surface Tracking Demo</small></div>
   <div id="tracking-status">Searching...</div>
 
@@ -140,17 +184,20 @@
   <script>
     const scene = document.querySelector('a-scene');
     const status = document.getElementById('tracking-status');
+    const scanGuide = document.getElementById('scan-guide');
 
     scene.addEventListener('xrimagefound', (e) => {
       if (e.detail.name === 'curved-surface') {
         status.textContent = 'Curved Surface Detected';
         status.classList.add('found');
+        scanGuide.classList.add('hidden');
       }
     });
     scene.addEventListener('xrimagelost', (e) => {
       if (e.detail.name === 'curved-surface') {
         status.textContent = 'Searching...';
         status.classList.remove('found');
+        scanGuide.classList.remove('hidden');
       }
     });
   </script>
