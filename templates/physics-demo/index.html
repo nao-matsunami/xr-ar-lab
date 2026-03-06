@@ -50,7 +50,7 @@
     xrextras-loading
     xrextras-runtime-error
     renderer="colorManagement: true"
-    physics="iterations: 1"
+    physics="gravity: -9.8; restitution: 0.6; friction: 0.1; iterations: 2"
     xrweb="allowedDevices: any">
 
     <a-assets>
@@ -70,7 +70,7 @@
       rotation="-90 0 0"
       material="shader: shadow; transparent: true; opacity: 0.4"
       shadow="receive: true"
-      body="type: static; shape: box;"
+      body="type: static; shape: box; restitution: 0.6"
       shape="shape: box; halfExtents: 50 50 0.01"></a-entity>
   </a-scene>
 
@@ -110,7 +110,9 @@
       tomato.setAttribute('body', {
         type: 'dynamic',
         sphereRadius: 0.35,
-        shape: 'sphere'
+        shape: 'sphere',
+        restitution: 0.6,
+        linearDamping: 0.1,
       });
 
       // Calculate velocity in camera direction
@@ -125,11 +127,12 @@
       document.getElementById('score').textContent = '🍅 ' + tossCount;
 
       // Collision detection
-      let didCollide = false;
+      let collideCount = 0;
       tomato.addEventListener('collide', (e) => {
-        if (didCollide) return;
         if (e.detail.body.el.id !== 'ground') return;
-        didCollide = true;
+        collideCount++;
+        if (collideCount > 3) return;  // Allow a few bounces before splat
+        if (collideCount < 3) return;  // Only splat on 3rd bounce
 
         // Play splat sound
         const splatAudio = document.getElementById('splat');
