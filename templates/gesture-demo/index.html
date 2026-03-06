@@ -78,6 +78,38 @@
   </a-scene>
 
   <script>
+    // Gesture scale/position watchdog — prevents object from disappearing
+    AFRAME.registerComponent('gesture-guard', {
+      schema: {
+        minScale: { type: 'number', default: 0.1 },
+        maxScale: { type: 'number', default: 5 },
+      },
+      tick() {
+        const s = this.el.object3D.scale;
+        const p = this.el.object3D.position;
+        const d = this.data;
+
+        // Clamp scale
+        const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+        s.x = clamp(s.x, d.minScale, d.maxScale);
+        s.y = clamp(s.y, d.minScale, d.maxScale);
+        s.z = clamp(s.z, d.minScale, d.maxScale);
+
+        // Fix NaN values
+        if (isNaN(p.x) || isNaN(p.y) || isNaN(p.z)) {
+          console.log('[Gesture] NaN position detected, resetting');
+          p.set(this._lastGoodPos.x, this._lastGoodPos.y, this._lastGoodPos.z);
+        } else {
+          if (!this._lastGoodPos) this._lastGoodPos = new THREE.Vector3();
+          this._lastGoodPos.copy(p);
+        }
+        if (isNaN(s.x) || isNaN(s.y) || isNaN(s.z)) {
+          console.log('[Gesture] NaN scale detected, resetting');
+          s.set(1, 1, 1);
+        }
+      },
+    });
+
     let placed = false;
 
     document.getElementById('ground').addEventListener('click', (event) => {
@@ -97,7 +129,10 @@
       // Gesture components
       castle.setAttribute('xrextras-hold-drag', '');
       castle.setAttribute('xrextras-two-finger-rotate', '');
-      castle.setAttribute('xrextras-pinch-scale', 'min: 0.2; max: 5');
+      castle.setAttribute('xrextras-pinch-scale', 'min: 0.1; max: 5');
+
+      // Guard against disappearing
+      castle.setAttribute('gesture-guard', 'minScale: 0.1; maxScale: 5');
 
       // Appear animation
       castle.setAttribute('animation', {
@@ -108,6 +143,12 @@
       });
 
       document.querySelector('a-scene').appendChild(castle);
+
+      // Debug: log gesture events
+      castle.addEventListener('scale-changed', (e) => {
+        const s = castle.object3D.scale;
+        console.log('[Gesture] scale:', s.x.toFixed(2), s.y.toFixed(2), s.z.toFixed(2));
+      });
 
       // Update UI
       document.getElementById('instructions').textContent = 'ジェスチャーで操作してください';
