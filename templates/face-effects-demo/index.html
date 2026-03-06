@@ -80,7 +80,7 @@
 
       <!-- メガネ（noseBridge） -->
       <a-entity xrextras-face-attachment="point: noseBridge">
-        <a-entity id="glasses-effect" visible="false" scale="3.5 3.5 3.5">
+        <a-entity id="glasses-effect" visible="false" scale="8 8 8">
           <!-- ブリッジ -->
           <a-box position="0 0 0.01" width="0.08" height="0.008" depth="0.006"
                  color="#222" material="shader: flat"></a-box>
@@ -108,7 +108,7 @@
 
       <!-- 王冠（forehead） -->
       <a-entity xrextras-face-attachment="point: forehead">
-        <a-entity id="crown-effect" visible="false" scale="3 3 3" position="0 0.06 0">
+        <a-entity id="crown-effect" visible="false" scale="7 7 7" position="0 0.07 0">
           <!-- ベースバンド -->
           <a-box position="0 0 0" width="0.14" height="0.025" depth="0.005"
                  color="#FFD700" material="shader: flat"></a-box>
@@ -172,10 +172,12 @@
 
       if (name === 'mesh') {
         materials[name] = new THREE.MeshBasicMaterial({
-          color: 0x00FFFF,
+          color: 0x00ff88,
           wireframe: true,
-          opacity: 0.6,
+          opacity: 0.8,
           transparent: true,
+          depthWrite: false,
+          side: THREE.DoubleSide,
         })
       } else if (name === 'paint' && paintTexture) {
         materials[name] = new THREE.MeshBasicMaterial({
@@ -257,6 +259,7 @@
     let pollCount = 0
     function pollForHeadMesh() {
       if (findHeadMesh()) {
+        console.log('[FaceEffects] headMesh found, applying:', currentEffect)
         applyMaterial(currentEffect)
         // face-mesh は毎フレーム visible=true を強制するが、
         // マテリアルは書き換えないので一度設定すればOK。
@@ -270,13 +273,14 @@
       if (pollCount < 100) {  // 最大10秒
         setTimeout(pollForHeadMesh, 100)
       } else {
-        // headMesh not found after 10s — face tracking may not be available
+        console.log('[FaceEffects] headMesh not found after 10s')
       }
     }
 
     // === エフェクト切り替え ===
     function switchEffect(name) {
       currentEffect = name
+      console.log('[FaceEffects] switchEffect:', name, 'headMeshNode:', !!headMeshNode)
 
       // 顔メッシュ: mesh or paint or off
       if (name === 'mesh' || name === 'paint') {
