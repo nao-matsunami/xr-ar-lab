@@ -23,11 +23,13 @@
     #effect-switcher {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
       z-index: 999; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+      padding-bottom: env(safe-area-inset-bottom);
     }
     #effect-switcher button {
-      padding: 10px 16px; border: 2px solid rgba(255,255,255,0.6);
+      padding: 12px 20px; border: 2px solid rgba(255,255,255,0.6);
       border-radius: 25px; background: rgba(0,0,0,0.5);
-      color: #fff; font-size: 13px; font-weight: 600;
+      color: #fff; font-size: 14px; font-weight: 600;
+      min-height: 44px;
       cursor: pointer; transition: all 0.2s;
       -webkit-tap-highlight-color: transparent;
     }
@@ -246,7 +248,6 @@
     let pollCount = 0
     function pollForHeadMesh() {
       if (findHeadMesh()) {
-        console.log('[face-effects] headMesh found, applying material:', currentEffect)
         applyMaterial(currentEffect)
         // face-mesh は毎フレーム visible=true を強制するが、
         // マテリアルは書き換えないので一度設定すればOK。
@@ -260,7 +261,7 @@
       if (pollCount < 100) {  // 最大10秒
         setTimeout(pollForHeadMesh, 100)
       } else {
-        console.warn('[face-effects] headMesh not found after 10s')
+        // headMesh not found after 10s — face tracking may not be available
       }
     }
 

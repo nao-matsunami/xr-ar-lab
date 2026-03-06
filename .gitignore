@@ -26,3 +26,6 @@ build/
 
 # 証明書
 tools/certs/
+
+# Local Netlify folder
+.netlify

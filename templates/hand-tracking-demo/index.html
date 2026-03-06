@@ -23,11 +23,13 @@
     #effect-switcher {
       position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
       z-index: 999; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+      padding-bottom: env(safe-area-inset-bottom);
     }
     #effect-switcher button {
-      padding: 10px 16px; border: 2px solid rgba(255,255,255,0.5);
+      padding: 12px 20px; border: 2px solid rgba(255,255,255,0.5);
       border-radius: 25px; background: rgba(0,0,0,0.5);
-      color: #fff; font-size: 12px; font-weight: 600;
+      color: #fff; font-size: 14px; font-weight: 600;
+      min-height: 44px;
       cursor: pointer; -webkit-tap-highlight-color: transparent;
       transition: all 0.2s;
     }
@@ -180,7 +182,6 @@
 
     // Also detect if xrhand fails to initialize
     scene.addEventListener('xrerror', (e) => {
-      console.warn('[hand-tracking] XR error:', e);
       document.getElementById('fallback-notice').style.display = 'block';
     });
 
