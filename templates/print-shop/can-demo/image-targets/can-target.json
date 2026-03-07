@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/can-target_luminance.png",
+  "metadata": null,
+  "name": "can-target",
+  "type": "PLANAR",
+  "properties": {
+    "left": 0,
+    "top": 0,
+    "width": 768,
+    "height": 1024,
+    "isRotated": false,
+    "originalWidth": 768,
+    "originalHeight": 1024
+  },
+  "resources": {
+    "originalImage": "can-target_original.png",
+    "croppedImage": "can-target_cropped.png",
+    "thumbnailImage": "can-target_thumbnail.png",
+    "luminanceImage": "can-target_luminance.png"
+  },
+  "created": 1772899537105,
+  "updated": 1772899537105
+}

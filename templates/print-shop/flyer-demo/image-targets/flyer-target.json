@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/flyer-target_luminance.png",
+  "metadata": null,
+  "name": "flyer-target",
+  "type": "PLANAR",
+  "properties": {
+    "left": 0,
+    "top": 0,
+    "width": 768,
+    "height": 1024,
+    "isRotated": false,
+    "originalWidth": 768,
+    "originalHeight": 1024
+  },
+  "resources": {
+    "originalImage": "flyer-target_original.png",
+    "croppedImage": "flyer-target_cropped.png",
+    "thumbnailImage": "flyer-target_thumbnail.png",
+    "luminanceImage": "flyer-target_luminance.png"
+  },
+  "created": 1772899537348,
+  "updated": 1772899537348
+}

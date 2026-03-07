@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/mug-target_luminance.png",
+  "metadata": null,
+  "name": "mug-target",
+  "type": "PLANAR",
+  "properties": {
+    "left": 0,
+    "top": 0,
+    "width": 768,
+    "height": 1024,
+    "isRotated": false,
+    "originalWidth": 768,
+    "originalHeight": 1024
+  },
+  "resources": {
+    "originalImage": "mug-target_original.png",
+    "croppedImage": "mug-target_cropped.png",
+    "thumbnailImage": "mug-target_thumbnail.png",
+    "luminanceImage": "mug-target_luminance.png"
+  },
+  "created": 1772899537576,
+  "updated": 1772899537576
+}

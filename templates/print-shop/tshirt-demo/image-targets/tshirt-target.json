@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/tshirt-target_luminance.png",
+  "metadata": null,
+  "name": "tshirt-target",
+  "type": "PLANAR",
+  "properties": {
+    "left": 0,
+    "top": 0,
+    "width": 768,
+    "height": 1024,
+    "isRotated": false,
+    "originalWidth": 768,
+    "originalHeight": 1024
+  },
+  "resources": {
+    "originalImage": "tshirt-target_original.png",
+    "croppedImage": "tshirt-target_cropped.png",
+    "thumbnailImage": "tshirt-target_thumbnail.png",
+    "luminanceImage": "tshirt-target_luminance.png"
+  },
+  "created": 1772899537454,
+  "updated": 1772899537454
+}

@@ -15,22 +15,22 @@
     var onxrloaded = function() {
       XR8.XrController.configure({
         imageTargetData: [{
-          imagePath: '../../image-target-demo/image-targets/sample-target-2_luminance.jpg',
+          imagePath: 'image-targets/tshirt-target_luminance.png',
           metadata: null,
-          name: 'sample-target-2',
+          name: 'tshirt-target',
           type: 'PLANAR',
           properties: {
-            left: 0, top: 0, width: 980, height: 1307,
-            isRotated: false, originalWidth: 980, originalHeight: 1307,
+            left: 0, top: 0, width: 768, height: 1024,
+            isRotated: false, originalWidth: 768, originalHeight: 1024,
           },
           resources: {
-            originalImage: 'sample-target-2_original.jpg',
-            croppedImage: 'sample-target-2_cropped.jpg',
-            thumbnailImage: 'sample-target-2_thumbnail.jpg',
-            luminanceImage: 'sample-target-2_luminance.jpg',
+            originalImage: 'tshirt-target_original.png',
+            croppedImage: 'tshirt-target_cropped.png',
+            thumbnailImage: 'tshirt-target_thumbnail.png',
+            luminanceImage: 'tshirt-target_luminance.png',
           },
-          created: 1772601126925,
-          updated: 1772601126925,
+          created: 1772899537105,
+          updated: 1772899537105,
         }],
       });
     };
@@ -58,7 +58,7 @@
         var door = document.querySelector('#door-panel');
         var birds = document.querySelectorAll('.bird');
         var scenePlane = document.querySelector('#scene-plane');
-        var targetEl = document.querySelector('[name="sample-target-2"]');
+        var targetEl = document.querySelector('[name="tshirt-target"]');
 
         if (targetEl) {
           targetEl.addEventListener('targetFound', function() {
@@ -186,7 +186,7 @@
     <a-light type="ambient" color="#ffffff" intensity="0.4"></a-light>
     <a-light type="directional" color="#ffffff" intensity="0.8" position="1 2 1"></a-light>
 
-    <xrextras-named-image-target name="sample-target-2">
+    <xrextras-named-image-target name="tshirt-target">
       <a-entity>
 
         <!-- Door frame -->

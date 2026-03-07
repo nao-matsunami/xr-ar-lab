@@ -15,22 +15,22 @@
     var onxrloaded = function() {
       XR8.XrController.configure({
         imageTargetData: [{
-          imagePath: '../../image-target-demo/image-targets/sample-target-2_luminance.jpg',
+          imagePath: 'image-targets/mug-target_luminance.png',
           metadata: null,
-          name: 'sample-target-2',
+          name: 'mug-target',
           type: 'PLANAR',
           properties: {
-            left: 0, top: 0, width: 980, height: 1307,
-            isRotated: false, originalWidth: 980, originalHeight: 1307,
+            left: 0, top: 0, width: 768, height: 1024,
+            isRotated: false, originalWidth: 768, originalHeight: 1024,
           },
           resources: {
-            originalImage: 'sample-target-2_original.jpg',
-            croppedImage: 'sample-target-2_cropped.jpg',
-            thumbnailImage: 'sample-target-2_thumbnail.jpg',
-            luminanceImage: 'sample-target-2_luminance.jpg',
+            originalImage: 'mug-target_original.png',
+            croppedImage: 'mug-target_cropped.png',
+            thumbnailImage: 'mug-target_thumbnail.png',
+            luminanceImage: 'mug-target_luminance.png',
           },
-          created: 1772601126925,
-          updated: 1772601126925,
+          created: 1772899537105,
+          updated: 1772899537105,
         }],
       });
     };
@@ -153,7 +153,7 @@
     <a-light type="ambient" color="#ffffff" intensity="0.4"></a-light>
     <a-light type="directional" color="#ffeedd" intensity="0.6" position="1 2 1"></a-light>
 
-    <xrextras-named-image-target name="sample-target-2">
+    <xrextras-named-image-target name="mug-target">
       <a-entity id="mug-target">
 
         <!-- Mug body (cylinder, open top) -->
