@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>缶・ボトル AR - ターゲット表示 - Target Display</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5; color: #333; padding: 20px;
+    }
+    h1 { text-align: center; margin-bottom: 10px; font-size: 1.5em; }
+    .instructions {
+      text-align: center; color: #666; margin-bottom: 30px;
+      font-size: 0.9em; line-height: 1.6;
+    }
+    .target-card {
+      background: #fff; border-radius: 12px; padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-width: 400px;
+      margin: 0 auto; text-align: center;
+    }
+    .target-card img {
+      max-width: 100%; height: auto; border: 2px solid #eee; border-radius: 4px;
+      display: block; margin: 0 auto;
+    }
+    .target-card h3 { margin: 12px 0 4px; font-size: 1.1em; }
+    .target-card p { color: #888; font-size: 0.85em; line-height: 1.5; }
+    .btn-row {
+      text-align: center; margin-top: 24px; display: flex; gap: 12px;
+      justify-content: center; flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-block; padding: 10px 24px;
+      border: none; border-radius: 8px; font-size: 1em; cursor: pointer;
+    }
+    .btn-print { background: #4ecdc4; color: #fff; }
+    .btn-print:hover { background: #3dbdb5; }
+    .btn-back { background: #eee; color: #333; text-decoration: none; }
+    .btn-back:hover { background: #ddd; }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .instructions, .btn-row { display: none; }
+      .target-card {
+        box-shadow: none; page-break-inside: avoid;
+        border: 1px solid #ccc; margin: 10px auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>缶・ボトル AR - ターゲット表示</h1>
+  <div class="instructions">
+    この画像を印刷して缶やボトルに巻き付けてください。<br>
+    AR端末のカメラで映してください。
+  </div>
+  <div class="target-card">
+    <img src="../../../templates/image-target-demo/image-targets/sample-target-1_thumbnail.jpg" alt="sample-target-1">
+    <h3>sample-target-1</h3>
+    <p>この画像にカメラを向けてください<br>缶・ボトルのラベルARが表示されます</p>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-print" onclick="window.print()">印刷する</button>
+    <a class="btn btn-back" href="./index.html">ARデモに戻る</a>
+    <a class="btn btn-back" href="../">デモ一覧に戻る</a>
+  </div>
+</body>
+</html>

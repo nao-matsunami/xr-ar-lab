@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AR x Print Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a; color: #e0e0e0; min-height: 100vh; padding: 20px;
+    }
+    .header { text-align: center; margin-bottom: 40px; padding-top: 20px; }
+    .header h1 { font-size: 2rem; color: #fff; letter-spacing: 2px; }
+    .header h1 span { color: #4ecdc4; }
+    .header p { color: #aaa; font-size: 0.95rem; margin-top: 8px; }
+    .header small { color: #666; font-size: 0.75rem; }
+
+    .grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px; max-width: 960px; margin: 0 auto;
+    }
+    .card {
+      background: #1a1a1a; border: 1px solid #333; border-radius: 16px;
+      padding: 24px; transition: all 0.2s;
+    }
+    .card:hover { border-color: #4ecdc4; transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(78,205,196,0.1); }
+    .card-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .card-title { font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 2px; }
+    .card-subtitle { font-size: 0.85rem; color: #888; margin-bottom: 16px; }
+    .card-btns { display: flex; gap: 8px; }
+    .card-btns a {
+      flex: 1; text-align: center; padding: 10px 12px; border-radius: 10px;
+      text-decoration: none; font-size: 0.85rem; font-weight: 600;
+      transition: all 0.2s; min-height: 44px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .btn-ar { background: #4ecdc4; color: #0a0a0a; }
+    .btn-ar:hover { background: #3dbdb5; }
+    .btn-target { background: #2a2a2a; color: #ccc; border: 1px solid #444; }
+    .btn-target:hover { background: #333; border-color: #4ecdc4; color: #4ecdc4; }
+
+    footer {
+      text-align: center; margin-top: 50px; padding: 20px;
+      padding-bottom: calc(20px + env(safe-area-inset-bottom));
+      color: #444; font-size: 0.8rem;
+    }
+    footer a { color: #4ecdc4; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1><span>AR</span> x Print</h1>
+    <p>印刷物にARを付加する体験デモ</p>
+    <small>Powered by 8th Wall + A-Frame</small>
+  </div>
+
+  <div class="grid">
+
+    <div class="card">
+      <div class="card-icon">🥫</div>
+      <div class="card-title">缶・ボトル</div>
+      <div class="card-subtitle">Can / Bottle</div>
+      <div class="card-btns">
+        <a class="btn-ar" href="./can-demo/">ARデモを起動</a>
+        <a class="btn-target" href="./can-demo/target-display.html">ターゲット表示</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">📇</div>
+      <div class="card-title">名刺</div>
+      <div class="card-subtitle">Business Card</div>
+      <div class="card-btns">
+        <a class="btn-ar" href="./card-demo/">ARデモを起動</a>
+        <a class="btn-target" href="./card-demo/target-display.html">ターゲット表示</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">📄</div>
+      <div class="card-title">チラシ</div>
+      <div class="card-subtitle">Flyer / Poster</div>
+      <div class="card-btns">
+        <a class="btn-ar" href="./flyer-demo/">ARデモを起動</a>
+        <a class="btn-target" href="./flyer-demo/target-display.html">ターゲット表示</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">👕</div>
+      <div class="card-title">Tシャツ</div>
+      <div class="card-subtitle">T-Shirt</div>
+      <div class="card-btns">
+        <a class="btn-ar" href="./tshirt-demo/">ARデモを起動</a>
+        <a class="btn-target" href="./tshirt-demo/target-display.html">ターゲット表示</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">☕</div>
+      <div class="card-title">マグカップ</div>
+      <div class="card-subtitle">Mug Cup</div>
+      <div class="card-btns">
+        <a class="btn-ar" href="./mug-demo/">ARデモを起動</a>
+        <a class="btn-target" href="./mug-demo/target-display.html">ターゲット表示</a>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    &copy; xr-ar-lab | demo for print shop<br>
+    <a href="/templates/">テンプレート一覧に戻る</a>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,296 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>缶・ボトル AR Demo</title>
+
+  <!-- 8frame (8th Wall版 A-Frame) -->
+  <script src="//cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
+
+  <!-- XR Extras -->
+  <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
+
+  <!-- Landing Pages -->
+  <script src="//cdn.8thwall.com/web/landing-page/landing-page.js"></script>
+
+  <!-- 8th Wall Engine (ローカルバイナリ — slam チャンク必須: XrController を生成) -->
+  <script async src="../../../vendor/engine/xr-standalone/xr.js" data-preload-chunks="slam"></script>
+
+  <script>
+    const onxrloaded = () => {
+      XR8.XrController.configure({
+        imageTargetData: [{
+          imagePath: '../../../templates/image-target-demo/image-targets/sample-target-1_luminance.jpg',
+          metadata: null,
+          name: 'sample-target-1',
+          type: 'PLANAR',
+          properties: {
+            left: 0, top: 0, width: 995, height: 1326,
+            isRotated: false, originalWidth: 995, originalHeight: 1326,
+          },
+          resources: {
+            originalImage: 'sample-target-1_original.jpg',
+            croppedImage: 'sample-target-1_cropped.jpg',
+            thumbnailImage: 'sample-target-1_thumbnail.jpg',
+            luminanceImage: 'sample-target-1_luminance.jpg',
+          },
+          created: 1772601126877,
+          updated: 1772601126877,
+        }],
+      })
+    }
+    window.XR8 ? onxrloaded() : window.addEventListener('xrloaded', onxrloaded)
+  </script>
+
+  <script>
+    function capturePhoto() {
+      var scene = document.querySelector('a-scene');
+      var canvas = scene.canvas;
+      scene.renderer.render(scene.object3D, scene.camera);
+      canvas.toBlob(function(blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'ar-print-' + Date.now() + '.jpg';
+        a.click();
+        URL.revokeObjectURL(url);
+      }, 'image/jpeg', 0.9);
+    }
+  </script>
+
+  <style>
+    body { margin: 0; overflow: hidden; }
+
+    #back-btn {
+      position: fixed; top: 20px; left: 20px; z-index: 998;
+      width: 40px; height: 40px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.4);
+      color: #fff; font-size: 20px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      text-decoration: none; -webkit-tap-highlight-color: transparent;
+    }
+
+    #capture-btn {
+      position: fixed; top: 70px; right: 20px; z-index: 998;
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.4);
+      color: #fff; font-size: 20px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #overlay-msg {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.8); color: #fff;
+      padding: 12px 20px; border-radius: 12px;
+      font: 14px/1.5 sans-serif; z-index: 999;
+      text-align: center; max-width: 90vw;
+    }
+
+    #help-btn {
+      position: fixed; top: 20px; right: 20px; z-index: 998;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.4);
+      color: #fff; font-size: 18px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #help-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 9998; background: rgba(0,0,0,0.8);
+      align-items: center; justify-content: center;
+    }
+    #help-overlay.visible { display: flex; }
+    #help-content {
+      background: #1a1a2e; border: 1px solid rgba(0,240,255,0.3);
+      border-radius: 16px; padding: 24px; max-width: 300px; width: 90%;
+      color: #fff; font-family: sans-serif;
+    }
+    #help-content h3 { margin: 0 0 12px; font-size: 18px; color: #00f0ff; }
+    #help-content .sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 10px 0; }
+    #help-content .row { font-size: 13px; line-height: 1.8; }
+    #help-content .row b { color: #00f0ff; }
+    #help-content ul { margin: 4px 0 0 0; padding-left: 18px; font-size: 13px; line-height: 1.8; color: #ccc; }
+    #help-content .close-help {
+      margin-top: 16px; width: 100%; padding: 10px; border: none;
+      border-radius: 8px; background: rgba(0,240,255,0.15); color: #00f0ff;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Error Overlay -->
+  <div id="error-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center; padding:20px; box-sizing:border-box;">
+    <div style="font-size:48px; margin-bottom:16px;" id="error-icon"></div>
+    <div style="font-size:20px; font-weight:bold; margin-bottom:12px;" id="error-title">Error</div>
+    <div style="font-size:14px; line-height:1.6; max-width:300px; white-space:pre-line;" id="error-message"></div>
+    <button onclick="location.reload()" style="margin-top:24px; padding:12px 24px; background:#fff; color:#000; border:none; border-radius:8px; font-size:16px; cursor:pointer;">再試行</button>
+    <a href="/demos/print-shop/" style="margin-top:12px; color:#aaa; font-size:14px; text-decoration:none;">デモ一覧に戻る</a>
+  </div>
+
+  <!-- Back Button -->
+  <a id="back-btn" href="../">&#x2190;</a>
+
+  <!-- Capture Button -->
+  <button id="capture-btn" onclick="capturePhoto()">&#x1F4F7;</button>
+
+  <!-- Help Button -->
+  <button id="help-btn" onclick="toggleHelp()">?</button>
+
+  <!-- Help Overlay -->
+  <div id="help-overlay" onclick="toggleHelp()">
+    <div id="help-content" onclick="event.stopPropagation()">
+      <h3>&#x1F96B; 缶・ボトル AR</h3>
+      <hr class="sep">
+      <div class="row"><b>使い方:</b> ターゲット画像を印刷して缶やボトルに巻き付けてカメラを向けてください</div>
+      <hr class="sep">
+      <div class="row"><b>活用例:</b></div>
+      <ul>
+        <li>ビール缶のラベルAR</li>
+        <li>ワインボトルのラベルAR</li>
+        <li>缶詰のラベルAR</li>
+      </ul>
+      <button class="close-help" onclick="toggleHelp()">閉じる</button>
+    </div>
+  </div>
+
+  <!-- Bottom Overlay -->
+  <div id="overlay-msg">缶・ボトルのラベルにARを追加できます</div>
+
+  <a-scene
+    xrextras-gesture-detector
+    landing-page
+    xrextras-loading
+    xrextras-runtime-error
+    renderer="colorManagement: true"
+    xrweb="disableWorldTracking: true; allowedDevices: any">
+
+    <a-camera
+      id="camera"
+      position="0 4 10"
+      raycaster="objects: .cantap"
+      cursor="fuse: false; rayOrigin: mouse;">
+    </a-camera>
+
+    <a-light type="directional" intensity="0.5" position="1 1 1"></a-light>
+    <a-light type="ambient" intensity="1"></a-light>
+
+    <!-- ターゲット: 缶・ボトル AR -->
+    <xrextras-named-image-target name="sample-target-1">
+      <a-entity>
+        <!-- YOUR BRAND text -->
+        <a-text
+          value="YOUR BRAND"
+          position="0 0.6 0"
+          align="center"
+          scale="0.4 0.4 0.4"
+          color="#fff">
+        </a-text>
+
+        <!-- Star shape (octahedron) -->
+        <a-octahedron
+          position="0 0.35 0"
+          radius="0.1"
+          color="#FFD700"
+          animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear">
+        </a-octahedron>
+
+        <!-- Logo text on the star -->
+        <a-text
+          value="&#x2605;"
+          position="0 0.35 0.11"
+          align="center"
+          scale="0.3 0.3 0.3"
+          color="#fff">
+        </a-text>
+
+        <!-- Sparkle sphere 1 -->
+        <a-sphere
+          position="0.15 0.25 0"
+          radius="0.03"
+          color="#FFD700"
+          material="transparent: true; opacity: 0.8"
+          animation="property: material.opacity; from: 0.3; to: 1; dir: alternate; loop: true; dur: 800; easing: easeInOutSine"
+          animation__orbit="property: position; from: 0.15 0.25 0; to: -0.15 0.25 0; dir: alternate; loop: true; dur: 3000; easing: easeInOutSine">
+        </a-sphere>
+
+        <!-- Sparkle sphere 2 -->
+        <a-sphere
+          position="-0.12 0.4 0.1"
+          radius="0.03"
+          color="#FFD700"
+          material="transparent: true; opacity: 0.6"
+          animation="property: material.opacity; from: 0.2; to: 0.9; dir: alternate; loop: true; dur: 1200; easing: easeInOutSine"
+          animation__orbit="property: position; from: -0.12 0.4 0.1; to: 0.12 0.4 -0.1; dir: alternate; loop: true; dur: 2500; easing: easeInOutSine">
+        </a-sphere>
+
+        <!-- Sparkle sphere 3 -->
+        <a-sphere
+          position="0.1 0.5 -0.08"
+          radius="0.03"
+          color="#FFD700"
+          material="transparent: true; opacity: 0.5"
+          animation="property: material.opacity; from: 0.4; to: 1; dir: alternate; loop: true; dur: 1000; easing: easeInOutSine"
+          animation__orbit="property: position; from: 0.1 0.5 -0.08; to: -0.1 0.5 0.08; dir: alternate; loop: true; dur: 3500; easing: easeInOutSine">
+        </a-sphere>
+
+        <!-- Sparkle sphere 4 -->
+        <a-sphere
+          position="-0.08 0.3 0.12"
+          radius="0.03"
+          color="#FFD700"
+          material="transparent: true; opacity: 0.7"
+          animation="property: material.opacity; from: 0.3; to: 0.8; dir: alternate; loop: true; dur: 900; easing: easeInOutSine"
+          animation__orbit="property: position; from: -0.08 0.3 0.12; to: 0.08 0.3 -0.12; dir: alternate; loop: true; dur: 2800; easing: easeInOutSine">
+        </a-sphere>
+      </a-entity>
+    </xrextras-named-image-target>
+
+  </a-scene>
+
+  <script>
+    // Unified error handling
+    function showError(type) {
+      var messages = {
+        camera: { icon: '\uD83D\uDCF7', title: 'カメラへのアクセスが必要です', message: 'ブラウザの設定からカメラのアクセスを許可してください。\n\nSettings > Safari/Chrome > Camera > Allow' },
+        gps: { icon: '\uD83D\uDCCD', title: '位置情報へのアクセスが必要です', message: 'このデモはGPS位置情報を使用します。\nブラウザの設定から位置情報のアクセスを許可してください。' },
+        browser: { icon: '\uD83C\uDF10', title: 'ブラウザが対応していません', message: 'このARデモはiOS Safari またはAndroid Chromeでご利用ください。\n\niOS: Safari最新版\nAndroid: Chrome最新版' },
+        https: { icon: '\uD83D\uDD12', title: 'HTTPSが必要です', message: 'このデモはHTTPS環境が必要です。\nhttps://xr-ar-lab.netlify.app からアクセスしてください。' }
+      };
+      var m = messages[type] || messages.browser;
+      document.getElementById('error-icon').textContent = m.icon;
+      document.getElementById('error-title').textContent = m.title;
+      document.getElementById('error-message').textContent = m.message;
+      document.getElementById('error-overlay').style.display = 'flex';
+    }
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      showError('https');
+    }
+    if (typeof navigator.mediaDevices === 'undefined' || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      showError('browser');
+    }
+  </script>
+
+  <script>
+    // Help overlay
+    function toggleHelp() {
+      document.getElementById('help-overlay').classList.toggle('visible');
+    }
+    // Auto-show after 3s, auto-hide after 5s or on first touch
+    setTimeout(function() {
+      document.getElementById('help-overlay').classList.add('visible');
+      setTimeout(function() {
+        document.getElementById('help-overlay').classList.remove('visible');
+      }, 5000);
+    }, 3000);
+    document.addEventListener('touchstart', function _h() {
+      document.getElementById('help-overlay').classList.remove('visible');
+      document.removeEventListener('touchstart', _h);
+    });
+  </script>
+</body>
+</html>
