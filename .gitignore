@@ -28,7 +28,7 @@ tools/certs/
 
 # Local Netlify folder
 .netlify
-vendor/
+#vendor/
 !vendor/engine/
 !vendor/engine/xr-standalone/
 !vendor/engine/xr-standalone/xr.js
