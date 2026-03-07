@@ -1,0 +1,267 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>T-shirt AR Demo</title>
+
+  <script src="//cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
+  <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
+  <script src="//cdn.8thwall.com/web/landing-page/landing-page.js"></script>
+  <script async src="../../../lib/xr.js" data-preload-chunks="slam"></script>
+
+  <script>
+    var onxrloaded = function() {
+      XR8.XrController.configure({
+        imageTargetData: [{
+          imagePath: '../../image-target-demo/image-targets/sample-target-2_luminance.jpg',
+          metadata: null,
+          name: 'sample-target-2',
+          type: 'PLANAR',
+          properties: {
+            left: 0, top: 0, width: 980, height: 1307,
+            isRotated: false, originalWidth: 980, originalHeight: 1307,
+          },
+          resources: {
+            originalImage: 'sample-target-2_original.jpg',
+            croppedImage: 'sample-target-2_cropped.jpg',
+            thumbnailImage: 'sample-target-2_thumbnail.jpg',
+            luminanceImage: 'sample-target-2_luminance.jpg',
+          },
+          created: 1772601126925,
+          updated: 1772601126925,
+        }],
+      });
+    };
+    window.XR8 ? onxrloaded() : window.addEventListener('xrloaded', onxrloaded);
+  </script>
+
+  <script>
+    function capturePhoto() {
+      var scene = document.querySelector('a-scene');
+      var canvas = scene.canvas;
+      scene.renderer.render(scene.object3D, scene.camera);
+      canvas.toBlob(function(blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'tshirt-ar-' + Date.now() + '.jpg';
+        a.click();
+        URL.revokeObjectURL(url);
+      }, 'image/jpeg', 0.9);
+    }
+
+    // Door animation trigger
+    AFRAME.registerComponent('door-controller', {
+      init: function() {
+        var door = document.querySelector('#door-panel');
+        var birds = document.querySelectorAll('.bird');
+        var scenePlane = document.querySelector('#scene-plane');
+        var targetEl = document.querySelector('[name="sample-target-2"]');
+
+        if (targetEl) {
+          targetEl.addEventListener('targetFound', function() {
+            // Open door after short delay
+            setTimeout(function() {
+              door.emit('door-open');
+
+              // Show scene behind door
+              setTimeout(function() {
+                scenePlane.setAttribute('animation__fade', 'property: material.opacity; from: 0; to: 0.95; dur: 800; easing: easeInOutSine');
+                scenePlane.setAttribute('material', 'opacity', '0');
+                scenePlane.setAttribute('visible', true);
+
+                // Birds fly out
+                setTimeout(function() {
+                  birds.forEach(function(b) { b.emit('fly-out'); });
+                }, 600);
+              }, 800);
+            }, 500);
+          });
+
+          targetEl.addEventListener('targetLost', function() {
+            // Reset
+            door.setAttribute('rotation', '0 0 0');
+            scenePlane.setAttribute('visible', false);
+            birds.forEach(function(b) {
+              b.setAttribute('scale', '0.001 0.001 0.001');
+              b.setAttribute('position', b.dataset.startPos);
+            });
+          });
+        }
+      }
+    });
+
+    // Bird canvas texture
+    AFRAME.registerComponent('bird-sprite', {
+      init: function() {
+        var canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 32;
+        var ctx = canvas.getContext('2d');
+        this._canvas = canvas;
+        this._ctx = ctx;
+        this._tex = new AFRAME.THREE.CanvasTexture(canvas);
+        this._time = Math.random() * 10;
+
+        var mesh = this.el.getObject3D('mesh');
+        if (mesh) {
+          mesh.material.map = this._tex;
+          mesh.material.transparent = true;
+          mesh.material.alphaTest = 0.1;
+        }
+      },
+      tick: function(t, dt) {
+        this._time += dt * 0.005;
+        var ctx = this._ctx;
+        ctx.clearRect(0, 0, 64, 32);
+        ctx.strokeStyle = '#111';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        var wingY = Math.sin(this._time * 6) * 8;
+        // Left wing
+        ctx.beginPath();
+        ctx.moveTo(32, 16);
+        ctx.quadraticCurveTo(20, 16 - wingY, 8, 12 - wingY);
+        ctx.stroke();
+        // Right wing
+        ctx.beginPath();
+        ctx.moveTo(32, 16);
+        ctx.quadraticCurveTo(44, 16 - wingY, 56, 12 - wingY);
+        ctx.stroke();
+        // Body
+        ctx.beginPath();
+        ctx.arc(32, 16, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#111';
+        ctx.fill();
+        this._tex.needsUpdate = true;
+      }
+    });
+  </script>
+
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #back-btn {
+      position: fixed; top: 20px; left: 20px; z-index: 998;
+      width: 40px; height: 40px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.4);
+      color: #fff; font-size: 20px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      text-decoration: none; -webkit-tap-highlight-color: transparent;
+    }
+    #capture-btn {
+      position: fixed; top: 70px; right: 20px; z-index: 998;
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.4);
+      color: #fff; font-size: 20px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+  </style>
+</head>
+
+<body>
+  <a id="back-btn" href="../">&#x2190;</a>
+  <button id="capture-btn" onclick="capturePhoto()">&#x1F4F7;</button>
+
+  <a-scene
+    door-controller
+    xrextras-gesture-detector
+    landing-page
+    xrextras-loading
+    xrextras-runtime-error
+    renderer="colorManagement: true"
+    xrweb="disableWorldTracking: true; allowedDevices: any">
+
+    <a-assets>
+      <img id="sky-tex" crossorigin="anonymous" src="https://cdn.jsdelivr.net/gh/aframevr/aframe/examples/assets/images/sky.jpg">
+    </a-assets>
+
+    <a-camera id="camera" position="0 4 10"
+      raycaster="objects: .cantap"
+      cursor="fuse: false; rayOrigin: mouse;">
+    </a-camera>
+
+    <a-light type="ambient" color="#ffffff" intensity="0.4"></a-light>
+    <a-light type="directional" color="#ffffff" intensity="0.8" position="1 2 1"></a-light>
+
+    <xrextras-named-image-target name="sample-target-2">
+      <a-entity>
+
+        <!-- Door frame -->
+        <!-- Left post -->
+        <a-box color="#5C3317" width="0.012" height="0.2" depth="0.015" position="-0.056 0.1 0"
+          material="shader: standard; roughness: 0.4; metalness: 0.1">
+        </a-box>
+        <!-- Right post -->
+        <a-box color="#5C3317" width="0.012" height="0.2" depth="0.015" position="0.056 0.1 0"
+          material="shader: standard; roughness: 0.4; metalness: 0.1">
+        </a-box>
+        <!-- Top beam -->
+        <a-box color="#5C3317" width="0.124" height="0.012" depth="0.015" position="0 0.206 0"
+          material="shader: standard; roughness: 0.4; metalness: 0.1">
+        </a-box>
+
+        <!-- Scene behind door (sunset sky) -->
+        <a-plane id="scene-plane" width="0.1" height="0.19" position="0 0.1 -0.008"
+          material="src: #sky-tex; shader: standard; roughness: 1; metalness: 0; transparent: true; opacity: 0; side: double"
+          visible="false">
+        </a-plane>
+
+        <!-- Door panel (opens on target found) -->
+        <a-entity position="-0.05 0 0">
+          <a-box id="door-panel" color="#8B5E3C" width="0.1" height="0.2" depth="0.006"
+            position="0.05 0.1 0"
+            material="shader: standard; roughness: 0.5; metalness: 0.1"
+            animation__open="property: rotation; to: 0 -100 0; startEvents: door-open; dur: 1500; easing: easeInOutCubic">
+            <!-- Door handle -->
+            <a-sphere radius="0.006" position="0.035 0 0.005"
+              material="color: #DAA520; shader: standard; roughness: 0.2; metalness: 0.8">
+            </a-sphere>
+          </a-box>
+        </a-entity>
+
+        <!-- Birds (fly out from door) -->
+        <a-plane class="bird" width="0.04" height="0.02" position="0 0.12 0"
+          data-start-pos="0 0.12 0"
+          material="transparent: true; side: double; shader: flat"
+          bird-sprite
+          scale="0.001 0.001 0.001"
+          animation__fly="property: position; to: -0.15 0.25 0.2; startEvents: fly-out; dur: 1200; easing: easeOutQuad"
+          animation__scale="property: scale; from: 0.001 0.001 0.001; to: 1 1 1; startEvents: fly-out; dur: 400; easing: easeOutBack">
+        </a-plane>
+        <a-plane class="bird" width="0.035" height="0.018" position="0.02 0.14 0"
+          data-start-pos="0.02 0.14 0"
+          material="transparent: true; side: double; shader: flat"
+          bird-sprite
+          scale="0.001 0.001 0.001"
+          animation__fly="property: position; to: 0.18 0.3 0.15; startEvents: fly-out; dur: 1400; delay: 200; easing: easeOutQuad"
+          animation__scale="property: scale; from: 0.001 0.001 0.001; to: 1 1 1; startEvents: fly-out; delay: 200; dur: 400; easing: easeOutBack">
+        </a-plane>
+        <a-plane class="bird" width="0.03" height="0.015" position="-0.01 0.16 0"
+          data-start-pos="-0.01 0.16 0"
+          material="transparent: true; side: double; shader: flat"
+          bird-sprite
+          scale="0.001 0.001 0.001"
+          animation__fly="property: position; to: 0.05 0.35 0.25; startEvents: fly-out; dur: 1600; delay: 400; easing: easeOutQuad"
+          animation__scale="property: scale; from: 0.001 0.001 0.001; to: 1 1 1; startEvents: fly-out; delay: 400; dur: 400; easing: easeOutBack">
+        </a-plane>
+
+        <!-- Warm light spilling from door opening -->
+        <a-light type="point" color="#ff8c00" intensity="0" position="0 0.1 0.02" distance="0.5" decay="2"
+          animation="property: light.intensity; from: 0; to: 2; dur: 1500; delay: 500; easing: easeInOutSine">
+        </a-light>
+
+      </a-entity>
+    </xrextras-named-image-target>
+
+  </a-scene>
+
+  <script>
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      document.body.innerHTML = '<div style="display:flex;height:100vh;align-items:center;justify-content:center;color:#fff;background:#000;text-align:center;padding:20px;">HTTPS required</div>';
+    }
+  </script>
+</body>
+</html>

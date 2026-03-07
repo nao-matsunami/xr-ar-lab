@@ -4,18 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>名刺AR 地球・月</title>
+  <title>Card AR Demo</title>
 
-  <!-- 8frame (8th Wall版 A-Frame) -->
   <script src="//cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
-
-  <!-- XR Extras -->
   <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
-
-  <!-- Landing Pages -->
   <script src="//cdn.8thwall.com/web/landing-page/landing-page.js"></script>
-
-  <!-- 8th Wall Engine (ローカルバイナリ — slam チャンク必須: XrController を生成) -->
   <script async src="../../../lib/xr.js" data-preload-chunks="slam"></script>
 
   <script>
@@ -58,57 +51,50 @@
         URL.revokeObjectURL(url);
       }, 'image/jpeg', 0.9);
     }
-  </script>
 
-  <script>
-    // === Globe / Moon toggle ===
+    // Globe / Moon toggle
     var isEarth = true;
-
     function toggleGlobe() {
       var globe = document.querySelector('#globe');
       var clouds = document.querySelector('#clouds');
       var btn = document.getElementById('toggle-btn');
-
       if (isEarth) {
-        globe.setAttribute('material', 'src: #moon-tex; shader: standard; metalness: 0; roughness: 1');
+        globe.setAttribute('material', 'src', '#moon-tex');
+        globe.setAttribute('material', 'roughness', '1');
+        globe.setAttribute('material', 'metalness', '0');
         clouds.setAttribute('visible', false);
         btn.textContent = '\uD83C\uDF0D';
       } else {
-        globe.setAttribute('material', 'src: #earth-tex; shader: standard; metalness: 0; roughness: 0.8');
+        globe.setAttribute('material', 'src', '#earth-tex');
+        globe.setAttribute('material', 'roughness', '0.8');
+        globe.setAttribute('material', 'metalness', '0');
         clouds.setAttribute('visible', true);
         btn.textContent = '\uD83C\uDF15';
       }
       isEarth = !isEarth;
     }
 
-    // === BGM control ===
+    // BGM
     var bgmStarted = false;
-
     function startBGM() {
       var bgm = document.querySelector('#bgm');
       if (!bgm || bgmStarted) return;
       bgm.volume = 0.6;
       bgm.loop = true;
-      bgm.play().then(function() {
-        bgmStarted = true;
-      }).catch(function() {});
+      bgm.play().then(function() { bgmStarted = true; }).catch(function() {});
     }
-
     function stopBGM() {
       var bgm = document.querySelector('#bgm');
       if (bgm) bgm.pause();
     }
-
-    // Fallback: start BGM on first user touch (autoplay policy)
-    document.addEventListener('touchstart', function _bgmTouch() {
+    document.addEventListener('touchstart', function _bt() {
       startBGM();
-      document.removeEventListener('touchstart', _bgmTouch);
+      document.removeEventListener('touchstart', _bt);
     });
   </script>
 
   <style>
     body { margin: 0; overflow: hidden; }
-
     #back-btn {
       position: fixed; top: 20px; left: 20px; z-index: 998;
       width: 40px; height: 40px; border-radius: 50%;
@@ -117,7 +103,6 @@
       display: flex; align-items: center; justify-content: center;
       text-decoration: none; -webkit-tap-highlight-color: transparent;
     }
-
     #capture-btn {
       position: fixed; top: 70px; right: 20px; z-index: 998;
       width: 44px; height: 44px; border-radius: 50%;
@@ -126,7 +111,6 @@
       display: flex; align-items: center; justify-content: center;
       -webkit-tap-highlight-color: transparent;
     }
-
     #toggle-btn {
       position: fixed; bottom: 40px; right: 30px; z-index: 998;
       width: 60px; height: 60px; border-radius: 50%;
@@ -136,90 +120,13 @@
       -webkit-tap-highlight-color: transparent;
       backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
     }
-
-    #overlay-msg {
-      position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.8); color: #fff;
-      padding: 12px 20px; border-radius: 12px;
-      font: 14px/1.5 sans-serif; z-index: 999;
-      text-align: center; max-width: 90vw;
-    }
-
-    #help-btn {
-      position: fixed; top: 20px; right: 20px; z-index: 998;
-      width: 36px; height: 36px; border-radius: 50%;
-      background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.4);
-      color: #fff; font-size: 18px; font-weight: 700;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      -webkit-tap-highlight-color: transparent;
-    }
-    #help-overlay {
-      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      z-index: 9998; background: rgba(0,0,0,0.8);
-      align-items: center; justify-content: center;
-    }
-    #help-overlay.visible { display: flex; }
-    #help-content {
-      background: #1a1a2e; border: 1px solid rgba(0,240,255,0.3);
-      border-radius: 16px; padding: 24px; max-width: 300px; width: 90%;
-      color: #fff; font-family: sans-serif;
-    }
-    #help-content h3 { margin: 0 0 12px; font-size: 18px; color: #00f0ff; }
-    #help-content .sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 10px 0; }
-    #help-content .row { font-size: 13px; line-height: 1.8; }
-    #help-content .row b { color: #00f0ff; }
-    #help-content ul { margin: 4px 0 0 0; padding-left: 18px; font-size: 13px; line-height: 1.8; color: #ccc; }
-    #help-content .close-help {
-      margin-top: 16px; width: 100%; padding: 10px; border: none;
-      border-radius: 8px; background: rgba(0,240,255,0.15); color: #00f0ff;
-      font-size: 14px; font-weight: 600; cursor: pointer;
-    }
   </style>
 </head>
 
 <body>
-
-  <!-- Error Overlay -->
-  <div id="error-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center; padding:20px; box-sizing:border-box;">
-    <div style="font-size:48px; margin-bottom:16px;" id="error-icon"></div>
-    <div style="font-size:20px; font-weight:bold; margin-bottom:12px;" id="error-title">Error</div>
-    <div style="font-size:14px; line-height:1.6; max-width:300px; white-space:pre-line;" id="error-message"></div>
-    <button onclick="location.reload()" style="margin-top:24px; padding:12px 24px; background:#fff; color:#000; border:none; border-radius:8px; font-size:16px; cursor:pointer;">再試行</button>
-    <a href="/templates/" style="margin-top:12px; color:#aaa; font-size:14px; text-decoration:none;">デモ一覧に戻る</a>
-  </div>
-
-  <!-- Back Button -->
   <a id="back-btn" href="../">&#x2190;</a>
-
-  <!-- Capture Button -->
   <button id="capture-btn" onclick="capturePhoto()">&#x1F4F7;</button>
-
-  <!-- Help Button -->
-  <button id="help-btn" onclick="toggleHelp()">?</button>
-
-  <!-- Help Overlay -->
-  <div id="help-overlay" onclick="toggleHelp()">
-    <div id="help-content" onclick="event.stopPropagation()">
-      <h3>&#x1F30D; 名刺AR 地球・月</h3>
-      <hr class="sep">
-      <div class="row"><b>使い方:</b> ターゲット画像を名刺に印刷してカメラを向けてください</div>
-      <hr class="sep">
-      <div class="row"><b>機能:</b></div>
-      <ul>
-        <li>名刺から地球/月が浮かぶ</li>
-        <li>右下ボタンで地球/月切替</li>
-        <li>スポットライト照射</li>
-        <li>クラブ系BGM再生</li>
-      </ul>
-      <button class="close-help" onclick="toggleHelp()">閉じる</button>
-    </div>
-  </div>
-
-  <!-- Globe/Moon Toggle -->
   <button id="toggle-btn" onclick="toggleGlobe()">&#x1F315;</button>
-
-  <!-- Bottom Overlay -->
-  <div id="overlay-msg">名刺にカメラを向けると地球が出現します</div>
 
   <a-scene
     xrextras-gesture-detector
@@ -236,39 +143,25 @@
       <audio id="bgm" crossorigin="anonymous" src="https://cdn.pixabay.com/audio/2023/03/14/audio_a75f7f1d4e.mp3" preload="auto"></audio>
     </a-assets>
 
-    <a-camera
-      id="camera"
-      position="0 4 10"
+    <a-camera id="camera" position="0 4 10"
       raycaster="objects: .cantap"
       cursor="fuse: false; rayOrigin: mouse;">
     </a-camera>
 
-    <!-- ターゲット: 名刺AR 地球・月 -->
     <xrextras-named-image-target name="sample-target-1">
 
-      <!-- スポットライト（名刺面から上方向に照射） -->
-      <a-light type="spot"
-        color="#ffffff"
-        intensity="3"
-        angle="40"
-        penumbra="0.6"
-        position="0 0.01 0"
-        target="#globe">
-      </a-light>
-
-      <!-- 環境光（弱め） -->
+      <!-- Spotlight from card surface upward -->
+      <a-light type="spot" color="#ffffff" intensity="3" angle="40" penumbra="0.6"
+        position="0 0.01 0" target="#globe"></a-light>
       <a-light type="ambient" color="#111133" intensity="0.3"></a-light>
 
-      <!-- 地球 -->
-      <a-sphere id="globe"
-        radius="0.06"
-        position="0 0.12 0"
+      <!-- Earth globe -->
+      <a-sphere id="globe" radius="0.06" position="0 0.12 0"
         material="src: #earth-tex; shader: standard; metalness: 0; roughness: 0.8"
         animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear">
 
-        <!-- 雲レイヤー -->
-        <a-sphere id="clouds"
-          radius="0.062"
+        <!-- Cloud layer -->
+        <a-sphere id="clouds" radius="0.062"
           material="src: #earth-clouds; shader: standard; transparent: true; opacity: 0.4; side: double"
           animation="property: rotation; to: 0 360 0; loop: true; dur: 12000; easing: linear">
         </a-sphere>
@@ -278,57 +171,18 @@
 
   </a-scene>
 
-  <!-- BGM: targetFound / targetLost -->
   <script>
     var targetEl = document.querySelector('[name="sample-target-1"]');
     if (targetEl) {
-      targetEl.addEventListener('targetFound', function() {
-        startBGM();
-      });
-      targetEl.addEventListener('targetLost', function() {
-        stopBGM();
-      });
+      targetEl.addEventListener('targetFound', function() { startBGM(); });
+      targetEl.addEventListener('targetLost', function() { stopBGM(); });
     }
   </script>
 
   <script>
-    // Unified error handling
-    function showError(type) {
-      var messages = {
-        camera: { icon: '\uD83D\uDCF7', title: 'カメラへのアクセスが必要です', message: 'ブラウザの設定からカメラのアクセスを許可してください。\n\nSettings > Safari/Chrome > Camera > Allow' },
-        gps: { icon: '\uD83D\uDCCD', title: '位置情報へのアクセスが必要です', message: 'このデモはGPS位置情報を使用します。\nブラウザの設定から位置情報のアクセスを許可してください。' },
-        browser: { icon: '\uD83C\uDF10', title: 'ブラウザが対応していません', message: 'このARデモはiOS Safari またはAndroid Chromeでご利用ください。\n\niOS: Safari最新版\nAndroid: Chrome最新版' },
-        https: { icon: '\uD83D\uDD12', title: 'HTTPSが必要です', message: 'このデモはHTTPS環境が必要です。\nhttps://xr-ar-lab.netlify.app からアクセスしてください。' }
-      };
-      var m = messages[type] || messages.browser;
-      document.getElementById('error-icon').textContent = m.icon;
-      document.getElementById('error-title').textContent = m.title;
-      document.getElementById('error-message').textContent = m.message;
-      document.getElementById('error-overlay').style.display = 'flex';
-    }
     if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-      showError('https');
+      document.body.innerHTML = '<div style="display:flex;height:100vh;align-items:center;justify-content:center;color:#fff;background:#000;text-align:center;padding:20px;">HTTPS required</div>';
     }
-    if (typeof navigator.mediaDevices === 'undefined' || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-      showError('browser');
-    }
-  </script>
-
-  <script>
-    // Help overlay
-    function toggleHelp() {
-      document.getElementById('help-overlay').classList.toggle('visible');
-    }
-    setTimeout(function() {
-      document.getElementById('help-overlay').classList.add('visible');
-      setTimeout(function() {
-        document.getElementById('help-overlay').classList.remove('visible');
-      }, 5000);
-    }, 3000);
-    document.addEventListener('touchstart', function _h() {
-      document.getElementById('help-overlay').classList.remove('visible');
-      document.removeEventListener('touchstart', _h);
-    });
   </script>
 </body>
 </html>
