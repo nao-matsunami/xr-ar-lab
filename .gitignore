@@ -1,5 +1,4 @@
 # 外部リポジトリ（サブモジュールとして管理するか、個別にclone）
-vendor/
 
 # SSL証明書
 tools/ssl/*.pem
@@ -29,3 +28,7 @@ tools/certs/
 
 # Local Netlify folder
 .netlify
+vendor/
+!vendor/engine/
+!vendor/engine/xr-standalone/
+!vendor/engine/xr-standalone/xr.js
