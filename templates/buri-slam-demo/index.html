@@ -23,15 +23,7 @@
     var placedModels = [];
     var selectedModel = null;
     var MAX_MODELS = 5;
-    var modelLoaded = false;
-
-    // Check if GLB exists
-    var glbPath = 'assets/buri-kozou.glb';
-    var testReq = new XMLHttpRequest();
-    testReq.open('HEAD', glbPath, true);
-    testReq.onload = function() { if (testReq.status === 200) modelLoaded = true; };
-    testReq.onerror = function() { modelLoaded = false; };
-    testReq.send();
+    var currentModel = 'buri'; // 'buri' or 'kamaboko'
 
     // === Buri Slam Component ===
     AFRAME.registerComponent('buri-slam', {
@@ -91,71 +83,18 @@
         wrapper.setAttribute('scale', '0.001 0.001 0.001');
         wrapper.classList.add('cantap');
         wrapper.classList.add('buri-model');
+        wrapper.dataset.modelType = currentModel;
 
-        if (modelLoaded) {
-          // GLB model
-          var model = document.createElement('a-gltf-model');
+        var model = document.createElement('a-gltf-model');
+        if (currentModel === 'kamaboko') {
+          model.setAttribute('src', '#kamaboko');
+          model.setAttribute('scale', '0.3 0.3 0.3');
+        } else {
           model.setAttribute('src', '#buri-kozou');
           model.setAttribute('scale', '0.5 0.5 0.5');
-          model.setAttribute('shadow', 'cast: true; receive: true');
-          wrapper.appendChild(model);
-        } else {
-          // Fallback: A-Frame primitive buri-kozou
-          var body = document.createElement('a-entity');
-
-          // Body (blue)
-          var torso = document.createElement('a-box');
-          torso.setAttribute('width', '0.25');
-          torso.setAttribute('height', '0.35');
-          torso.setAttribute('depth', '0.2');
-          torso.setAttribute('position', '0 0.25 0');
-          torso.setAttribute('color', '#1E90FF');
-          torso.setAttribute('shadow', 'cast: true');
-          body.appendChild(torso);
-
-          // Head
-          var head = document.createElement('a-sphere');
-          head.setAttribute('radius', '0.12');
-          head.setAttribute('position', '0 0.52 0');
-          head.setAttribute('color', '#FFE4B5');
-          head.setAttribute('shadow', 'cast: true');
-          body.appendChild(head);
-
-          // Hat (buri hat)
-          var hat = document.createElement('a-cone');
-          hat.setAttribute('radius-bottom', '0.13');
-          hat.setAttribute('radius-top', '0');
-          hat.setAttribute('height', '0.15');
-          hat.setAttribute('position', '0 0.65 0');
-          hat.setAttribute('color', '#4169E1');
-          hat.setAttribute('shadow', 'cast: true');
-          body.appendChild(hat);
-
-          // Eyes
-          var eyeL = document.createElement('a-sphere');
-          eyeL.setAttribute('radius', '0.02');
-          eyeL.setAttribute('position', '-0.04 0.55 0.1');
-          eyeL.setAttribute('color', '#000');
-          body.appendChild(eyeL);
-
-          var eyeR = document.createElement('a-sphere');
-          eyeR.setAttribute('radius', '0.02');
-          eyeR.setAttribute('position', '0.04 0.55 0.1');
-          eyeR.setAttribute('color', '#000');
-          body.appendChild(eyeR);
-
-          // Tail fin
-          var tail = document.createElement('a-cone');
-          tail.setAttribute('radius-bottom', '0.08');
-          tail.setAttribute('radius-top', '0');
-          tail.setAttribute('height', '0.15');
-          tail.setAttribute('position', '0 0.15 -0.15');
-          tail.setAttribute('rotation', '30 0 0');
-          tail.setAttribute('color', '#1E90FF');
-          body.appendChild(tail);
-
-          wrapper.appendChild(body);
         }
+        model.setAttribute('shadow', 'cast: true; receive: true');
+        wrapper.appendChild(model);
 
         // Selection ring (hidden by default)
         var ring = document.createElement('a-torus');
@@ -243,12 +182,33 @@
       updateGuide();
     }
 
+    function toggleModel() {
+      currentModel = currentModel === 'buri' ? 'kamaboko' : 'buri';
+      var btn = document.getElementById('model-toggle');
+      if (currentModel === 'buri') {
+        btn.textContent = '\uD83D\uDC1F';
+        btn.title = 'ブリ小僧モード';
+        btn.style.borderColor = '#00bcd4';
+      } else {
+        btn.textContent = '\uD83C\uDF65';
+        btn.title = 'かまぼこモード';
+        btn.style.borderColor = '#ff8a80';
+      }
+    }
+
     function updateCounter() {
       var el = document.getElementById('buri-counter');
-      if (el) {
-        var n = placedModels.length;
-        el.textContent = 'ブリ小僧 ' + n + '体発見中';
-      }
+      if (!el) return;
+      var buriCount = 0;
+      var kamaCount = 0;
+      placedModels.forEach(function(m) {
+        if (m.dataset.modelType === 'kamaboko') kamaCount++;
+        else buriCount++;
+      });
+      var parts = [];
+      if (buriCount > 0) parts.push('\uD83D\uDC1F ' + buriCount + '\u4F53');
+      if (kamaCount > 0) parts.push('\uD83C\uDF65 ' + kamaCount + '\u500B');
+      el.textContent = parts.length > 0 ? parts.join(' / ') : '\u30BF\u30C3\u30D7\u3067\u914D\u7F6E';
     }
 
     function updateGuide() {
@@ -366,7 +326,7 @@
   <a id="back-btn" href="../">&#x2190;</a>
 
   <!-- Counter -->
-  <div id="buri-counter">ブリ小僧 0体発見中</div>
+  <div id="buri-counter">タップで配置</div>
 
   <!-- Guide Message -->
   <div id="guide-msg">
@@ -382,7 +342,8 @@
     <div id="help-content" onclick="event.stopPropagation()">
       <h3>&#x1F41F; ブリ小僧 AR</h3>
       <hr class="sep">
-      <div class="row"><b>配置:</b> 地面タップでブリ小僧を配置（最大5体）</div>
+      <div class="row"><b>配置:</b> 地面タップで配置（最大5体）</div>
+      <div class="row"><b>切替:</b> &#x1F41F;/&#x1F365; ボタンでモデル切替</div>
       <hr class="sep">
       <div class="row"><b>操作:</b></div>
       <ul>
@@ -404,6 +365,7 @@
 
   <!-- Action Buttons -->
   <div id="action-btns">
+    <button id="model-toggle" onclick="toggleModel()" title="ブリ小僧モード" style="border-color:#00bcd4;">&#x1F41F;</button>
     <button onclick="capturePhoto()" title="撮影">&#x1F4F7;</button>
     <button id="delete-btn" onclick="deleteSelected()" title="削除" style="opacity:0.4; pointer-events:none;">&#x1F5D1;</button>
     <button onclick="resetAll()" title="全リセット">&#x21BA;</button>
@@ -421,6 +383,7 @@
 
     <a-assets>
       <a-asset-item id="buri-kozou" src="assets/buri-kozou.glb"></a-asset-item>
+      <a-asset-item id="kamaboko" src="assets/kamaboko.glb"></a-asset-item>
     </a-assets>
 
     <a-camera
