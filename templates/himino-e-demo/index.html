@@ -1,0 +1,607 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>比美乃江公園 限定AR</title>
+
+  <script src="//cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
+  <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
+  <script src="//cdn.8thwall.com/web/landing-page/landing-page.js"></script>
+  <script async src="../../vendor/engine/xr-standalone/xr.js" data-preload-chunks="slam"></script>
+
+  <script>
+    // === Object definitions (GLB差し替え対応) ===
+    var OBJECTS = [
+      { id: 'buri-kozo',  label: 'ブリ小僧',   shape: 'box',      color: '#ff6b35', scale: '0.3 0.5 0.3',  yOffset: 0.25 },
+      { id: 'kamaboko',   label: 'かまぼこ',   shape: 'cylinder', color: '#ff9999', scale: '0.3 0.15 0.3', yOffset: 0.075 },
+      { id: 'buri',       label: '寒ブリ',     shape: 'sphere',   color: '#4a90d9', scale: '0.4 0.2 0.15', yOffset: 0.1 },
+      { id: 'udon',       label: '氷見うどん', shape: 'torus',    color: '#f5deb3', scale: '0.25 0.25 0.1', yOffset: 0.15 },
+      { id: 'lighthouse', label: '灯台',       shape: 'cone',     color: '#ffffff', scale: '0.2 0.5 0.2',  yOffset: 0.25 },
+    ];
+    // GLB差し替え時: { id: 'buri-kozo', label: 'ブリ小僧', glb: './assets/buri-kozo.glb', scale: '0.5 0.5 0.5', yOffset: 0 }
+
+    var selectedIndex = 0;
+    var placedObjects = [];
+    var selectedObj = null;
+
+    // === Touch gesture state ===
+    var touches = {};
+    var lastPinchDist = null;
+    var lastRotateAngle = null;
+    var activeTouchCount = 0;
+    var MIN_SCALE = 0.1;
+    var MAX_SCALE = 3.0;
+
+    // === Tap-to-place component ===
+    AFRAME.registerComponent('tap-place-himino', {
+      init: function() {
+        var ground = document.getElementById('ground');
+        ground.addEventListener('click', function(event) {
+          if (activeTouchCount >= 2) return;
+
+          var point = event.detail.intersection.point;
+          var obj = OBJECTS[selectedIndex];
+          var el = document.createElement('a-entity');
+          var yRot = Math.random() * 360;
+
+          el.setAttribute('position', {x: point.x, y: point.y, z: point.z});
+          el.setAttribute('rotation', '0 ' + yRot + ' 0');
+          el.setAttribute('visible', false);
+          el.setAttribute('scale', '0.0001 0.0001 0.0001');
+          el.setAttribute('shadow', {receive: false});
+          el.classList.add('placed-object');
+          el.classList.add('cantap');
+          el.dataset.objectId = obj.id;
+
+          var child;
+          if (obj.glb) {
+            child = document.createElement('a-entity');
+            child.setAttribute('gltf-model', obj.glb);
+            child.setAttribute('scale', obj.scale);
+          } else {
+            switch (obj.shape) {
+              case 'sphere':
+                child = document.createElement('a-sphere');
+                child.setAttribute('radius', '0.2');
+                child.setAttribute('color', obj.color);
+                child.setAttribute('scale', obj.scale);
+                child.setAttribute('position', '0 ' + obj.yOffset + ' 0');
+                break;
+              case 'cylinder':
+                child = document.createElement('a-cylinder');
+                child.setAttribute('radius', '0.15');
+                child.setAttribute('height', '0.15');
+                child.setAttribute('color', obj.color);
+                child.setAttribute('scale', obj.scale);
+                child.setAttribute('position', '0 ' + obj.yOffset + ' 0');
+                break;
+              case 'torus':
+                child = document.createElement('a-torus');
+                child.setAttribute('radius', '0.15');
+                child.setAttribute('radius-tubular', '0.04');
+                child.setAttribute('color', obj.color);
+                child.setAttribute('scale', obj.scale);
+                child.setAttribute('position', '0 ' + obj.yOffset + ' 0');
+                break;
+              case 'cone':
+                child = document.createElement('a-cone');
+                child.setAttribute('radius-bottom', '0.1');
+                child.setAttribute('radius-top', '0');
+                child.setAttribute('height', '0.5');
+                child.setAttribute('color', obj.color);
+                child.setAttribute('scale', obj.scale);
+                child.setAttribute('position', '0 ' + obj.yOffset + ' 0');
+                break;
+              default: // box
+                child = document.createElement('a-box');
+                child.setAttribute('width', '0.3');
+                child.setAttribute('height', '0.5');
+                child.setAttribute('depth', '0.3');
+                child.setAttribute('color', obj.color);
+                child.setAttribute('scale', obj.scale);
+                child.setAttribute('position', '0 ' + obj.yOffset + ' 0');
+                break;
+            }
+          }
+
+          child.setAttribute('shadow', '');
+          el.appendChild(child);
+          this.el.sceneEl.appendChild(el);
+          placedObjects.push(el);
+
+          el.setAttribute('visible', true);
+          el.setAttribute('animation', {
+            property: 'scale',
+            to: '1 1 1',
+            easing: 'easeOutElastic',
+            dur: 800,
+          });
+
+          updateCounter();
+          selectObject(el);
+        }.bind(this));
+      }
+    });
+
+    function selectObject(el) {
+      // Deselect previous
+      if (selectedObj && selectedObj !== el) {
+        var prevChild = selectedObj.querySelector('[shadow]');
+        if (prevChild) prevChild.removeAttribute('material');
+      }
+      selectedObj = el;
+      // Highlight selected
+      var child = el.querySelector('[shadow]');
+      if (child) {
+        var currentColor = child.getAttribute('color') || '#ffffff';
+        child.setAttribute('material', 'emissive: #00f0ff; emissiveIntensity: 0.3');
+      }
+    }
+
+    function undoLast() {
+      if (placedObjects.length === 0) return;
+      var last = placedObjects.pop();
+      if (selectedObj === last) selectedObj = null;
+      last.setAttribute('animation', {
+        property: 'scale',
+        to: '0.0001 0.0001 0.0001',
+        easing: 'easeInBack',
+        dur: 300,
+      });
+      setTimeout(function() { last.remove(); }, 350);
+      updateCounter();
+    }
+
+    function clearAll() {
+      placedObjects.forEach(function(obj) { obj.remove(); });
+      placedObjects = [];
+      selectedObj = null;
+      updateCounter();
+    }
+
+    function updateCounter() {
+      var el = document.getElementById('object-count');
+      if (el) el.textContent = placedObjects.length;
+    }
+
+    function selectShape(index) {
+      selectedIndex = index;
+      document.querySelectorAll('#object-picker button').forEach(function(btn, i) {
+        btn.classList.toggle('active', i === index);
+      });
+    }
+  </script>
+
+  <style>
+    body { margin: 0; overflow: hidden; }
+
+    /* Object picker */
+    #object-picker {
+      position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
+      z-index: 997; display: none; gap: 6px; flex-wrap: nowrap;
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+      padding: 0 10px; padding-bottom: env(safe-area-inset-bottom);
+      max-width: 95vw;
+    }
+    #object-picker button {
+      flex-shrink: 0; padding: 10px 16px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-radius: 20px; background: rgba(0,0,0,0.6);
+      color: #fff; font-size: 13px; font-weight: 600;
+      min-height: 44px; cursor: pointer; transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #object-picker button.active {
+      border-color: #4ecdc4; color: #4ecdc4;
+      background: rgba(78,205,196,0.2);
+    }
+    #object-picker button:active { transform: scale(0.95); }
+    #object-picker .color-dot {
+      display: inline-block; width: 10px; height: 10px;
+      border-radius: 50%; margin-right: 4px; vertical-align: middle;
+    }
+
+    /* Actions bar */
+    #actions-bar {
+      position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+      z-index: 997; display: none; gap: 8px; align-items: center;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    #actions-bar button {
+      padding: 8px 16px; border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 16px; background: rgba(0,0,0,0.5);
+      color: #fff; font-size: 12px; font-weight: 600;
+      min-height: 36px; cursor: pointer;
+    }
+    #actions-bar .counter {
+      color: rgba(255,255,255,0.6); font-size: 11px; font-family: monospace;
+    }
+
+    /* Capture button */
+    #capture-btn {
+      position: fixed; top: 20px; right: 20px; z-index: 998;
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.5);
+      color: #fff; font-size: 20px; cursor: pointer;
+      display: none; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Debug badge */
+    #debug-badge {
+      position: fixed; top: 20px; right: 70px; z-index: 998;
+      background: rgba(255,165,0,0.8); color: #fff; padding: 4px 10px;
+      border-radius: 8px; font-size: 11px; font-weight: 700;
+      font-family: monospace; display: none;
+    }
+
+    /* Help overlay */
+    #help-btn {
+      position: fixed; top: 70px; right: 20px; z-index: 998;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.4);
+      color: #fff; font-size: 18px; font-weight: 700;
+      cursor: pointer; display: none; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #help-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 9998; background: rgba(0,0,0,0.8);
+      align-items: center; justify-content: center;
+    }
+    #help-overlay.visible { display: flex; }
+    #help-content {
+      background: #1a1a2e; border: 1px solid rgba(78,205,196,0.4);
+      border-radius: 16px; padding: 24px; max-width: 300px; width: 90%;
+      color: #fff; font-family: sans-serif;
+    }
+    #help-content h3 { margin: 0 0 12px; font-size: 18px; color: #4ecdc4; }
+    #help-content .sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 10px 0; }
+    #help-content .row { font-size: 13px; line-height: 1.8; }
+    #help-content .row b { color: #4ecdc4; }
+    #help-content ol { margin: 4px 0 0 0; padding-left: 20px; font-size: 13px; line-height: 2; color: #ccc; }
+    #help-content .close-help {
+      margin-top: 16px; width: 100%; padding: 10px; border: none;
+      border-radius: 8px; background: rgba(78,205,196,0.15); color: #4ecdc4;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Geo Error Overlay -->
+  <div id="geo-error" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+    background:#1a1a2e; z-index:10000; flex-direction:column;
+    align-items:center; justify-content:center; color:white; text-align:center; padding:30px;">
+    <div style="font-size:60px; margin-bottom:20px;">📍</div>
+    <div style="font-size:22px; font-weight:bold; margin-bottom:16px;">比美乃江公園 限定AR</div>
+    <div style="font-size:15px; line-height:1.8; max-width:280px;" id="geo-error-msg"></div>
+    <div style="margin-top:30px; font-size:13px; color:#aaa;">
+      富山県氷見市比美乃江公園<br>周辺でお試しください
+    </div>
+    <a href="/templates/" style="margin-top:24px; color:#4ecdc4; font-size:14px; text-decoration:none;">デモ一覧に戻る</a>
+  </div>
+
+  <!-- Unified Error Overlay -->
+  <div id="error-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center; padding:20px; box-sizing:border-box;">
+    <div style="font-size:48px; margin-bottom:16px;" id="error-icon"></div>
+    <div style="font-size:20px; font-weight:bold; margin-bottom:12px;" id="error-title">Error</div>
+    <div style="font-size:14px; line-height:1.6; max-width:300px; white-space:pre-line;" id="error-message"></div>
+    <button onclick="location.reload()" style="margin-top:24px; padding:12px 24px; background:#fff; color:#000; border:none; border-radius:8px; font-size:16px; cursor:pointer;">再試行</button>
+    <a href="/templates/" style="margin-top:12px; color:#aaa; font-size:14px; text-decoration:none;">デモ一覧に戻る</a>
+  </div>
+
+  <div id="debug-badge">📍DEBUG</div>
+
+  <button id="capture-btn" onclick="capturePhoto()">📷</button>
+
+  <button id="help-btn" onclick="toggleHelp()">?</button>
+  <div id="help-overlay" onclick="toggleHelp()">
+    <div id="help-content" onclick="event.stopPropagation()">
+      <h3>📍 比美乃江公園 限定AR</h3>
+      <hr class="sep">
+      <div class="row"><b>使い方:</b></div>
+      <ol>
+        <li>カメラで地面をスキャン</li>
+        <li>下のボタンでオブジェクト選択</li>
+        <li>地面をタップして配置</li>
+        <li>ドラッグ/ピンチ/回転で調整</li>
+        <li>📷ボタンで撮影・保存</li>
+      </ol>
+      <button class="close-help" onclick="toggleHelp()">閉じる</button>
+    </div>
+  </div>
+
+  <div id="object-picker"></div>
+
+  <div id="actions-bar">
+    <button onclick="undoLast()">Undo</button>
+    <button onclick="clearAll()">Clear</button>
+    <span class="counter">配置: <span id="object-count">0</span></span>
+  </div>
+
+  <a-scene
+    tap-place-himino
+    landing-page
+    xrextras-loading
+    xrextras-runtime-error
+    renderer="colorManagement: true"
+    shadow="type: pcfsoft; autoUpdate: true"
+    xrweb="allowedDevices: any">
+
+    <a-camera
+      id="camera"
+      position="0 8 0"
+      raycaster="objects: .cantap"
+      cursor="fuse: false; rayOrigin: mouse;">
+    </a-camera>
+
+    <a-entity
+      light="type: directional; intensity: 0.8; castShadow: true;
+             shadowMapHeight: 1024; shadowMapWidth: 1024;
+             shadowCameraTop: 10; shadowCameraBottom: -10;
+             shadowCameraRight: 10; shadowCameraLeft: -10"
+      position="1 4 2">
+    </a-entity>
+
+    <a-light type="ambient" intensity="0.5"></a-light>
+
+    <a-box
+      id="ground"
+      class="cantap"
+      scale="1000 2 1000"
+      position="0 -1 0"
+      material="shader: shadow; transparent: true; opacity: 0.4"
+      shadow>
+    </a-box>
+
+  </a-scene>
+
+  <script>
+    // === GPS Geofencing ===
+    var PARK_LAT = 36.8547;
+    var PARK_LNG = 137.0719;
+    var ALLOWED_RADIUS_M = 500;
+
+    var isDebug = new URLSearchParams(location.search).get('debug') === '1';
+
+    function getDistanceM(lat1, lng1, lat2, lng2) {
+      var R = 6371000;
+      var dLat = (lat2 - lat1) * Math.PI / 180;
+      var dLng = (lng2 - lng1) * Math.PI / 180;
+      var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng/2) * Math.sin(dLng/2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function showGeoError(msg) {
+      document.getElementById('geo-error-msg').textContent = msg;
+      document.getElementById('geo-error').style.display = 'flex';
+    }
+
+    function startAR() {
+      // Show UI elements
+      document.getElementById('object-picker').style.display = 'flex';
+      document.getElementById('actions-bar').style.display = 'flex';
+      document.getElementById('capture-btn').style.display = 'flex';
+      document.getElementById('help-btn').style.display = 'flex';
+
+      if (isDebug) {
+        document.getElementById('debug-badge').style.display = 'block';
+      }
+
+      // Build object picker buttons
+      var picker = document.getElementById('object-picker');
+      OBJECTS.forEach(function(obj, i) {
+        var btn = document.createElement('button');
+        btn.innerHTML = '<span class="color-dot" style="background:' + obj.color + '"></span>' + obj.label;
+        if (i === 0) btn.classList.add('active');
+        btn.onclick = function() { selectShape(i); };
+        picker.appendChild(btn);
+      });
+
+      // Show help overlay
+      setTimeout(function() {
+        document.getElementById('help-overlay').classList.add('visible');
+        setTimeout(function() {
+          document.getElementById('help-overlay').classList.remove('visible');
+        }, 3000);
+      }, 1000);
+    }
+
+    function checkGeoRestriction() {
+      if (!navigator.geolocation) {
+        showGeoError('このデバイスはGPSに対応していません');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        function(pos) {
+          var dist = getDistanceM(
+            pos.coords.latitude, pos.coords.longitude,
+            PARK_LAT, PARK_LNG
+          );
+          if (dist > ALLOWED_RADIUS_M) {
+            showGeoError('このARは比美乃江公園周辺限定です。\n現在地は約' + Math.round(dist) + 'm離れています。');
+          } else {
+            startAR();
+          }
+        },
+        function(err) {
+          // GPS取得失敗時はデバッグモードとして続行
+          startAR();
+        },
+        { timeout: 8000, maximumAge: 60000 }
+      );
+    }
+
+    // Boot
+    if (isDebug) {
+      startAR();
+    } else {
+      checkGeoRestriction();
+    }
+  </script>
+
+  <script>
+    // === Gesture: Drag / Pinch / Rotate ===
+    document.addEventListener('touchstart', function(e) {
+      activeTouchCount = e.touches.length;
+      for (var i = 0; i < e.touches.length; i++) {
+        var t = e.touches[i];
+        touches[t.identifier] = { x: t.clientX, y: t.clientY };
+      }
+      lastPinchDist = null;
+      lastRotateAngle = null;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function(e) {
+      if (!selectedObj) return;
+      e.preventDefault();
+
+      var touchList = e.touches;
+      activeTouchCount = touchList.length;
+
+      if (touchList.length === 1) {
+        var t = touchList[0];
+        var prev = touches[t.identifier];
+        if (prev) {
+          var dx = (t.clientX - prev.x) * 0.01;
+          var dz = (t.clientY - prev.y) * 0.01;
+          var pos = selectedObj.getAttribute('position');
+          selectedObj.setAttribute('position', {
+            x: pos.x + dx,
+            y: pos.y,
+            z: pos.z + dz
+          });
+        }
+        touches[t.identifier] = { x: t.clientX, y: t.clientY };
+
+      } else if (touchList.length === 2) {
+        var t1 = touchList[0];
+        var t2 = touchList[1];
+        var ddx = t2.clientX - t1.clientX;
+        var ddy = t2.clientY - t1.clientY;
+        var dist = Math.sqrt(ddx * ddx + ddy * ddy);
+        var angle = Math.atan2(ddy, ddx);
+
+        if (lastPinchDist !== null) {
+          var scaleDelta = dist / lastPinchDist;
+          var currentScale = selectedObj.getAttribute('scale');
+          var newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, currentScale.x * scaleDelta));
+          selectedObj.setAttribute('scale', {x: newScale, y: newScale, z: newScale});
+        }
+
+        if (lastRotateAngle !== null) {
+          var angleDelta = (angle - lastRotateAngle) * (180 / Math.PI);
+          var currentRot = selectedObj.getAttribute('rotation');
+          selectedObj.setAttribute('rotation', {
+            x: currentRot.x,
+            y: currentRot.y + angleDelta,
+            z: currentRot.z
+          });
+        }
+
+        lastPinchDist = dist;
+        lastRotateAngle = angle;
+        touches[t1.identifier] = { x: t1.clientX, y: t1.clientY };
+        touches[t2.identifier] = { x: t2.clientX, y: t2.clientY };
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchend', function(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        delete touches[e.changedTouches[i].identifier];
+      }
+      activeTouchCount = e.touches.length;
+      if (e.touches.length < 2) {
+        lastPinchDist = null;
+        lastRotateAngle = null;
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchcancel', function(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        delete touches[e.changedTouches[i].identifier];
+      }
+      activeTouchCount = e.touches.length;
+      lastPinchDist = null;
+      lastRotateAngle = null;
+    }, { passive: true });
+  </script>
+
+  <script>
+    // === Capture ===
+    function capturePhoto() {
+      var scene = document.querySelector('a-scene');
+      var canvas = scene.canvas;
+
+      // Render one frame to ensure fresh
+      scene.renderer.render(scene.object3D, scene.camera);
+
+      // Create capture canvas with watermark
+      var w = canvas.width;
+      var h = canvas.height;
+      var captureCanvas = document.createElement('canvas');
+      captureCanvas.width = w;
+      captureCanvas.height = h;
+      var ctx = captureCanvas.getContext('2d');
+
+      ctx.drawImage(canvas, 0, 0);
+
+      // Watermark
+      ctx.font = 'bold ' + Math.round(w * 0.025) + 'px sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('比美乃江公園AR / Himino-e Park AR', w - 20, h - 20);
+
+      // Download
+      captureCanvas.toBlob(function(blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'himino-e-ar-' + Date.now() + '.jpg';
+        a.click();
+        URL.revokeObjectURL(url);
+      }, 'image/jpeg', 0.9);
+    }
+  </script>
+
+  <script>
+    // Unified error handling
+    function showError(type) {
+      var messages = {
+        camera: { icon: '📷', title: 'カメラへのアクセスが必要です', message: 'ブラウザの設定からカメラのアクセスを許可してください。\n\nSettings > Safari/Chrome > Camera > Allow' },
+        gps: { icon: '📍', title: '位置情報へのアクセスが必要です', message: 'このデモはGPS位置情報を使用します。\nブラウザの設定から位置情報のアクセスを許可してください。' },
+        browser: { icon: '🌐', title: 'ブラウザが対応していません', message: 'このARデモはiOS Safari またはAndroid Chromeでご利用ください。\n\niOS: Safari最新版\nAndroid: Chrome最新版' },
+        https: { icon: '🔒', title: 'HTTPSが必要です', message: 'このデモはHTTPS環境が必要です。\nhttps://xr-ar-lab.netlify.app からアクセスしてください。' }
+      };
+      var m = messages[type] || messages.browser;
+      document.getElementById('error-icon').textContent = m.icon;
+      document.getElementById('error-title').textContent = m.title;
+      document.getElementById('error-message').textContent = m.message;
+      document.getElementById('error-overlay').style.display = 'flex';
+    }
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      showError('https');
+    }
+    if (typeof navigator.mediaDevices === 'undefined' || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      showError('browser');
+    }
+  </script>
+
+  <script>
+    // Help overlay
+    function toggleHelp() {
+      document.getElementById('help-overlay').classList.toggle('visible');
+    }
+    document.addEventListener('touchstart', function _h() {
+      document.getElementById('help-overlay').classList.remove('visible');
+      document.removeEventListener('touchstart', _h);
+    });
+  </script>
+</body>
+</html>
