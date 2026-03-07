@@ -179,59 +179,66 @@
     <a-light type="directional" intensity="0.5" position="1 1 1"></a-light>
     <a-light type="ambient" intensity="1"></a-light>
 
-    <!-- ターゲット: 名刺 AR -->
+    <!-- ターゲット: 名刺 AR 情報展開 -->
     <xrextras-named-image-target name="sample-target-1">
       <a-entity>
-        <!-- Person silhouette body -->
-        <a-box
-          position="0 0.35 0"
-          scale="0.15 0.35 0.08"
-          color="#4a90d9"
-          animation="property: scale; from: 0.001 0.001 0.001; to: 0.15 0.35 0.08; dur: 600; easing: easeOutBack">
+        <!-- 名刺サイズのベースプレート -->
+        <a-plane width="0.18" height="0.09" position="0 0.001 0"
+          rotation="-90 0 0"
+          material="color:#001133; opacity:0.3; transparent:true">
+        </a-plane>
+
+        <!-- 人物アイコン: 頭 -->
+        <a-sphere radius="0.025" position="-0.06 0.12 0" color="#4ecdc4"
+          material="emissive:#4ecdc4; emissiveIntensity:0.5"
+          animation="property:scale;from:0 0 0;to:1 1 1;dur:400;easing:easeOutBack">
+        </a-sphere>
+        <!-- 人物アイコン: 体 -->
+        <a-box width="0.04" height="0.06" depth="0.02" position="-0.06 0.07 0" color="#4ecdc4"
+          material="emissive:#4ecdc4; emissiveIntensity:0.3"
+          animation="property:scale;from:0 0 0;to:1 1 1;dur:400;delay:100;easing:easeOutBack">
         </a-box>
 
-        <!-- Person silhouette head -->
-        <a-sphere
-          position="0 0.6 0"
-          radius="0.08"
-          color="#4a90d9"
-          animation="property: scale; from: 0.001 0.001 0.001; to: 1 1 1; dur: 600; delay: 200; easing: easeOutBack">
-        </a-sphere>
+        <!-- 接続ライン -->
+        <a-cylinder radius="0.002" height="0.08" rotation="0 0 -30"
+          position="-0.03 0.13 0" color="#4ecdc4"
+          material="emissive:#4ecdc4; emissiveIntensity:0.5"
+          animation="property:scale;from:1 0 1;to:1 1 1;dur:300;delay:150">
+        </a-cylinder>
 
-        <!-- Company info: name -->
-        <a-text
-          value="会社名"
-          position="-0.3 0.4 0"
-          align="left"
-          scale="0.3 0.3 0.3"
-          color="#fff">
-        </a-text>
+        <!-- 会社名パネル -->
+        <a-plane width="0.2" height="0.04" position="0.02 0.18 0"
+          material="color:#112244; opacity:0.9; transparent:true; side:double"
+          animation="property:scale;from:0 1 1;to:1 1 1;dur:400;delay:200;easing:easeOutBack">
+          <a-text value="COMPANY NAME" color="#ffffff" align="center"
+            font="exo2bold" width="1.5" position="0 0 0.001">
+          </a-text>
+        </a-plane>
+        <!-- 役職パネル -->
+        <a-plane width="0.2" height="0.03" position="0.02 0.13 0"
+          material="color:#0a1a33; opacity:0.9; transparent:true; side:double"
+          animation="property:scale;from:0 1 1;to:1 1 1;dur:400;delay:350;easing:easeOutBack">
+          <a-text value="Your Name / Title" color="#aaddff" align="center"
+            width="1.5" position="0 0 0.001">
+          </a-text>
+        </a-plane>
+        <!-- 連絡先パネル -->
+        <a-plane width="0.2" height="0.03" position="0.02 0.09 0"
+          material="color:#0a1a33; opacity:0.9; transparent:true; side:double"
+          animation="property:scale;from:0 1 1;to:1 1 1;dur:400;delay:500;easing:easeOutBack">
+          <a-text value="tel / web / mail" color="#88bbff" align="center"
+            width="1.5" position="0 0 0.001">
+          </a-text>
+        </a-plane>
 
-        <!-- Phone -->
-        <a-text
-          value="TEL: 000-000-0000"
-          position="-0.3 0.25 0"
-          align="left"
-          scale="0.3 0.3 0.3"
-          color="#fff">
-        </a-text>
-
-        <!-- Website -->
-        <a-text
-          value="Web: example.com"
-          position="-0.3 0.1 0"
-          align="left"
-          scale="0.3 0.3 0.3"
-          color="#fff">
-        </a-text>
-
-        <!-- Wireframe globe -->
-        <a-sphere
-          position="0.3 0.35 0"
-          radius="0.12"
-          material="wireframe: true; color: #4ecdc4; opacity: 0.6"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear">
-        </a-sphere>
+        <!-- 回転する名刺ミニチュア -->
+        <a-plane width="0.09" height="0.05" position="0 0.28 0"
+          material="color:#ffffff; opacity:0.9; side:double"
+          animation="property:rotation;to:0 360 0;loop:true;dur:4000;easing:linear">
+          <a-text value="Business Card AR" color="#001133" align="center"
+            width="1.5" position="0 0 0.001" wrap-count="15">
+          </a-text>
+        </a-plane>
       </a-entity>
     </xrextras-named-image-target>
 

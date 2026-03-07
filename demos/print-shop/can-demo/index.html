@@ -179,74 +179,48 @@
     <a-light type="directional" intensity="0.5" position="1 1 1"></a-light>
     <a-light type="ambient" intensity="1"></a-light>
 
-    <!-- ターゲット: 缶・ボトル AR -->
+    <!-- ターゲット: 缶・ボトル AR ホログラム投影 -->
     <xrextras-named-image-target name="sample-target-1">
-      <a-entity>
-        <!-- YOUR BRAND text -->
-        <a-text
-          value="YOUR BRAND"
-          position="0 0.6 0"
-          align="center"
-          scale="0.4 0.4 0.4"
-          color="#fff">
+      <a-entity id="can-target">
+        <!-- 光のリング×3 -->
+        <a-torus radius="0.15" radius-tubular="0.005" color="#00ffff"
+          material="emissive:#00ffff; emissiveIntensity:0.8; opacity:0.7; transparent:true"
+          animation="property:rotation;to:0 360 0;loop:true;dur:3000;easing:linear"
+          position="0 0.1 0">
+        </a-torus>
+        <a-torus radius="0.12" radius-tubular="0.004" color="#ff00ff"
+          material="emissive:#ff00ff; emissiveIntensity:0.8; opacity:0.6; transparent:true"
+          animation="property:rotation;to:0 -360 0;loop:true;dur:2000;easing:linear"
+          position="0 0.2 0">
+        </a-torus>
+        <a-torus radius="0.1" radius-tubular="0.003" color="#00ffff"
+          material="emissive:#00ffff; emissiveIntensity:0.8; opacity:0.5; transparent:true"
+          animation="property:rotation;to:0 360 0;loop:true;dur:2500;easing:linear"
+          position="0 0.3 0">
+        </a-torus>
+
+        <!-- 中央ホログラムパネル -->
+        <a-plane width="0.25" height="0.15" position="0 0.35 0"
+          material="color:#001133; opacity:0.85; transparent:true; side:double"
+          animation="property:scale;from:0 0 0;to:1 1 1;dur:500;easing:easeOutBack">
+          <a-text value="YOUR&#10;BRAND" align="center" color="#00ffff"
+            font="exo2bold" width="0.8" position="0 0 0.001"
+            animation="property:material.opacity;from:0;to:1;dur:800;delay:400">
+          </a-text>
+        </a-plane>
+
+        <!-- スキャンラインエフェクト -->
+        <a-plane width="0.3" height="0.005" color="#00ffff"
+          material="emissive:#00ffff; emissiveIntensity:1; opacity:0.8; transparent:true"
+          animation="property:position;from:0 0.05 0.01;to:0 0.5 0.01;loop:true;dir:alternate;dur:1500;easing:linear">
+        </a-plane>
+
+        <!-- 下部テキスト -->
+        <a-text value="缶・ボトルのラベルにARを追加できます"
+          align="center" color="#ffffff" width="1.2"
+          position="0 -0.05 0"
+          material="opacity:0.9">
         </a-text>
-
-        <!-- Star shape (octahedron) -->
-        <a-octahedron
-          position="0 0.35 0"
-          radius="0.1"
-          color="#FFD700"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear">
-        </a-octahedron>
-
-        <!-- Logo text on the star -->
-        <a-text
-          value="&#x2605;"
-          position="0 0.35 0.11"
-          align="center"
-          scale="0.3 0.3 0.3"
-          color="#fff">
-        </a-text>
-
-        <!-- Sparkle sphere 1 -->
-        <a-sphere
-          position="0.15 0.25 0"
-          radius="0.03"
-          color="#FFD700"
-          material="transparent: true; opacity: 0.8"
-          animation="property: material.opacity; from: 0.3; to: 1; dir: alternate; loop: true; dur: 800; easing: easeInOutSine"
-          animation__orbit="property: position; from: 0.15 0.25 0; to: -0.15 0.25 0; dir: alternate; loop: true; dur: 3000; easing: easeInOutSine">
-        </a-sphere>
-
-        <!-- Sparkle sphere 2 -->
-        <a-sphere
-          position="-0.12 0.4 0.1"
-          radius="0.03"
-          color="#FFD700"
-          material="transparent: true; opacity: 0.6"
-          animation="property: material.opacity; from: 0.2; to: 0.9; dir: alternate; loop: true; dur: 1200; easing: easeInOutSine"
-          animation__orbit="property: position; from: -0.12 0.4 0.1; to: 0.12 0.4 -0.1; dir: alternate; loop: true; dur: 2500; easing: easeInOutSine">
-        </a-sphere>
-
-        <!-- Sparkle sphere 3 -->
-        <a-sphere
-          position="0.1 0.5 -0.08"
-          radius="0.03"
-          color="#FFD700"
-          material="transparent: true; opacity: 0.5"
-          animation="property: material.opacity; from: 0.4; to: 1; dir: alternate; loop: true; dur: 1000; easing: easeInOutSine"
-          animation__orbit="property: position; from: 0.1 0.5 -0.08; to: -0.1 0.5 0.08; dir: alternate; loop: true; dur: 3500; easing: easeInOutSine">
-        </a-sphere>
-
-        <!-- Sparkle sphere 4 -->
-        <a-sphere
-          position="-0.08 0.3 0.12"
-          radius="0.03"
-          color="#FFD700"
-          material="transparent: true; opacity: 0.7"
-          animation="property: material.opacity; from: 0.3; to: 0.8; dir: alternate; loop: true; dur: 900; easing: easeInOutSine"
-          animation__orbit="property: position; from: -0.08 0.3 0.12; to: 0.08 0.3 -0.12; dir: alternate; loop: true; dur: 2800; easing: easeInOutSine">
-        </a-sphere>
       </a-entity>
     </xrextras-named-image-target>
 
@@ -273,6 +247,25 @@
     if (typeof navigator.mediaDevices === 'undefined' || typeof navigator.mediaDevices.getUserMedia !== 'function') {
       showError('browser');
     }
+  </script>
+
+  <script>
+    // Hologram particles
+    var canTarget = document.getElementById('can-target');
+    function createParticle(parent) {
+      var p = document.createElement('a-sphere');
+      var x = (Math.random() - 0.5) * 0.3;
+      var z = (Math.random() - 0.5) * 0.3;
+      p.setAttribute('radius', '0.008');
+      p.setAttribute('position', x + ' 0.05 ' + z);
+      p.setAttribute('color', Math.random() > 0.5 ? '#00ffff' : '#ff00ff');
+      p.setAttribute('material', 'emissive:#00ffff; emissiveIntensity:1; opacity:0.9; transparent:true');
+      p.setAttribute('animation', 'property:position;to:' + x + ' 0.6 ' + z + ';dur:' + (1500 + Math.random() * 1000) + ';easing:easeInQuad');
+      p.setAttribute('animation__fade', 'property:material.opacity;to:0;dur:1500;delay:500');
+      parent.appendChild(p);
+      setTimeout(function() { try { parent.removeChild(p); } catch(e){} }, 2500);
+    }
+    setInterval(function() { createParticle(canTarget); }, 150);
   </script>
 
   <script>

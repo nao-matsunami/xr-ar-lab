@@ -179,69 +179,59 @@
     <a-light type="directional" intensity="0.5" position="1 1 1"></a-light>
     <a-light type="ambient" intensity="1"></a-light>
 
-    <!-- ターゲット: チラシ・ポスター AR -->
+    <!-- ターゲット: チラシ・ポスター AR 動く広告 -->
     <xrextras-named-image-target name="sample-target-1">
       <a-entity>
-        <!-- SALE text large with pulse -->
-        <a-text
-          value="SALE"
-          position="0 0.5 0"
-          align="center"
-          scale="0.8 0.8 0.8"
-          color="#E74C3C"
-          animation="property: scale; from: 0.8 0.8 0.8; to: 1.0 1.0 1.0; dir: alternate; loop: true; dur: 800; easing: easeInOutSine">
-        </a-text>
+        <!-- メインバナー -->
+        <a-plane width="0.28" height="0.18" position="0 0.15 0"
+          material="color:#ff2244; opacity:0.95; side:double"
+          animation="property:scale;from:0 0 0;to:1 1 1;dur:600;easing:easeOutBack">
+          <a-text value="SALE" color="#ffffff" align="center"
+            font="exo2bold" width="2" position="0 0.04 0.001">
+          </a-text>
+          <a-text value="50% OFF" color="#ffff00" align="center"
+            font="exo2bold" width="1.5" position="0 -0.02 0.001"
+            animation="property:scale;from:1 1 1;to:1.2 1.2 1;loop:true;dir:alternate;dur:500">
+          </a-text>
+        </a-plane>
 
-        <!-- 50% OFF text -->
-        <a-text
-          value="50% OFF"
-          position="0 0.3 0"
-          align="center"
-          scale="0.5 0.5 0.5"
-          color="#FFD700">
-        </a-text>
-
-        <!-- Product box 1 (red) -->
-        <a-box
-          position="-0.25 0.15 0"
-          scale="0.12 0.12 0.12"
-          color="#E74C3C"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; easing: linear">
-        </a-box>
-
-        <!-- Product box 2 (blue) -->
-        <a-box
-          position="0 0.15 0"
-          scale="0.12 0.12 0.12"
-          color="#3498DB"
-          animation="property: rotation; to: 360 0 0; loop: true; dur: 4000; easing: linear">
-        </a-box>
-
-        <!-- Product box 3 (green) -->
-        <a-box
-          position="0.25 0.15 0"
-          scale="0.12 0.12 0.12"
-          color="#2ECC71"
-          animation="property: rotation; to: 0 0 360; loop: true; dur: 3500; easing: linear">
-        </a-box>
-
-        <!-- Arrow (cone pointing down) -->
-        <a-cone
-          position="0.3 0.15 0"
-          rotation="0 0 180"
-          radius-bottom="0.05"
-          height="0.15"
-          color="#FFD700"
-          animation="property: position; from: 0.3 0.15 0; to: 0.3 0.08 0; dir: alternate; loop: true; dur: 600; easing: easeInOutSine">
+        <!-- 3D矢印×3本 点滅 -->
+        <a-cone radius-bottom="0.03" radius-top="0" height="0.06"
+          position="-0.06 0.38 0" color="#ffff00"
+          material="emissive:#ffff00; emissiveIntensity:0.8"
+          animation="property:material.opacity;from:0.2;to:1;loop:true;dir:alternate;dur:400;delay:0">
+        </a-cone>
+        <a-cone radius-bottom="0.03" radius-top="0" height="0.06"
+          position="0 0.38 0" color="#ffff00"
+          material="emissive:#ffff00; emissiveIntensity:0.8"
+          animation="property:material.opacity;from:0.2;to:1;loop:true;dir:alternate;dur:400;delay:133">
+        </a-cone>
+        <a-cone radius-bottom="0.03" radius-top="0" height="0.06"
+          position="0.06 0.38 0" color="#ffff00"
+          material="emissive:#ffff00; emissiveIntensity:0.8"
+          animation="property:material.opacity;from:0.2;to:1;loop:true;dir:alternate;dur:400;delay:266">
         </a-cone>
 
-        <!-- 今すぐ来店! text -->
-        <a-text
-          value="今すぐ来店!"
-          position="0.3 0.05 0"
-          align="center"
-          scale="0.25 0.25 0.25"
-          color="#FFD700">
+        <!-- カウントダウンタイマー -->
+        <a-text id="timer-text" value="残り 3:00" color="#ffffff" align="center"
+          font="exo2bold" width="1.2" position="0 0.48 0">
+        </a-text>
+
+        <!-- 商品アイコン×3 -->
+        <a-box position="-0.12 0.02 0" scale="0.06 0.06 0.06" color="#E74C3C"
+          animation="property:position;from:-0.12 0.02 0;to:-0.12 0.06 0;loop:true;dir:alternate;dur:1200;easing:easeInOutSine">
+        </a-box>
+        <a-box position="0 0.02 0" scale="0.06 0.06 0.06" color="#3498DB"
+          animation="property:position;from:0 0.02 0;to:0 0.06 0;loop:true;dir:alternate;dur:1200;delay:200;easing:easeInOutSine">
+        </a-box>
+        <a-box position="0.12 0.02 0" scale="0.06 0.06 0.06" color="#2ECC71"
+          animation="property:position;from:0.12 0.02 0;to:0.12 0.06 0;loop:true;dir:alternate;dur:1200;delay:400;easing:easeInOutSine">
+        </a-box>
+
+        <!-- 「今すぐアクセス！」テキスト 点滅 -->
+        <a-text value="今すぐアクセス！" color="#ffff00" align="center"
+          font="exo2bold" width="1.0" position="0 -0.06 0"
+          animation="property:material.opacity;from:0.3;to:1;loop:true;dir:alternate;dur:600">
         </a-text>
       </a-entity>
     </xrextras-named-image-target>
@@ -269,6 +259,18 @@
     if (typeof navigator.mediaDevices === 'undefined' || typeof navigator.mediaDevices.getUserMedia !== 'function') {
       showError('browser');
     }
+  </script>
+
+  <script>
+    // Countdown timer
+    var seconds = 180;
+    setInterval(function() {
+      if (seconds > 0) seconds--;
+      var m = Math.floor(seconds / 60);
+      var s = seconds % 60;
+      var timerEl = document.querySelector('#timer-text');
+      if (timerEl) timerEl.setAttribute('value', '残り ' + m + ':' + (s < 10 ? '0' : '') + s);
+    }, 1000);
   </script>
 
   <script>

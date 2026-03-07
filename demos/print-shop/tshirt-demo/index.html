@@ -179,102 +179,55 @@
     <a-light type="directional" intensity="0.5" position="1 1 1"></a-light>
     <a-light type="ambient" intensity="1"></a-light>
 
-    <!-- ターゲット: Tシャツ AR -->
+    <!-- ターゲット: Tシャツ AR ダンスキャラクター -->
     <xrextras-named-image-target name="sample-target-2">
-      <a-entity>
-        <!-- Character wrapper with jump animation -->
-        <a-entity
-          animation="property: position; from: 0 0 0; to: 0 0.15 0; dir: alternate; loop: true; dur: 600; easing: easeInOutSine">
-
-          <!-- Character body -->
-          <a-box
-            position="0 0.3 0"
-            scale="0.15 0.25 0.1"
-            color="#ff6b6b">
-          </a-box>
-
-          <!-- Character head -->
-          <a-sphere
-            position="0 0.5 0"
-            radius="0.08"
-            color="#ffcc5c">
-          </a-sphere>
-
-          <!-- Left arm -->
-          <a-box
-            position="-0.12 0.35 0"
-            scale="0.05 0.18 0.06"
-            color="#ff6b6b"
-            animation="property: rotation; from: 0 0 -15; to: 0 0 15; dir: alternate; loop: true; dur: 400; easing: easeInOutSine">
-          </a-box>
-
-          <!-- Right arm -->
-          <a-box
-            position="0.12 0.35 0"
-            scale="0.05 0.18 0.06"
-            color="#ff6b6b"
-            animation="property: rotation; from: 0 0 15; to: 0 0 -15; dir: alternate; loop: true; dur: 400; easing: easeInOutSine">
-          </a-box>
+      <a-entity id="tshirt-target">
+        <!-- ジャンプアニメーション -->
+        <a-entity animation="property:position;from:0 0 0;to:0 0.05 0;loop:true;dir:alternate;dur:400;easing:easeInOutSine">
+          <!-- キャラクター本体 -->
+          <a-entity id="character" position="0 0 0">
+            <!-- 頭 -->
+            <a-sphere radius="0.04" position="0 0.22 0" color="#ffcc88"
+              animation="property:rotation;to:0 360 0;loop:true;dur:2000;easing:linear">
+            </a-sphere>
+            <!-- 胴体 -->
+            <a-box width="0.07" height="0.09" depth="0.04" position="0 0.14 0" color="#4ecdc4">
+            </a-box>
+            <!-- 左腕 -->
+            <a-box width="0.025" height="0.07" depth="0.025" position="-0.055 0.14 0" color="#4ecdc4"
+              animation="property:rotation;from:-30 0 0;to:30 0 0;loop:true;dir:alternate;dur:500">
+            </a-box>
+            <!-- 右腕 -->
+            <a-box width="0.025" height="0.07" depth="0.025" position="0.055 0.14 0" color="#4ecdc4"
+              animation="property:rotation;from:30 0 0;to:-30 0 0;loop:true;dir:alternate;dur:500">
+            </a-box>
+            <!-- 左足 -->
+            <a-box width="0.03" height="0.07" depth="0.03" position="-0.025 0.05 0" color="#336699"
+              animation="property:rotation;from:20 0 0;to:-20 0 0;loop:true;dir:alternate;dur:500;delay:250">
+            </a-box>
+            <!-- 右足 -->
+            <a-box width="0.03" height="0.07" depth="0.03" position="0.025 0.05 0" color="#336699"
+              animation="property:rotation;from:-20 0 0;to:20 0 0;loop:true;dir:alternate;dur:500;delay:250">
+            </a-box>
+          </a-entity>
         </a-entity>
 
-        <!-- YOUR CHARACTER text above head -->
-        <a-text
-          value="YOUR CHARACTER"
-          position="0 0.7 0"
-          align="center"
-          scale="0.3 0.3 0.3"
-          color="#fff">
+        <!-- 頭上テキスト -->
+        <a-text value="YOUR CHARACTER!" color="#ffff00" align="center"
+          font="exo2bold" width="1.2" position="0 0.32 0"
+          animation="property:scale;from:1 1 1;to:1.1 1.1 1;loop:true;dir:alternate;dur:600">
         </a-text>
 
-        <!-- Star particle 1 -->
-        <a-sphere
-          position="0.18 0.45 0.05"
-          radius="0.02"
-          color="#FFD700"
-          animation="property: position; from: 0.18 0.45 0.05; to: 0.22 0.6 -0.05; dir: alternate; loop: true; dur: 1200; easing: easeInOutSine"
-          animation__opacity="property: material.opacity; from: 0.4; to: 1; dir: alternate; loop: true; dur: 800"
-          material="transparent: true; opacity: 0.8">
-        </a-sphere>
+        <!-- スポットライト効果 -->
+        <a-cone radius-bottom="0.1" radius-top="0.02" height="0.15"
+          position="0 -0.02 0" color="#ffff88"
+          material="emissive:#ffff44; emissiveIntensity:0.5; opacity:0.15; transparent:true; side:double">
+        </a-cone>
 
-        <!-- Star particle 2 -->
-        <a-sphere
-          position="-0.2 0.5 -0.03"
-          radius="0.02"
-          color="#FFD700"
-          animation="property: position; from: -0.2 0.5 -0.03; to: -0.15 0.65 0.08; dir: alternate; loop: true; dur: 1500; easing: easeInOutSine"
-          animation__opacity="property: material.opacity; from: 0.5; to: 1; dir: alternate; loop: true; dur: 900"
-          material="transparent: true; opacity: 0.7">
-        </a-sphere>
-
-        <!-- Star particle 3 -->
-        <a-sphere
-          position="0.1 0.6 0.08"
-          radius="0.02"
-          color="#FFD700"
-          animation="property: position; from: 0.1 0.6 0.08; to: -0.1 0.55 -0.05; dir: alternate; loop: true; dur: 1800; easing: easeInOutSine"
-          animation__opacity="property: material.opacity; from: 0.3; to: 0.9; dir: alternate; loop: true; dur: 1100"
-          material="transparent: true; opacity: 0.6">
-        </a-sphere>
-
-        <!-- Star particle 4 -->
-        <a-sphere
-          position="-0.08 0.35 0.1"
-          radius="0.02"
-          color="#FFD700"
-          animation="property: position; from: -0.08 0.35 0.1; to: 0.15 0.4 -0.08; dir: alternate; loop: true; dur: 1400; easing: easeInOutSine"
-          animation__opacity="property: material.opacity; from: 0.6; to: 1; dir: alternate; loop: true; dur: 700"
-          material="transparent: true; opacity: 0.9">
-        </a-sphere>
-
-        <!-- Star particle 5 -->
-        <a-sphere
-          position="0.05 0.7 -0.06"
-          radius="0.02"
-          color="#FFD700"
-          animation="property: position; from: 0.05 0.7 -0.06; to: -0.18 0.6 0.06; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine"
-          animation__opacity="property: material.opacity; from: 0.4; to: 0.8; dir: alternate; loop: true; dur: 1000"
-          material="transparent: true; opacity: 0.5">
-        </a-sphere>
+        <!-- 星エフェクト用コンテナ -->
+        <a-entity id="star-ring"
+          animation="property:rotation;to:0 360 0;loop:true;dur:6000;easing:linear">
+        </a-entity>
       </a-entity>
     </xrextras-named-image-target>
 
@@ -300,6 +253,23 @@
     }
     if (typeof navigator.mediaDevices === 'undefined' || typeof navigator.mediaDevices.getUserMedia !== 'function') {
       showError('browser');
+    }
+  </script>
+
+  <script>
+    // Star ring - 8 stars around character
+    var starRing = document.getElementById('star-ring');
+    for (var i = 0; i < 8; i++) {
+      var angle = (i / 8) * Math.PI * 2;
+      var sx = Math.cos(angle) * 0.15;
+      var sz = Math.sin(angle) * 0.15;
+      var star = document.createElement('a-sphere');
+      star.setAttribute('radius', '0.015');
+      star.setAttribute('position', sx + ' 0.15 ' + sz);
+      star.setAttribute('color', '#FFD700');
+      star.setAttribute('material', 'emissive:#FFD700; emissiveIntensity:0.8; opacity:0.8; transparent:true');
+      star.setAttribute('animation', 'property:material.opacity;from:0.3;to:1;loop:true;dir:alternate;dur:' + (600 + i * 100));
+      starRing.appendChild(star);
     }
   </script>
 

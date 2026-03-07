@@ -179,76 +179,48 @@
     <a-light type="directional" intensity="0.5" position="1 1 1"></a-light>
     <a-light type="ambient" intensity="1"></a-light>
 
-    <!-- ターゲット: マグカップ AR -->
+    <!-- ターゲット: マグカップ AR 温かい飲み物演出 -->
     <xrextras-named-image-target name="sample-target-2">
-      <a-entity>
-        <!-- Steam particle 1 -->
-        <a-sphere
-          position="-0.05 0.1 0"
-          radius="0.025"
-          color="#fff"
-          material="transparent: true; opacity: 0.4"
-          animation="property: position; from: -0.05 0.1 0; to: -0.08 0.5 0.02; loop: true; dur: 2500; easing: easeOutQuad"
-          animation__fade="property: material.opacity; from: 0.4; to: 0; loop: true; dur: 2500; easing: easeOutQuad">
-        </a-sphere>
-
-        <!-- Steam particle 2 -->
-        <a-sphere
-          position="0.03 0.1 0.02"
-          radius="0.03"
-          color="#fff"
-          material="transparent: true; opacity: 0.5"
-          animation="property: position; from: 0.03 0.1 0.02; to: 0.06 0.5 -0.01; loop: true; dur: 3000; delay: 400; easing: easeOutQuad"
-          animation__fade="property: material.opacity; from: 0.5; to: 0; loop: true; dur: 3000; delay: 400; easing: easeOutQuad">
-        </a-sphere>
-
-        <!-- Steam particle 3 -->
-        <a-sphere
-          position="0.01 0.1 -0.03"
-          radius="0.02"
-          color="#fff"
-          material="transparent: true; opacity: 0.3"
-          animation="property: position; from: 0.01 0.1 -0.03; to: -0.02 0.5 0.01; loop: true; dur: 2800; delay: 800; easing: easeOutQuad"
-          animation__fade="property: material.opacity; from: 0.3; to: 0; loop: true; dur: 2800; delay: 800; easing: easeOutQuad">
-        </a-sphere>
-
-        <!-- Steam particle 4 -->
-        <a-sphere
-          position="-0.02 0.1 0.01"
-          radius="0.028"
-          color="#fff"
-          material="transparent: true; opacity: 0.45"
-          animation="property: position; from: -0.02 0.1 0.01; to: 0.04 0.5 -0.03; loop: true; dur: 3200; delay: 1200; easing: easeOutQuad"
-          animation__fade="property: material.opacity; from: 0.45; to: 0; loop: true; dur: 3200; delay: 1200; easing: easeOutQuad">
-        </a-sphere>
-
-        <!-- Coffee bean torus -->
-        <a-torus
-          position="-0.2 0.25 0"
-          radius="0.04"
-          radius-tubular="0.015"
-          color="#6F4E37"
-          animation="property: rotation; to: 360 360 0; loop: true; dur: 5000; easing: linear">
+      <a-entity id="mug-target">
+        <!-- カップ本体 -->
+        <a-cylinder radius="0.06" height="0.08" position="0 0.1 0"
+          material="color:#8B4513; side:double; opacity:0.95"
+          open-ended="true">
+        </a-cylinder>
+        <!-- カップ底 -->
+        <a-cylinder radius="0.06" height="0.005" position="0 0.06 0"
+          color="#8B4513">
+        </a-cylinder>
+        <!-- 取っ手 -->
+        <a-torus radius="0.04" radius-tubular="0.008" rotation="0 90 0"
+          position="0.07 0.1 0" color="#8B4513">
         </a-torus>
+        <!-- 液面 -->
+        <a-cylinder radius="0.055" height="0.005" position="0 0.135 0"
+          color="#3d1a00">
+        </a-cylinder>
 
-        <!-- Tea leaf torus -->
-        <a-torus
-          position="0.2 0.2 0"
-          radius="0.05"
-          radius-tubular="0.012"
-          color="#8B7355"
-          animation="property: rotation; to: -360 0 360; loop: true; dur: 6000; easing: linear">
-        </a-torus>
+        <!-- ロゴ投影 -->
+        <a-plane width="0.08" height="0.05" position="0 0.1 0.065"
+          material="color:#000000; opacity:0; transparent:true">
+          <a-text value="YOUR&#10;LOGO" color="#ffdd88" align="center"
+            font="exo2bold" width="1.2" position="0 0 0.001"
+            material="emissive:#ffaa00; emissiveIntensity:0.8"
+            animation="property:material.opacity;from:0;to:1;dur:1000;delay:500">
+          </a-text>
+        </a-plane>
 
-        <!-- YOUR LOGO HERE text rotating -->
-        <a-text
-          value="YOUR LOGO HERE"
-          position="0 0.35 0"
-          align="center"
-          scale="0.3 0.3 0.3"
-          color="#D2691E"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear">
+        <!-- 温度表示 -->
+        <a-text value="HOT" color="#ff8800" align="center"
+          font="exo2bold" width="0.8" position="0 0.42 0"
+          animation="property:material.opacity;from:0.3;to:1;loop:true;dir:alternate;dur:800">
         </a-text>
+
+        <!-- 輝くオーラ -->
+        <a-sphere radius="0.12" position="0 0.1 0"
+          material="color:#ff6600; opacity:0.1; transparent:true; side:back"
+          animation="property:scale;from:1 1 1;to:1.2 1.2 1.2;loop:true;dir:alternate;dur:1500">
+        </a-sphere>
       </a-entity>
     </xrextras-named-image-target>
 
@@ -275,6 +247,25 @@
     if (typeof navigator.mediaDevices === 'undefined' || typeof navigator.mediaDevices.getUserMedia !== 'function') {
       showError('browser');
     }
+  </script>
+
+  <script>
+    // Steam particles
+    var mugTarget = document.getElementById('mug-target');
+    function createSteam(parent) {
+      var s = document.createElement('a-plane');
+      var x = (Math.random() - 0.5) * 0.08;
+      s.setAttribute('width', '0.03');
+      s.setAttribute('height', '0.05');
+      s.setAttribute('position', x + ' 0.18 0');
+      s.setAttribute('material', 'color:#ffffff; opacity:0.6; transparent:true; side:double');
+      s.setAttribute('animation__pos', 'property:position;to:' + (x + (Math.random() - 0.5) * 0.05) + ' 0.35 0;dur:1800;easing:easeOutQuad');
+      s.setAttribute('animation__scale', 'property:scale;from:0.5 0.5 0.5;to:1.5 1.5 1.5;dur:1800');
+      s.setAttribute('animation__fade', 'property:material.opacity;to:0;dur:1800');
+      parent.appendChild(s);
+      setTimeout(function() { try { parent.removeChild(s); } catch(e){} }, 1900);
+    }
+    setInterval(function() { createSteam(mugTarget); }, 300);
   </script>
 
   <script>
