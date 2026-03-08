@@ -63,60 +63,23 @@
       },
 
       placeModel: function(position) {
-        var wrapper = document.createElement('a-entity');
-        wrapper.setAttribute('position', {
-          x: position.x,
-          y: position.y,
-          z: position.z
-        });
-        wrapper.setAttribute('scale', '0.001 0.001 0.001');
-        wrapper.classList.add('cantap');
-        wrapper.classList.add('buri-model');
         var type = currentModel;
-        wrapper.dataset.modelType = type;
-
-        var model = document.createElement('a-gltf-model');
         var src = type === 'kamaboko' ? '#kamaboko' : '#buri-kozou';
-        model.setAttribute('src', src);
-        model.setAttribute('shadow', 'cast: true; receive: true');
+        var modelScale = type === 'kamaboko' ? '0.3 0.3 0.3' : '0.5 0.5 0.5';
 
-        // GLBのネイティブサイズに関わらず、bounding boxで自動正規化
-        model.addEventListener('model-loaded', function() {
-          var mesh = model.getObject3D('mesh');
-          if (!mesh) return;
-          var box = new AFRAME.THREE.Box3().setFromObject(mesh);
-          var size = new AFRAME.THREE.Vector3();
-          box.getSize(size);
-          var maxDim = Math.max(size.x, size.y, size.z);
-          if (maxDim > 0.001) {
-            var targetSize = 0.5;
-            var s = targetSize / maxDim;
-            model.object3D.scale.set(s, s, s);
-            // スケール後のbounding boxを再計算し、底面をY=0に接地
-            box.setFromObject(mesh);
-            var center = new AFRAME.THREE.Vector3();
-            box.getCenter(center);
-            model.object3D.position.set(-center.x, -box.min.y, -center.z);
-          }
-        });
+        // vendor/web/examples/aframe/placeground と同じパターン:
+        // a-entity に gltf-model 属性を設定（<a-gltf-model>要素ではない）
+        var el = document.createElement('a-entity');
+        el.setAttribute('position', position);
+        el.setAttribute('visible', 'false');
+        el.setAttribute('scale', '0.0001 0.0001 0.0001');
+        el.setAttribute('shadow', 'cast: true; receive: false');
+        el.setAttribute('gltf-model', src);
+        el.classList.add('cantap');
+        el.classList.add('buri-model');
+        el.dataset.modelType = type;
 
-        // GLBロード失敗時のフォールバック（プリミティブ形状）
-        model.addEventListener('model-error', function() {
-          wrapper.removeChild(model);
-          var fallback = document.createElement('a-box');
-          fallback.setAttribute('width', '0.3');
-          fallback.setAttribute('height', '0.3');
-          fallback.setAttribute('depth', '0.3');
-          fallback.setAttribute('position', '0 0.15 0');
-          var col = type === 'kamaboko' ? '#ffcccc' : '#00bcd4';
-          fallback.setAttribute('color', col);
-          fallback.setAttribute('shadow', 'cast: true; receive: true');
-          wrapper.appendChild(fallback);
-        });
-
-        wrapper.appendChild(model);
-
-        // Selection ring
+        // 選択リングは子要素として追加
         var ring = document.createElement('a-torus');
         ring.setAttribute('radius', '0.2');
         ring.setAttribute('radius-tubular', '0.01');
@@ -126,29 +89,34 @@
         ring.setAttribute('material', 'emissive: #FFD700; emissiveIntensity: 0.5');
         ring.setAttribute('visible', 'false');
         ring.classList.add('select-ring');
-        wrapper.appendChild(ring);
+        el.appendChild(ring);
 
-        // Tap to select/deselect (skip during pinch)
-        wrapper.addEventListener('click', function(evt) {
+        // モデル読み込み完了 → 表示 + ポップイン
+        el.addEventListener('model-loaded', function() {
+          el.setAttribute('visible', 'true');
+          el.setAttribute('scale', modelScale);
+          el.setAttribute('animation', {
+            property: 'scale',
+            to: modelScale,
+            from: '0.0001 0.0001 0.0001',
+            easing: 'easeOutElastic',
+            dur: 800
+          });
+        });
+
+        // タップで選択/解除（ピンチ中は無視）
+        el.addEventListener('click', function(evt) {
           if (wasPinching) return;
           evt.stopPropagation();
-          if (selectedModel === wrapper) {
+          if (selectedModel === el) {
             deselectModel();
           } else {
-            selectModel(wrapper);
+            selectModel(el);
           }
         });
 
-        this.el.sceneEl.appendChild(wrapper);
-        placedModels.push(wrapper);
-
-        wrapper.setAttribute('animation', {
-          property: 'scale',
-          to: '1 1 1',
-          easing: 'easeOutBack',
-          dur: 300
-        });
-
+        this.el.sceneEl.appendChild(el);
+        placedModels.push(el);
         updateCounter();
         updateGuide();
       }
