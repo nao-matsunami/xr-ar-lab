@@ -74,40 +74,34 @@
         el.classList.add('buri-model');
         el.dataset.modelType = type;
 
-        var targetScale = type === 'kamaboko' ? 1.0 : 0.5;
+        var targetScale = 0.5;
 
         if (type === 'kamaboko') {
-          // かまぼこ: GLBが透明描画されるためプリミティブで代替
-          var body = document.createElement('a-box');
-          body.setAttribute('color', '#ff8a80');
-          body.setAttribute('width', '1.2');
-          body.setAttribute('height', '0.4');
-          body.setAttribute('depth', '0.7');
-          body.setAttribute('position', '0 0.2 0');
-          body.setAttribute('material', 'shader: standard; roughness: 0.6');
-          el.appendChild(body);
-
-          var top = document.createElement('a-cylinder');
-          top.setAttribute('color', '#ffb3ba');
-          top.setAttribute('radius', '0.6');
-          top.setAttribute('height', '0.7');
-          top.setAttribute('theta-length', '180');
-          top.setAttribute('rotation', '0 0 0');
-          top.setAttribute('position', '0 0.4 0');
-          top.setAttribute('material', 'shader: standard; roughness: 0.5');
-          el.appendChild(top);
-
-          var board = document.createElement('a-box');
-          board.setAttribute('color', '#d4a574');
-          board.setAttribute('width', '1.4');
-          board.setAttribute('height', '0.06');
-          board.setAttribute('depth', '0.8');
-          board.setAttribute('position', '0 0.03 0');
-          board.setAttribute('material', 'shader: standard; roughness: 0.7');
-          el.appendChild(board);
-
-          // アニメーションなし・即座に表示
-          el.object3D.scale.set(targetScale, targetScale, targetScale);
+          // かまぼこ: GLB読み込み + マテリアル強制不透明化
+          el.setAttribute('visible', 'false');
+          el.setAttribute('gltf-model', 'assets/kamaboko.glb');
+          el.addEventListener('model-loaded', function() {
+            var mesh = el.getObject3D('mesh');
+            if (mesh) {
+              mesh.traverse(function(node) {
+                if (node.isMesh) {
+                  var mats = Array.isArray(node.material) ? node.material : [node.material];
+                  mats.forEach(function(mat) {
+                    mat.transparent = false;
+                    mat.opacity = 1.0;
+                    mat.alphaTest = 0;
+                    mat.depthWrite = true;
+                    mat.needsUpdate = true;
+                  });
+                }
+              });
+            }
+            el.setAttribute('visible', 'true');
+            el.object3D.scale.set(targetScale, targetScale, targetScale);
+          });
+          el.addEventListener('model-error', function(e) {
+            console.error('kamaboko load error', e);
+          });
         } else {
           // ブリ小僧: GLBで読み込み
           el.setAttribute('visible', 'false');
