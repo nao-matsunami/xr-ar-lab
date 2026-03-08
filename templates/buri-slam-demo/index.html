@@ -26,6 +26,8 @@
     var currentModel = 'buri'; // 'buri' or 'kamaboko'
     var initialPinchDist = null;
     var initialScale = 1;
+    var wasPinching = false;
+    var pinchTimer = null;
 
     // === A-Frame Component (配置 + ドラッグのみ) ===
     AFRAME.registerComponent('buri-slam', {
@@ -34,8 +36,9 @@
         var ground = document.getElementById('ground');
         var sceneEl = this.el.sceneEl;
 
-        // Ground tap → place or deselect
+        // Ground tap → place or deselect (skip during pinch)
         ground.addEventListener('click', function(evt) {
+          if (wasPinching) return;
           if (!evt.detail || !evt.detail.intersection) return;
           var pt = evt.detail.intersection.point;
           if (selectedModel) {
@@ -69,14 +72,48 @@
         wrapper.setAttribute('scale', '0.001 0.001 0.001');
         wrapper.classList.add('cantap');
         wrapper.classList.add('buri-model');
-        wrapper.dataset.modelType = currentModel;
+        var type = currentModel;
+        wrapper.dataset.modelType = type;
 
         var model = document.createElement('a-gltf-model');
-        var src = currentModel === 'kamaboko' ? '#kamaboko' : '#buri-kozou';
-        var modelScale = currentModel === 'kamaboko' ? '0.3 0.3 0.3' : '0.5 0.5 0.5';
+        var src = type === 'kamaboko' ? '#kamaboko' : '#buri-kozou';
         model.setAttribute('src', src);
-        model.setAttribute('scale', modelScale);
         model.setAttribute('shadow', 'cast: true; receive: true');
+
+        // GLBのネイティブサイズに関わらず、bounding boxで自動正規化
+        model.addEventListener('model-loaded', function() {
+          var mesh = model.getObject3D('mesh');
+          if (!mesh) return;
+          var box = new AFRAME.THREE.Box3().setFromObject(mesh);
+          var size = new AFRAME.THREE.Vector3();
+          box.getSize(size);
+          var maxDim = Math.max(size.x, size.y, size.z);
+          if (maxDim > 0.001) {
+            var targetSize = 0.5;
+            var s = targetSize / maxDim;
+            model.object3D.scale.set(s, s, s);
+            // スケール後のbounding boxを再計算し、底面をY=0に接地
+            box.setFromObject(mesh);
+            var center = new AFRAME.THREE.Vector3();
+            box.getCenter(center);
+            model.object3D.position.set(-center.x, -box.min.y, -center.z);
+          }
+        });
+
+        // GLBロード失敗時のフォールバック（プリミティブ形状）
+        model.addEventListener('model-error', function() {
+          wrapper.removeChild(model);
+          var fallback = document.createElement('a-box');
+          fallback.setAttribute('width', '0.3');
+          fallback.setAttribute('height', '0.3');
+          fallback.setAttribute('depth', '0.3');
+          fallback.setAttribute('position', '0 0.15 0');
+          var col = type === 'kamaboko' ? '#ffcccc' : '#00bcd4';
+          fallback.setAttribute('color', col);
+          fallback.setAttribute('shadow', 'cast: true; receive: true');
+          wrapper.appendChild(fallback);
+        });
+
         wrapper.appendChild(model);
 
         // Selection ring
@@ -91,8 +128,9 @@
         ring.classList.add('select-ring');
         wrapper.appendChild(ring);
 
-        // Tap to select/deselect
+        // Tap to select/deselect (skip during pinch)
         wrapper.addEventListener('click', function(evt) {
+          if (wasPinching) return;
           evt.stopPropagation();
           if (selectedModel === wrapper) {
             deselectModel();
@@ -407,17 +445,22 @@
   <script>
     // capture: true でA-Frameのgesture-detectorより先に受け取る
     document.addEventListener('touchstart', function(e) {
-      if (e.touches.length === 2 && selectedModel) {
-        var dx = e.touches[0].clientX - e.touches[1].clientX;
-        var dy = e.touches[0].clientY - e.touches[1].clientY;
-        initialPinchDist = Math.sqrt(dx * dx + dy * dy);
-        var cs = selectedModel.getAttribute('scale');
-        initialScale = cs ? parseFloat(cs.x) : 1;
+      if (e.touches.length >= 2) {
+        // ピンチ開始: フラグを立ててclick誤発火を防ぐ
+        wasPinching = true;
+        clearTimeout(pinchTimer);
+        if (selectedModel) {
+          var dx = e.touches[0].clientX - e.touches[1].clientX;
+          var dy = e.touches[0].clientY - e.touches[1].clientY;
+          initialPinchDist = Math.sqrt(dx * dx + dy * dy);
+          var cs = selectedModel.getAttribute('scale');
+          initialScale = cs ? parseFloat(cs.x) : 1;
+        }
       }
     }, {capture: true, passive: true});
 
     document.addEventListener('touchmove', function(e) {
-      if (e.touches.length === 2 && selectedModel && initialPinchDist) {
+      if (e.touches.length >= 2 && selectedModel && initialPinchDist) {
         e.preventDefault();
         var dx = e.touches[0].clientX - e.touches[1].clientX;
         var dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -429,7 +472,14 @@
     }, {capture: true, passive: false});
 
     document.addEventListener('touchend', function(e) {
-      if (e.touches.length < 2) initialPinchDist = null;
+      if (e.touches.length < 2) {
+        initialPinchDist = null;
+        // ピンチ終了後300msはclickを無視（誤タップ防止）
+        if (wasPinching) {
+          clearTimeout(pinchTimer);
+          pinchTimer = setTimeout(function() { wasPinching = false; }, 300);
+        }
+      }
     }, {capture: true});
   </script>
 
