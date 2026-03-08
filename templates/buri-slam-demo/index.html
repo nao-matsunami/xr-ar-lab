@@ -68,53 +68,52 @@
 
         var el = document.createElement('a-entity');
         el.setAttribute('position', position);
-        el.setAttribute('scale', '0.0001 0.0001 0.0001');
         el.setAttribute('shadow', 'cast: true; receive: false');
         el.classList.add('cantap');
         el.classList.add('buri-model');
         el.dataset.modelType = type;
 
-        var targetScale = type === 'kamaboko' ? 0.3 : 0.5;
+        var targetScale = type === 'kamaboko' ? 0.5 : 0.5;
 
         if (type === 'kamaboko') {
           // かまぼこ: GLBが透明描画されるためプリミティブで代替
           var body = document.createElement('a-box');
           body.setAttribute('color', '#ff8a80');
-          body.setAttribute('width', '0.4');
-          body.setAttribute('height', '0.15');
-          body.setAttribute('depth', '0.25');
-          body.setAttribute('position', '0 0.075 0');
+          body.setAttribute('width', '1.2');
+          body.setAttribute('height', '0.4');
+          body.setAttribute('depth', '0.7');
+          body.setAttribute('position', '0 0.2 0');
           body.setAttribute('material', 'shader: standard; roughness: 0.6');
           el.appendChild(body);
 
           var top = document.createElement('a-cylinder');
           top.setAttribute('color', '#ffb3ba');
-          top.setAttribute('radius', '0.125');
-          top.setAttribute('height', '0.25');
+          top.setAttribute('radius', '0.6');
+          top.setAttribute('height', '0.7');
           top.setAttribute('theta-length', '180');
           top.setAttribute('rotation', '0 0 0');
-          top.setAttribute('position', '0 0.15 0');
+          top.setAttribute('position', '0 0.4 0');
           top.setAttribute('material', 'shader: standard; roughness: 0.5');
           el.appendChild(top);
 
           var board = document.createElement('a-box');
           board.setAttribute('color', '#d4a574');
-          board.setAttribute('width', '0.5');
-          board.setAttribute('height', '0.02');
-          board.setAttribute('depth', '0.3');
-          board.setAttribute('position', '0 0.01 0');
+          board.setAttribute('width', '1.4');
+          board.setAttribute('height', '0.06');
+          board.setAttribute('depth', '0.8');
+          board.setAttribute('position', '0 0.03 0');
           board.setAttribute('material', 'shader: standard; roughness: 0.7');
           el.appendChild(board);
 
-          // プリミティブは即座にポップイン
-          popIn(el, targetScale);
+          // アニメーションなし・即座に表示
+          el.object3D.scale.set(targetScale, targetScale, targetScale);
         } else {
           // ブリ小僧: GLBで読み込み
           el.setAttribute('visible', 'false');
           el.setAttribute('gltf-model', 'assets/buri-kozou.glb');
           el.addEventListener('model-loaded', function() {
             el.setAttribute('visible', 'true');
-            popIn(el, targetScale);
+            el.object3D.scale.set(targetScale, targetScale, targetScale);
           });
         }
 
@@ -147,19 +146,6 @@
         updateGuide();
       }
     });
-
-    // === Pop-in Animation (完了後にanimation属性を除去してscale所有権を解放) ===
-    function popIn(el, targetScale) {
-      var s = targetScale + ' ' + targetScale + ' ' + targetScale;
-      el.setAttribute('animation', {
-        property: 'scale', to: s, from: '0.0001 0.0001 0.0001',
-        easing: 'easeOutElastic', dur: 800
-      });
-      el.addEventListener('animationcomplete', function onComplete() {
-        el.removeAttribute('animation');
-        el.removeEventListener('animationcomplete', onComplete);
-      });
-    }
 
     // === Global Functions ===
     function selectModel(el) {
