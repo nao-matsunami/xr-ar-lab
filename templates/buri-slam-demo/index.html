@@ -64,7 +64,7 @@
 
       placeModel: function(position) {
         var type = currentModel;
-        var src = type === 'kamaboko' ? '#kamaboko' : '#buri-kozou';
+        var src = type === 'kamaboko' ? 'assets/kamaboko.glb' : 'assets/buri-kozou.glb';
         var modelScale = type === 'kamaboko' ? '0.3 0.3 0.3' : '0.5 0.5 0.5';
 
         // vendor/web/examples/aframe/placeground と同じパターン:
@@ -372,10 +372,7 @@
     shadow="type: pcfsoft; autoUpdate: true"
     xrweb="allowedDevices: any">
 
-    <a-assets>
-      <a-asset-item id="buri-kozou" src="assets/buri-kozou.glb"></a-asset-item>
-      <a-asset-item id="kamaboko" src="assets/kamaboko.glb"></a-asset-item>
-    </a-assets>
+    <!-- GLBはa-assets経由ではなく直接パスで読み込む（タイムアウト回避） -->
 
     <a-camera
       id="camera"
