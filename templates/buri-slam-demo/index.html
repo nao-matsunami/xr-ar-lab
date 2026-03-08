@@ -76,11 +76,9 @@
 
         var targetScale = 0.5;
 
-        if (type === 'kamaboko') {
-          // かまぼこ: GLB読み込み + マテリアル強制不透明化
-          el.setAttribute('visible', 'false');
-          el.setAttribute('gltf-model', 'assets/kamaboko.glb');
-          el.addEventListener('model-loaded', function() {
+        el.setAttribute('visible', 'false');
+        el.addEventListener('model-loaded', function() {
+          if (type === 'kamaboko') {
             var mesh = el.getObject3D('mesh');
             if (mesh) {
               mesh.traverse(function(node) {
@@ -96,21 +94,13 @@
                 }
               });
             }
-            el.setAttribute('visible', 'true');
-            el.object3D.scale.set(targetScale, targetScale, targetScale);
-          });
-          el.addEventListener('model-error', function(e) {
-            console.error('kamaboko load error', e);
-          });
-        } else {
-          // ブリ小僧: GLBで読み込み
-          el.setAttribute('visible', 'false');
-          el.setAttribute('gltf-model', 'assets/buri-kozou.glb');
-          el.addEventListener('model-loaded', function() {
-            el.setAttribute('visible', 'true');
-            el.object3D.scale.set(targetScale, targetScale, targetScale);
-          });
-        }
+          }
+          el.setAttribute('visible', 'true');
+          el.object3D.scale.set(targetScale, targetScale, targetScale);
+        });
+        el.addEventListener('model-error', function(e) {
+          console.error('model load error', e);
+        });
 
         // 選択リング
         var ring = document.createElement('a-torus');
@@ -136,6 +126,11 @@
         });
 
         sceneEl.appendChild(el);
+        if (type === 'kamaboko') {
+          el.setAttribute('gltf-model', 'assets/kamaboko.glb');
+        } else {
+          el.setAttribute('gltf-model', 'assets/buri-kozou.glb');
+        }
         placedModels.push(el);
         lastPlaced = el;
         selectModel(el);
