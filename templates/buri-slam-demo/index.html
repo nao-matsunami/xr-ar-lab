@@ -76,7 +76,7 @@
 
         var targetScale = 0.5;
 
-        el.setAttribute('visible', 'false');
+        // visible default true
         el.addEventListener('model-loaded', function() {
           if (type === 'kamaboko') {
             var mesh = el.getObject3D('mesh');
@@ -95,7 +95,7 @@
               });
             }
           }
-          el.setAttribute('visible', 'true');
+          
           el.object3D.scale.set(targetScale, targetScale, targetScale);
         });
         el.addEventListener('model-error', function(e) {
