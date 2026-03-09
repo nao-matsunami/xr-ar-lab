@@ -122,7 +122,7 @@
 
         sceneEl.appendChild(el);
         if (type === 'kamaboko') {
-          el.setAttribute('gltf-model', 'assets/buri-kozou.glb');
+          el.setAttribute('gltf-model', 'assets/kamaboko.glb');
         } else {
           el.setAttribute('gltf-model', 'assets/buri-kozou.glb');
         }
@@ -459,6 +459,17 @@
         }
       }
     }, {capture: true});
+
+    // DRACOLoader設定
+    document.querySelector('a-scene').addEventListener('loaded', function() {
+      var dracoLoader = new THREE.DRACOLoader();
+      dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+      var scene = document.querySelector('a-scene');
+      var gltfSystem = scene.systems['gltf-model'];
+      if (gltfSystem && gltfSystem.gltfLoader) {
+        gltfSystem.gltfLoader.setDRACOLoader(dracoLoader);
+      }
+    });
   </script>
 
   <script>
