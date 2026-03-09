@@ -29,6 +29,7 @@
     var wasPinching = false;
     var pinchTimer = null;
     var lastPlaced = null;
+    var dragMode = 'move'; // 'move' or 'rotate'
 
     // === A-Frame Component (配置 + ドラッグのみ) ===
     AFRAME.registerComponent('buri-slam', {
@@ -50,16 +51,25 @@
           self.placeModel(pt);
         });
 
-        // One-finger drag for selected model
+        // One-finger drag: move or rotate based on dragMode
         sceneEl.addEventListener('onefingermove', function(evt) {
           if (!selectedModel) return;
           var d = evt.detail;
-          var pos = selectedModel.getAttribute('position');
-          selectedModel.setAttribute('position', {
-            x: pos.x + d.positionChange.x * 0.005,
-            y: pos.y,
-            z: pos.z + d.positionChange.y * 0.005
-          });
+          if (dragMode === 'rotate') {
+            var rot = selectedModel.getAttribute('rotation');
+            selectedModel.setAttribute('rotation', {
+              x: rot.x,
+              y: rot.y + d.positionChange.x * 0.5,
+              z: rot.z
+            });
+          } else {
+            var pos = selectedModel.getAttribute('position');
+            selectedModel.setAttribute('position', {
+              x: pos.x + d.positionChange.x * 0.005,
+              y: pos.y,
+              z: pos.z + d.positionChange.y * 0.005
+            });
+          }
         });
       },
 
@@ -74,7 +84,7 @@
         el.classList.add('buri-model');
         el.dataset.modelType = type;
 
-        var targetScale = 0.5;
+        var targetScale = 2.0;
 
         el.addEventListener('model-loaded', function() {
           var obj = el.object3D;
@@ -91,7 +101,7 @@
               });
             }
           });
-          el.object3D.scale.set(0.5, 0.5, 0.5);
+          el.object3D.scale.set(targetScale, targetScale, targetScale);
         });
         el.addEventListener('model-error', function(e) {
           console.error('model load error', e);
@@ -236,6 +246,21 @@
         URL.revokeObjectURL(url);
       }, 'image/jpeg', 0.9);
     }
+
+    function toggleDragMode() {
+      dragMode = dragMode === 'move' ? 'rotate' : 'move';
+      var btn = document.getElementById('drag-mode-btn');
+      if (!btn) return;
+      if (dragMode === 'move') {
+        btn.textContent = '\u2702\uFE0F';
+        btn.title = '\u79FB\u52D5\u30E2\u30FC\u30C9';
+        btn.style.borderColor = 'rgba(255,255,255,0.4)';
+      } else {
+        btn.textContent = '\uD83D\uDD04';
+        btn.title = '\u56DE\u8EE2\u30E2\u30FC\u30C9';
+        btn.style.borderColor = '#FFD700';
+      }
+    }
   </script>
 
   <style>
@@ -370,12 +395,13 @@
       <ul>
         <li>モデルタップ → 選択</li>
         <li>ピンチ → サイズ変更</li>
-        <li>ドラッグ → 移動</li>
+        <li>ドラッグ → 移動/回転（切替）</li>
         <li>地面タップ → 選択解除</li>
       </ul>
       <hr class="sep">
       <div class="row"><b>ボタン:</b></div>
       <ul>
+        <li>&#x270F;&#xFE0F;/&#x1F504; 移動/回転切替</li>
         <li>&#x1F4F7; 撮影</li>
         <li>&#x1F5D1; 選択中を削除</li>
         <li>&#x21BA; 全リセット</li>
@@ -387,6 +413,7 @@
   <!-- Action Buttons -->
   <div id="action-btns">
     <button id="model-toggle" onclick="toggleModel()" title="ブリ小僧モード" style="border-color:#00bcd4;">&#x1F41F;</button>
+    <button id="drag-mode-btn" onclick="toggleDragMode()" title="移動モード">&#x270F;&#xFE0F;</button>
     <button onclick="capturePhoto()" title="撮影">&#x1F4F7;</button>
     <button id="delete-btn" onclick="deleteSelected()" title="削除" style="opacity:0.4; pointer-events:none;">&#x1F5D1;</button>
     <button onclick="resetAll()" title="全リセット">&#x21BA;</button>
@@ -462,7 +489,7 @@
         var dy = e.touches[0].clientY - e.touches[1].clientY;
         var dist = Math.sqrt(dx * dx + dy * dy);
         var ratio = dist / initialPinchDist;
-        var newS = Math.min(3.0, Math.max(0.3, initialScale * ratio));
+        var newS = Math.min(20.0, Math.max(0.3, initialScale * ratio));
         target.object3D.scale.set(newS, newS, newS);
       }
     }, {capture: true, passive: false});
