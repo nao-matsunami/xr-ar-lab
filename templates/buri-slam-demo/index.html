@@ -76,27 +76,22 @@
 
         var targetScale = 0.5;
 
-        // visible default true
         el.addEventListener('model-loaded', function() {
-          if (type === 'kamaboko') {
-            var mesh = el.getObject3D('mesh');
-            if (mesh) {
-              mesh.traverse(function(node) {
-                if (node.isMesh) {
-                  var mats = Array.isArray(node.material) ? node.material : [node.material];
-                  mats.forEach(function(mat) {
-                    mat.transparent = false;
-                    mat.opacity = 1.0;
-                    mat.alphaTest = 0;
-                    mat.depthWrite = true;
-                    mat.needsUpdate = true;
-                  });
-                }
+          var obj = el.object3D;
+          obj.traverse(function(node) {
+            if (node.isMesh) {
+              var mats = Array.isArray(node.material) ? node.material : [node.material];
+              mats.forEach(function(mat) {
+                mat.transparent = false;
+                mat.opacity = 1.0;
+                mat.alphaTest = 0;
+                mat.depthWrite = true;
+                mat.side = THREE.DoubleSide;
+                mat.needsUpdate = true;
               });
             }
-          }
-          
-          el.object3D.scale.set(targetScale, targetScale, targetScale);
+          });
+          el.object3D.scale.set(0.5, 0.5, 0.5);
         });
         el.addEventListener('model-error', function(e) {
           console.error('model load error', e);
