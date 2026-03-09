@@ -460,14 +460,22 @@
       }
     }, {capture: true});
 
-    // DRACOLoader設定
-    document.querySelector('a-scene').addEventListener('loaded', function() {
+    // DRACOLoader設定（XR8初期化前に注入）
+    window.addEventListener('xrloaded', function() {
+      var scene = document.querySelector('a-scene');
+      var renderer = scene.renderer;
       var dracoLoader = new THREE.DRACOLoader();
       dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
-      var scene = document.querySelector('a-scene');
-      var gltfSystem = scene.systems['gltf-model'];
-      if (gltfSystem && gltfSystem.gltfLoader) {
-        gltfSystem.gltfLoader.setDRACOLoader(dracoLoader);
+      // A-FrameのGLTFLoaderに直接注入
+      AFRAME.components['gltf-model'].Component.prototype.loader =
+        AFRAME.components['gltf-model'].Component.prototype.loader || new THREE.GLTFLoader();
+      var loader = new THREE.GLTFLoader();
+      loader.setDRACOLoader(dracoLoader);
+      AFRAME.components['gltf-model'].schema; // 初期化確認
+
+      // システム経由で注入
+      if (scene.systems['gltf-model'] && scene.systems['gltf-model'].gltfLoader) {
+        scene.systems['gltf-model'].gltfLoader.setDRACOLoader(dracoLoader);
       }
     });
   </script>
