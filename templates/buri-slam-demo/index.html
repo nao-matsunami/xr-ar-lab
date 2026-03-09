@@ -312,6 +312,24 @@
       font-size: 14px; font-weight: 600; cursor: pointer;
     }
   </style>
+
+  <script>
+  // THREE.GLTFLoader をモンキーパッチしてDRACOLoaderを自動注入
+  document.addEventListener('DOMContentLoaded', function() {
+    var dracoLoader = null;
+    var _origGLTFLoader = THREE.GLTFLoader;
+    THREE.GLTFLoader = function() {
+      var instance = new _origGLTFLoader();
+      if (!dracoLoader) {
+        dracoLoader = new THREE.DRACOLoader();
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+      }
+      instance.setDRACOLoader(dracoLoader);
+      return instance;
+    };
+    THREE.GLTFLoader.prototype = _origGLTFLoader.prototype;
+  });
+  </script>
 </head>
 
 <body>
@@ -460,24 +478,6 @@
       }
     }, {capture: true});
 
-    // DRACOLoader設定（XR8初期化前に注入）
-    window.addEventListener('xrloaded', function() {
-      var scene = document.querySelector('a-scene');
-      var renderer = scene.renderer;
-      var dracoLoader = new THREE.DRACOLoader();
-      dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
-      // A-FrameのGLTFLoaderに直接注入
-      AFRAME.components['gltf-model'].Component.prototype.loader =
-        AFRAME.components['gltf-model'].Component.prototype.loader || new THREE.GLTFLoader();
-      var loader = new THREE.GLTFLoader();
-      loader.setDRACOLoader(dracoLoader);
-      AFRAME.components['gltf-model'].schema; // 初期化確認
-
-      // システム経由で注入
-      if (scene.systems['gltf-model'] && scene.systems['gltf-model'].gltfLoader) {
-        scene.systems['gltf-model'].gltfLoader.setDRACOLoader(dracoLoader);
-      }
-    });
   </script>
 
   <script>
