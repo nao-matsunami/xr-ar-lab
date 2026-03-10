@@ -95,14 +95,6 @@
               });
             }
           });
-          // メッシュを中心に再配置（回転軸をモデル中心に合わせる）
-          var mesh = el.getObject3D('mesh');
-          if (mesh) {
-            var box = new THREE.Box3().setFromObject(mesh);
-            var center = box.getCenter(new THREE.Vector3());
-            mesh.position.sub(center);
-            mesh.position.y += (box.max.y - box.min.y) / 2;
-          }
           el.object3D.scale.set(targetScale, targetScale, targetScale);
         });
         el.addEventListener('model-error', function(e) {
