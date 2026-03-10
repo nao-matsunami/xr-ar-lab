@@ -19,27 +19,29 @@
   <script async src="../../lib/xr.js" data-preload-chunks="slam"></script>
 
   <script>
-    // === Global State (全てグローバルスコープ) ===
+    // === Global State ===
     var placedModels = [];
     var selectedModel = null;
     var MAX_MODELS = 5;
     var currentModel = 'buri'; // 'buri' or 'kamaboko'
-    var initialPinchDist = null;
-    var initialScale = 1;
     var wasPinching = false;
     var pinchTimer = null;
     var lastPlaced = null;
-    var dragMode = 'move'; // 'move' or 'rotate'
-    var lastTouchX = 0;
 
-    // === A-Frame Component (配置 + ドラッグのみ) ===
+    // ピンチ（2本指）: スケール + 回転
+    var initialPinchDist = null;
+    var initialPinchAngle = null;
+    var initialScale = 1;
+    var initialRotationY = 0;
+
+    // === A-Frame Component ===
     AFRAME.registerComponent('buri-slam', {
       init: function() {
         var self = this;
         var ground = document.getElementById('ground');
         var sceneEl = this.el.sceneEl;
 
-        // Ground tap → place or deselect (skip during pinch)
+        // Ground tap → place or deselect
         ground.addEventListener('click', function(evt) {
           if (wasPinching) return;
           if (!evt.detail || !evt.detail.intersection) return;
@@ -52,9 +54,8 @@
           self.placeModel(pt);
         });
 
-        // One-finger drag: move (rotate is handled by global touchmove)
+        // 1本指ドラッグ: 選択中モデルを移動
         sceneEl.addEventListener('onefingermove', function(evt) {
-          if (dragMode === 'rotate') return;
           var target = lastPlaced || selectedModel;
           if (!target) return;
           var d = evt.detail;
@@ -208,11 +209,11 @@
       if (!btn) return;
       if (currentModel === 'buri') {
         btn.textContent = '\uD83D\uDC1F';
-        btn.title = 'ブリ小僧モード';
+        btn.title = '\u30D6\u30EA\u5C0F\u50E7\u30E2\u30FC\u30C9';
         btn.style.borderColor = '#00bcd4';
       } else {
         btn.textContent = '\uD83C\uDF65';
-        btn.title = 'かまぼこモード';
+        btn.title = '\u304B\u307E\u307C\u3053\u30E2\u30FC\u30C9';
         btn.style.borderColor = '#ff8a80';
       }
     }
@@ -255,21 +256,6 @@
         URL.revokeObjectURL(url);
       }, 'image/jpeg', 0.9);
     }
-
-    function toggleDragMode() {
-      dragMode = dragMode === 'move' ? 'rotate' : 'move';
-      var btn = document.getElementById('drag-mode-btn');
-      if (!btn) return;
-      if (dragMode === 'move') {
-        btn.textContent = '\u2702\uFE0F';
-        btn.title = '\u79FB\u52D5\u30E2\u30FC\u30C9';
-        btn.style.borderColor = 'rgba(255,255,255,0.4)';
-      } else {
-        btn.textContent = '\uD83D\uDD04';
-        btn.title = '\u56DE\u8EE2\u30E2\u30FC\u30C9';
-        btn.style.borderColor = '#FFD700';
-      }
-    }
   </script>
 
   <style>
@@ -301,50 +287,19 @@
     }
 
     #action-btns {
-      position: fixed; bottom: 30px; right: 16px; z-index: 998;
-      display: flex; flex-direction: column; gap: 10px;
-      padding-bottom: env(safe-area-inset-bottom);
+      position: fixed; right: 16px; top: 50%; transform: translateY(-50%);
+      z-index: 998; display: flex; flex-direction: column; gap: 12px;
     }
     #action-btns button {
-      width: 50px; height: 50px; border-radius: 50%;
+      width: 54px; height: 54px; border-radius: 50%;
       background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.4);
-      color: #fff; font-size: 22px; cursor: pointer;
+      color: #fff; font-size: 24px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
       transition: opacity 0.2s;
     }
-    #action-btns button { touch-action: manipulation; }
     #action-btns button:active { transform: scale(0.9); }
-
-    #help-btn {
-      position: fixed; top: 20px; right: 20px; z-index: 998;
-      width: 36px; height: 36px; border-radius: 50%;
-      background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.4);
-      color: #fff; font-size: 18px; font-weight: 700;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      -webkit-tap-highlight-color: transparent;
-    }
-    #help-overlay {
-      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      z-index: 9998; background: rgba(0,0,0,0.8);
-      align-items: center; justify-content: center;
-    }
-    #help-overlay.visible { display: flex; }
-    #help-content {
-      background: #1a1a2e; border: 1px solid rgba(0,188,212,0.3);
-      border-radius: 16px; padding: 24px; max-width: 300px; width: 90%;
-      color: #fff; font-family: 'Hiragino Maru Gothic Pro', sans-serif;
-    }
-    #help-content h3 { margin: 0 0 12px; font-size: 18px; color: #00bcd4; }
-    #help-content .sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 10px 0; }
-    #help-content .row { font-size: 13px; line-height: 1.8; }
-    #help-content .row b { color: #00bcd4; }
-    #help-content ul { margin: 4px 0 0 0; padding-left: 18px; font-size: 13px; line-height: 1.8; color: #ccc; }
-    #help-content .close-help {
-      margin-top: 16px; width: 100%; padding: 10px; border: none;
-      border-radius: 8px; background: rgba(0,188,212,0.15); color: #00bcd4;
-      font-size: 14px; font-weight: 600; cursor: pointer;
-    }
   </style>
 
   <script>
@@ -389,40 +344,9 @@
     タップでブリ小僧を配置できます
   </div>
 
-  <!-- Help Button -->
-  <button id="help-btn" onclick="toggleHelp()">?</button>
-
-  <!-- Help Overlay -->
-  <div id="help-overlay" onclick="toggleHelp()">
-    <div id="help-content" onclick="event.stopPropagation()">
-      <h3>&#x1F41F; ブリ小僧 AR</h3>
-      <hr class="sep">
-      <div class="row"><b>配置:</b> 地面タップで配置（最大5体）</div>
-      <div class="row"><b>切替:</b> &#x1F41F;/&#x1F365; ボタンでモデル切替</div>
-      <hr class="sep">
-      <div class="row"><b>操作:</b></div>
-      <ul>
-        <li>モデルタップ → 選択</li>
-        <li>ピンチ → サイズ変更</li>
-        <li>ドラッグ → 移動/回転（切替）</li>
-        <li>地面タップ → 選択解除</li>
-      </ul>
-      <hr class="sep">
-      <div class="row"><b>ボタン:</b></div>
-      <ul>
-        <li>&#x270F;&#xFE0F;/&#x1F504; 移動/回転切替</li>
-        <li>&#x1F4F7; 撮影</li>
-        <li>&#x1F5D1; 選択中を削除</li>
-        <li>&#x21BA; 全リセット</li>
-      </ul>
-      <button class="close-help" onclick="toggleHelp()">閉じる</button>
-    </div>
-  </div>
-
-  <!-- Action Buttons -->
+  <!-- Action Buttons (4つのみ) -->
   <div id="action-btns">
     <button id="model-toggle" onclick="toggleModel()" title="ブリ小僧モード" style="border-color:#00bcd4;">&#x1F41F;</button>
-    <button id="drag-mode-btn" onclick="toggleDragMode()" title="移動モード">&#x270F;&#xFE0F;</button>
     <button onclick="capturePhoto()" title="撮影">&#x1F4F7;</button>
     <button id="delete-btn" onclick="deleteSelected()" title="削除" style="opacity:0.4; pointer-events:none;">&#x1F5D1;</button>
     <button onclick="resetAll()" title="全リセット">&#x21BA;</button>
@@ -472,60 +396,51 @@
 
   </a-scene>
 
-  <!-- Pinch scale: グローバルスコープでtouch登録（A-Frameコンポーネント外） -->
+  <!-- タッチ操作: ピンチスケール + ツイスト回転 -->
   <script>
-    // capture: true でA-Frameのgesture-detectorより先に受け取る
     document.addEventListener('touchstart', function(e) {
-      if (e.touches.length === 1) {
-        lastTouchX = e.touches[0].clientX;
-      }
       if (e.touches.length >= 2) {
-        // ピンチ開始: フラグを立ててclick誤発火を防ぐ
         wasPinching = true;
         clearTimeout(pinchTimer);
-        var target = lastPlaced || selectedModel;
-        if (target) {
-          var dx = e.touches[0].clientX - e.touches[1].clientX;
-          var dy = e.touches[0].clientY - e.touches[1].clientY;
-          initialPinchDist = Math.sqrt(dx * dx + dy * dy);
-          initialScale = target.object3D.scale.x || 1;
+        var t = lastPlaced || selectedModel;
+        var dx = e.touches[0].clientX - e.touches[1].clientX;
+        var dy = e.touches[0].clientY - e.touches[1].clientY;
+        initialPinchDist = Math.sqrt(dx * dx + dy * dy);
+        initialPinchAngle = Math.atan2(dy, dx);
+        if (t) {
+          initialScale = t.object3D.scale.x || 1;
+          initialRotationY = t.object3D.rotation.y;
         }
       }
     }, {capture: true, passive: true});
 
     document.addEventListener('touchmove', function(e) {
-      var target = lastPlaced || selectedModel;
-      // 1本指回転
-      if (e.touches.length === 1 && dragMode === 'rotate') {
-        if (target) {
-          var deltaX = e.touches[0].clientX - lastTouchX;
-          target.object3D.rotation.y += deltaX * 0.01;
-          lastTouchX = e.touches[0].clientX;
-        }
-      }
-      // 2本指ピンチスケール
-      if (e.touches.length >= 2 && target && initialPinchDist) {
+      var t = lastPlaced || selectedModel;
+      if (e.touches.length >= 2 && t && initialPinchDist) {
         e.preventDefault();
         var dx = e.touches[0].clientX - e.touches[1].clientX;
         var dy = e.touches[0].clientY - e.touches[1].clientY;
+        // スケール
         var dist = Math.sqrt(dx * dx + dy * dy);
-        var ratio = dist / initialPinchDist;
-        var newS = Math.min(20.0, Math.max(0.3, initialScale * ratio));
-        target.object3D.scale.set(newS, newS, newS);
+        var newS = Math.min(20.0, Math.max(0.1, initialScale * dist / initialPinchDist));
+        t.object3D.scale.set(newS, newS, newS);
+        // ツイスト回転
+        var angle = Math.atan2(dy, dx);
+        var deltaAngle = angle - initialPinchAngle;
+        t.object3D.rotation.y = initialRotationY + deltaAngle;
       }
     }, {capture: true, passive: false});
 
     document.addEventListener('touchend', function(e) {
       if (e.touches.length < 2) {
         initialPinchDist = null;
-        // ピンチ終了後300msはclickを無視（誤タップ防止）
+        initialPinchAngle = null;
         if (wasPinching) {
           clearTimeout(pinchTimer);
           pinchTimer = setTimeout(function() { wasPinching = false; }, 300);
         }
       }
     }, {capture: true});
-
   </script>
 
   <script>
@@ -549,23 +464,6 @@
     if (typeof navigator.mediaDevices === 'undefined' || typeof navigator.mediaDevices.getUserMedia !== 'function') {
       showError('browser');
     }
-  </script>
-
-  <script>
-    // Help overlay
-    function toggleHelp() {
-      document.getElementById('help-overlay').classList.toggle('visible');
-    }
-    setTimeout(function() {
-      document.getElementById('help-overlay').classList.add('visible');
-      setTimeout(function() {
-        document.getElementById('help-overlay').classList.remove('visible');
-      }, 5000);
-    }, 3000);
-    document.addEventListener('touchstart', function _h() {
-      document.getElementById('help-overlay').classList.remove('visible');
-      document.removeEventListener('touchstart', _h);
-    });
   </script>
 </body>
 </html>
