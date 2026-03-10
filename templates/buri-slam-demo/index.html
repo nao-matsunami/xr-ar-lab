@@ -39,11 +39,42 @@
         var ground = document.getElementById('ground');
         var sceneEl = this.el.sceneEl;
 
-        // Ground tap → place or deselect (skip during pinch)
+        // Ground tap → place, select model, or deselect (skip during pinch)
         ground.addEventListener('click', function(evt) {
           if (wasPinching) return;
           if (!evt.detail || !evt.detail.intersection) return;
           var pt = evt.detail.intersection.point;
+
+          // Re-cast ray against model meshes to detect model taps
+          if (placedModels.length > 0) {
+            var camEl = document.getElementById('camera');
+            var origin = new THREE.Vector3();
+            camEl.object3D.getWorldPosition(origin);
+            var dir = new THREE.Vector3(
+              pt.x - origin.x, pt.y - origin.y, pt.z - origin.z
+            ).normalize();
+            var rc = new THREE.Raycaster(origin, dir);
+            var meshes = [];
+            placedModels.forEach(function(m) {
+              m.object3D.traverse(function(c) {
+                if (c.isMesh) meshes.push(c);
+              });
+            });
+            var hits = rc.intersectObjects(meshes, false);
+            if (hits.length > 0) {
+              var obj = hits[0].object;
+              while (obj) {
+                if (obj.el && obj.el.classList &&
+                    obj.el.classList.contains('buri-model')) {
+                  if (selectedModel === obj.el) deselectModel();
+                  else selectModel(obj.el);
+                  return;
+                }
+                obj = obj.parent;
+              }
+            }
+          }
+
           if (selectedModel) {
             deselectModel();
             return;
@@ -71,6 +102,7 @@
         var type = currentModel;
         var sceneEl = this.el.sceneEl;
 
+        // wrapper entity — rotation / scale はここに適用
         var el = document.createElement('a-entity');
         el.setAttribute('position', position);
         el.setAttribute('shadow', 'cast: true; receive: false');
@@ -80,9 +112,13 @@
 
         var targetScale = 2.0;
 
-        el.addEventListener('model-loaded', function() {
-          var obj = el.object3D;
-          obj.traverse(function(node) {
+        // inner entity — GLBオフセット補正用
+        var inner = document.createElement('a-entity');
+
+        inner.addEventListener('model-loaded', function() {
+          var mesh = inner.getObject3D('mesh');
+          if (!mesh) return;
+          mesh.traverse(function(node) {
             if (node.isMesh) {
               var mats = Array.isArray(node.material) ? node.material : [node.material];
               mats.forEach(function(mat) {
@@ -95,11 +131,26 @@
               });
             }
           });
+
+          // BBox中心分だけオフセットして回転軸をモデル中心に合わせる
+          var box = new THREE.Box3().setFromObject(mesh);
+          var center = box.getCenter(new THREE.Vector3());
+          el.object3D.worldToLocal(center);
+          inner.object3D.position.set(-center.x, -center.y, -center.z);
+
+          // スケールは wrapper に適用
           el.object3D.scale.set(targetScale, targetScale, targetScale);
         });
-        el.addEventListener('model-error', function(e) {
+        inner.addEventListener('model-error', function(e) {
           console.error('model load error', e);
         });
+
+        if (type === 'kamaboko') {
+          inner.setAttribute('gltf-model', 'assets/kamaboko.glb');
+        } else {
+          inner.setAttribute('gltf-model', 'assets/buri-kozou.glb');
+        }
+        el.appendChild(inner);
 
         // 選択リング
         var ring = document.createElement('a-torus');
@@ -125,11 +176,6 @@
         });
 
         sceneEl.appendChild(el);
-        if (type === 'kamaboko') {
-          el.setAttribute('gltf-model', 'assets/kamaboko.glb');
-        } else {
-          el.setAttribute('gltf-model', 'assets/buri-kozou.glb');
-        }
         placedModels.push(el);
         lastPlaced = el;
         selectModel(el);
