@@ -30,6 +30,7 @@
     var pinchTimer = null;
     var lastPlaced = null;
     var dragMode = 'move'; // 'move' or 'rotate'
+    var lastTouchX = 0;
 
     // === A-Frame Component (配置 + ドラッグのみ) ===
     AFRAME.registerComponent('buri-slam', {
@@ -51,26 +52,18 @@
           self.placeModel(pt);
         });
 
-        // One-finger drag: move or rotate based on dragMode
+        // One-finger drag: move (rotate is handled by global touchmove)
         sceneEl.addEventListener('onefingermove', function(evt) {
+          if (dragMode === 'rotate') return;
           var target = lastPlaced || selectedModel;
           if (!target) return;
           var d = evt.detail;
-          if (dragMode === 'rotate') {
-            var rot = target.getAttribute('rotation');
-            target.setAttribute('rotation', {
-              x: rot.x,
-              y: rot.y + d.positionChange.x * 0.5,
-              z: rot.z
-            });
-          } else {
-            var pos = target.getAttribute('position');
-            target.setAttribute('position', {
-              x: pos.x + d.positionChange.x * 0.005,
-              y: pos.y,
-              z: pos.z + d.positionChange.y * 0.005
-            });
-          }
+          var pos = target.getAttribute('position');
+          target.setAttribute('position', {
+            x: pos.x + d.positionChange.x * 0.005,
+            y: pos.y,
+            z: pos.z + d.positionChange.y * 0.005
+          });
         });
       },
 
@@ -468,6 +461,9 @@
   <script>
     // capture: true でA-Frameのgesture-detectorより先に受け取る
     document.addEventListener('touchstart', function(e) {
+      if (e.touches.length === 1) {
+        lastTouchX = e.touches[0].clientX;
+      }
       if (e.touches.length >= 2) {
         // ピンチ開始: フラグを立ててclick誤発火を防ぐ
         wasPinching = true;
@@ -484,6 +480,15 @@
 
     document.addEventListener('touchmove', function(e) {
       var target = lastPlaced || selectedModel;
+      // 1本指回転
+      if (e.touches.length === 1 && dragMode === 'rotate') {
+        if (target) {
+          var deltaX = e.touches[0].clientX - lastTouchX;
+          target.object3D.rotation.y += deltaX * 0.01;
+          lastTouchX = e.touches[0].clientX;
+        }
+      }
+      // 2本指ピンチスケール
       if (e.touches.length >= 2 && target && initialPinchDist) {
         e.preventDefault();
         var dx = e.touches[0].clientX - e.touches[1].clientX;
