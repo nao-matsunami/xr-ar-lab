@@ -53,18 +53,19 @@
 
         // One-finger drag: move or rotate based on dragMode
         sceneEl.addEventListener('onefingermove', function(evt) {
-          if (!selectedModel) return;
+          var target = lastPlaced || selectedModel;
+          if (!target) return;
           var d = evt.detail;
           if (dragMode === 'rotate') {
-            var rot = selectedModel.getAttribute('rotation');
-            selectedModel.setAttribute('rotation', {
+            var rot = target.getAttribute('rotation');
+            target.setAttribute('rotation', {
               x: rot.x,
               y: rot.y + d.positionChange.x * 0.5,
               z: rot.z
             });
           } else {
-            var pos = selectedModel.getAttribute('position');
-            selectedModel.setAttribute('position', {
+            var pos = target.getAttribute('position');
+            target.setAttribute('position', {
               x: pos.x + d.positionChange.x * 0.005,
               y: pos.y,
               z: pos.z + d.positionChange.y * 0.005
