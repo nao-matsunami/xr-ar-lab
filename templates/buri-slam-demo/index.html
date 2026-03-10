@@ -39,42 +39,11 @@
         var ground = document.getElementById('ground');
         var sceneEl = this.el.sceneEl;
 
-        // Ground tap → place, select model, or deselect (skip during pinch)
+        // Ground tap → place or deselect (skip during pinch)
         ground.addEventListener('click', function(evt) {
           if (wasPinching) return;
           if (!evt.detail || !evt.detail.intersection) return;
           var pt = evt.detail.intersection.point;
-
-          // Re-cast ray against model meshes to detect model taps
-          if (placedModels.length > 0) {
-            var camEl = document.getElementById('camera');
-            var origin = new THREE.Vector3();
-            camEl.object3D.getWorldPosition(origin);
-            var dir = new THREE.Vector3(
-              pt.x - origin.x, pt.y - origin.y, pt.z - origin.z
-            ).normalize();
-            var rc = new THREE.Raycaster(origin, dir);
-            var meshes = [];
-            placedModels.forEach(function(m) {
-              m.object3D.traverse(function(c) {
-                if (c.isMesh) meshes.push(c);
-              });
-            });
-            var hits = rc.intersectObjects(meshes, false);
-            if (hits.length > 0) {
-              var obj = hits[0].object;
-              while (obj) {
-                if (obj.el && obj.el.classList &&
-                    obj.el.classList.contains('buri-model')) {
-                  if (selectedModel === obj.el) deselectModel();
-                  else selectModel(obj.el);
-                  return;
-                }
-                obj = obj.parent;
-              }
-            }
-          }
-
           if (selectedModel) {
             deselectModel();
             return;
