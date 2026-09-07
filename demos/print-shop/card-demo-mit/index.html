@@ -1,0 +1,542 @@
+<!doctype html>
+<html>
+<head>
+  <script>window.__XR_ENGINE_LICENSE = 'mit'</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>名刺 AR Demo - Live Stage (MIT engine)</title>
+
+  <!-- 8frame (8th Wall版 A-Frame) -->
+  <script src="//cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
+
+  <!-- XR Extras -->
+  <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
+
+  <!-- Landing Pages -->
+  <script src="//cdn.8thwall.com/web/landing-page/landing-page.js"></script>
+
+  <!-- MIT engine variant: self-built from github.com/8thwall/8thwall (engine/mit/).
+       data-preload-chunks="slam" is still required -- in the open source build the
+       chunk name "slam" resolves to xr-tracking.js, which is what defines
+       XR8.XrController. Without it, initialization hangs. There is no SLAM here. -->
+  <script async src="../../../engine/mit/xr.js" data-preload-chunks="slam"></script>
+
+  <script>
+    const onxrloaded = () => {
+      XR8.XrController.configure({
+        imageTargetData: [{
+          imagePath: '../../../templates/image-target-demo/image-targets/sample-target-1_luminance.jpg',
+          metadata: null,
+          name: 'sample-target-1',
+          type: 'PLANAR',
+          properties: {
+            left: 0, top: 0, width: 995, height: 1326,
+            isRotated: false, originalWidth: 995, originalHeight: 1326,
+          },
+          resources: {
+            originalImage: 'sample-target-1_original.jpg',
+            croppedImage: 'sample-target-1_cropped.jpg',
+            thumbnailImage: 'sample-target-1_thumbnail.jpg',
+            luminanceImage: 'sample-target-1_luminance.jpg',
+          },
+          created: 1772601126877,
+          updated: 1772601126877,
+        }],
+      })
+    }
+    window.XR8 ? onxrloaded() : window.addEventListener('xrloaded', onxrloaded)
+  </script>
+
+  <script>
+    function capturePhoto() {
+      var scene = document.querySelector('a-scene');
+      var canvas = scene.canvas;
+      scene.renderer.render(scene.object3D, scene.camera);
+      canvas.toBlob(function(blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'ar-print-' + Date.now() + '.jpg';
+        a.click();
+        URL.revokeObjectURL(url);
+      }, 'image/jpeg', 0.9);
+    }
+  </script>
+
+  <!-- Live Stage A-Frame Component -->
+  <script>
+    AFRAME.registerComponent('live-stage', {
+      init: function() {
+        var el = this.el;
+        var THREE = AFRAME.THREE;
+
+        // ===== 1. 地球 =====
+        var earthGeo = new THREE.SphereGeometry(0.08, 64, 64);
+        var textureLoader = new THREE.TextureLoader();
+        var earthTexture = textureLoader.load(
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/The_Blue_Marble_%28remastered%29.jpg/1200px-The_Blue_Marble_%28remastered%29.jpg'
+        );
+        var earthMat = new THREE.MeshPhongMaterial({
+          map: earthTexture,
+          specular: new THREE.Color(0x333333),
+          shininess: 15,
+        });
+        var earth = new THREE.Mesh(earthGeo, earthMat);
+        earth.position.set(0, 0.18, 0);
+
+        // 大気圏（半透明の球）
+        var atmGeo = new THREE.SphereGeometry(0.085, 64, 64);
+        var atmMat = new THREE.MeshPhongMaterial({
+          color: 0x4488ff,
+          transparent: true,
+          opacity: 0.15,
+          side: THREE.FrontSide,
+        });
+        var atmosphere = new THREE.Mesh(atmGeo, atmMat);
+        atmosphere.position.copy(earth.position);
+
+        // ===== 2. 星フィールド（1000個）=====
+        var starGeo = new THREE.BufferGeometry();
+        var starPositions = [];
+        for (var i = 0; i < 1000; i++) {
+          var theta = Math.random() * Math.PI * 2;
+          var phi = Math.acos(2 * Math.random() - 1);
+          var r = 0.8 + Math.random() * 0.5;
+          starPositions.push(
+            r * Math.sin(phi) * Math.cos(theta),
+            r * Math.sin(phi) * Math.sin(theta),
+            r * Math.cos(phi)
+          );
+        }
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+        var starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.004 });
+        var stars = new THREE.Points(starGeo, starMat);
+
+        // ===== 3. レーザービーム（8本）=====
+        var lasers = [];
+        var laserColors = [0xff0044, 0x00ffff, 0xff00ff, 0x00ff88, 0xff8800, 0x0088ff, 0xffff00, 0xff0088];
+        var laserAngles = [];
+        for (var i = 0; i < 8; i++) {
+          laserAngles.push((i / 8) * Math.PI * 2);
+        }
+
+        laserAngles.forEach(function(angle, i) {
+          var points = [
+            new THREE.Vector3(0, 0.18, 0),
+            new THREE.Vector3(
+              Math.cos(angle) * 0.6,
+              0.18 + Math.sin(angle * 0.3) * 0.3,
+              Math.sin(angle) * 0.6
+            )
+          ];
+          var geo = new THREE.BufferGeometry().setFromPoints(points);
+          var mat = new THREE.LineBasicMaterial({
+            color: laserColors[i % laserColors.length],
+            linewidth: 2,
+            transparent: true,
+            opacity: 0.8,
+          });
+          var laser = new THREE.Line(geo, mat);
+          lasers.push({ line: laser, angle: angle, baseAngle: angle });
+        });
+
+        // ===== 4. スポットライト（4本）=====
+        var spotColors = [0xff2200, 0x0022ff, 0x00ff44, 0xff00ff];
+        var spots = [];
+        spotColors.forEach(function(color, i) {
+          var spot = new THREE.SpotLight(color, 2);
+          var baseAngle = (i / 4) * Math.PI * 2;
+          spot.position.set(
+            Math.cos(baseAngle) * 0.4,
+            0.5,
+            Math.sin(baseAngle) * 0.4
+          );
+          spot.target.position.set(0, 0.18, 0);
+          spots.push({ light: spot, baseAngle: baseAngle });
+        });
+
+        // ===== 5. パーティクル（光の粒 300個）=====
+        var particleGeo = new THREE.BufferGeometry();
+        var particleCount = 300;
+        var pPositions = new Float32Array(particleCount * 3);
+        var pVelocities = [];
+        for (var i = 0; i < particleCount; i++) {
+          pPositions[i * 3] = (Math.random() - 0.5) * 0.8;
+          pPositions[i * 3 + 1] = Math.random() * 0.6;
+          pPositions[i * 3 + 2] = (Math.random() - 0.5) * 0.8;
+          pVelocities.push({
+            x: (Math.random() - 0.5) * 0.001,
+            y: Math.random() * 0.001,
+            z: (Math.random() - 0.5) * 0.001,
+          });
+        }
+        particleGeo.setAttribute('position', new THREE.Float32BufferAttribute(pPositions, 3));
+        var particleMat = new THREE.PointsMaterial({
+          color: 0xffffff,
+          size: 0.006,
+          transparent: true,
+          opacity: 0.7,
+        });
+        var particles = new THREE.Points(particleGeo, particleMat);
+
+        // ===== 6. ステージベース（光る円形ステージ）=====
+        var stageGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.005, 64);
+        var stageMat = new THREE.MeshPhongMaterial({
+          color: 0x111111,
+          emissive: 0x003366,
+          emissiveIntensity: 0.5,
+          transparent: true,
+          opacity: 0.85,
+        });
+        var stage = new THREE.Mesh(stageGeo, stageMat);
+        stage.position.set(0, 0.002, 0);
+
+        // ステージリング（光るエッジ）
+        var ringGeo = new THREE.TorusGeometry(0.2, 0.005, 8, 64);
+        var ringMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+        var ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.set(0, 0.004, 0);
+
+        // ===== エンティティに追加 =====
+        var root = el.object3D;
+        root.add(earth);
+        root.add(atmosphere);
+        root.add(stars);
+        root.add(stage);
+        root.add(ring);
+        root.add(particles);
+        lasers.forEach(function(l) { root.add(l.line); });
+        spots.forEach(function(s) {
+          root.add(s.light);
+          root.add(s.light.target);
+        });
+
+        // アンビエントライト
+        var ambient = new THREE.AmbientLight(0x111133, 0.5);
+        root.add(ambient);
+
+        // Store references for tick
+        this._earth = earth;
+        this._atmosphere = atmosphere;
+        this._stars = stars;
+        this._lasers = lasers;
+        this._spots = spots;
+        this._particles = particles;
+        this._pVelocities = pVelocities;
+        this._particleCount = particleCount;
+        this._ring = ring;
+        this._time = 0;
+      },
+
+      tick: function(t, dt) {
+        this._time += dt * 0.001;
+        var time = this._time;
+
+        // 地球の自転
+        this._earth.rotation.y += 0.003;
+        this._atmosphere.rotation.y += 0.001;
+
+        // 星フィールドのゆっくり回転
+        this._stars.rotation.y += 0.0005;
+
+        // レーザーの角度変化
+        this._lasers.forEach(function(l, i) {
+          var swing = Math.sin(time * 1.5 + i * 0.8) * 0.4;
+          var newAngle = l.baseAngle + swing;
+          var endX = Math.cos(newAngle) * 0.6;
+          var endY = 0.18 + Math.abs(Math.sin(time + i)) * 0.3;
+          var endZ = Math.sin(newAngle) * 0.6;
+          var positions = l.line.geometry.attributes.position;
+          positions.setXYZ(1, endX, endY, endZ);
+          positions.needsUpdate = true;
+          l.line.material.opacity = 0.5 + Math.sin(time * 3 + i) * 0.3;
+        });
+
+        // スポットライトの動き
+        this._spots.forEach(function(s, i) {
+          var swingAngle = s.baseAngle + Math.sin(time * 0.8 + i) * 0.5;
+          s.light.position.x = Math.cos(swingAngle) * 0.4;
+          s.light.position.z = Math.sin(swingAngle) * 0.4;
+          s.light.intensity = 1.5 + Math.sin(time * 2 + i) * 0.5;
+        });
+
+        // パーティクルの移動
+        var pos = this._particles.geometry.attributes.position;
+        var vels = this._pVelocities;
+        for (var i = 0; i < this._particleCount; i++) {
+          var x = pos.getX(i) + vels[i].x;
+          var y = pos.getY(i) + vels[i].y;
+          var z = pos.getZ(i) + vels[i].z;
+          if (y > 0.6) y = 0;
+          if (Math.abs(x) > 0.4) vels[i].x *= -1;
+          if (Math.abs(z) > 0.4) vels[i].z *= -1;
+          pos.setXYZ(i, x, y, z);
+        }
+        pos.needsUpdate = true;
+
+        // ステージリングの色変化
+        this._ring.material.color.setHSL((time * 0.1) % 1, 1, 0.5);
+
+        // 大気圏の脈動
+        var pulse = 1 + Math.sin(time * 2) * 0.03;
+        this._atmosphere.scale.set(pulse, pulse, pulse);
+      }
+    });
+  </script>
+
+  <style>
+    body { margin: 0; overflow: hidden; }
+
+    #back-btn {
+      position: fixed; top: 20px; left: 20px; z-index: 998;
+      width: 40px; height: 40px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.4);
+      color: #fff; font-size: 20px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      text-decoration: none; -webkit-tap-highlight-color: transparent;
+    }
+
+    #capture-btn {
+      position: fixed; top: 70px; right: 20px; z-index: 998;
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.4);
+      color: #fff; font-size: 20px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #overlay-msg {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.8); color: #fff;
+      padding: 12px 20px; border-radius: 12px;
+      font: 14px/1.5 sans-serif; z-index: 999;
+      text-align: center; max-width: 90vw;
+    }
+
+    #help-btn {
+      position: fixed; top: 20px; right: 20px; z-index: 998;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.4);
+      color: #fff; font-size: 18px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #help-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 9998; background: rgba(0,0,0,0.8);
+      align-items: center; justify-content: center;
+    }
+    #help-overlay.visible { display: flex; }
+    #help-content {
+      background: #1a1a2e; border: 1px solid rgba(0,240,255,0.3);
+      border-radius: 16px; padding: 24px; max-width: 300px; width: 90%;
+      color: #fff; font-family: sans-serif;
+    }
+    #help-content h3 { margin: 0 0 12px; font-size: 18px; color: #00f0ff; }
+    #help-content .sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 10px 0; }
+    #help-content .row { font-size: 13px; line-height: 1.8; }
+    #help-content .row b { color: #00f0ff; }
+    #help-content ul { margin: 4px 0 0 0; padding-left: 18px; font-size: 13px; line-height: 1.8; color: #ccc; }
+    #help-content .close-help {
+      margin-top: 16px; width: 100%; padding: 10px; border: none;
+      border-radius: 8px; background: rgba(0,240,255,0.15); color: #00f0ff;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+
+    #object-switcher {
+      position: fixed; bottom: 80px; right: 16px; z-index: 998;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    #object-switcher button {
+      border-radius: 8px; padding: 8px 12px; font-size: 13px;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Error Overlay -->
+  <div id="error-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center; padding:20px; box-sizing:border-box;">
+    <div style="font-size:48px; margin-bottom:16px;" id="error-icon"></div>
+    <div style="font-size:20px; font-weight:bold; margin-bottom:12px;" id="error-title">Error</div>
+    <div style="font-size:14px; line-height:1.6; max-width:300px; white-space:pre-line;" id="error-message"></div>
+    <button onclick="location.reload()" style="margin-top:24px; padding:12px 24px; background:#fff; color:#000; border:none; border-radius:8px; font-size:16px; cursor:pointer;">再試行</button>
+    <a href="/demos/print-shop/" style="margin-top:12px; color:#aaa; font-size:14px; text-decoration:none;">デモ一覧に戻る</a>
+  </div>
+
+  <!-- Back Button -->
+  <a id="back-btn" href="../">&#x2190;</a>
+
+  <!-- Capture Button -->
+  <button id="capture-btn" onclick="capturePhoto()">&#x1F4F7;</button>
+
+  <!-- Help Button -->
+  <button id="help-btn" onclick="toggleHelp()">?</button>
+
+  <!-- Help Overlay -->
+  <div id="help-overlay" onclick="toggleHelp()">
+    <div id="help-content" onclick="event.stopPropagation()">
+      <h3>&#x1F3A4; 名刺 AR Live Stage</h3>
+      <hr class="sep">
+      <div class="row"><b>使い方:</b> ターゲット画像を印刷して名刺サイズにカットしてカメラを向けてください</div>
+      <hr class="sep">
+      <div class="row"><b>演出内容:</b></div>
+      <ul>
+        <li>地球が回転するライブステージ</li>
+        <li>レーザービーム &amp; スポットライト</li>
+        <li>星空 &amp; パーティクル</li>
+        <li>観客歓声SE</li>
+      </ul>
+      <button class="close-help" onclick="toggleHelp()">閉じる</button>
+    </div>
+  </div>
+
+  <!-- Object Switcher -->
+  <div id="object-switcher">
+    <button onclick="switchObject('earth', this)" style="background:#003366; color:#fff; border:1px solid #00ffff;">&#x1F30D; 地球</button>
+    <button onclick="switchObject('moon', this)" style="background:#222; color:#aaa; border:1px solid #555;">&#x1F319; 月</button>
+    <button onclick="switchObject('crystal', this)" style="background:#220033; color:#aaa; border:1px solid #555;">&#x1F48E; クリスタル</button>
+  </div>
+
+  <!-- Bottom Overlay -->
+  <div id="overlay-msg">名刺にカメラを向けるとライブステージが出現します</div>
+
+  <a-scene
+    xrextras-gesture-detector
+    landing-page
+    xrextras-loading
+    xrextras-runtime-error
+    renderer="colorManagement: true"
+    xrweb="disableWorldTracking: true; allowedDevices: any">
+
+    <a-camera
+      id="camera"
+      position="0 4 10"
+      raycaster="objects: .cantap"
+      cursor="fuse: false; rayOrigin: mouse;">
+    </a-camera>
+
+    <a-light type="directional" intensity="0.5" position="1 1 1"></a-light>
+    <a-light type="ambient" intensity="1"></a-light>
+
+    <!-- ターゲット: 名刺 AR ライブステージ -->
+    <xrextras-named-image-target name="sample-target-1">
+      <a-entity id="stage-root" live-stage>
+        <a-text id="name-text"
+          value="Nao Matsunami"
+          color="#ffffff"
+          font="exo2bold"
+          align="center"
+          width="1.0"
+          position="0 0.32 0"
+          material="emissive:#aaaaff; emissiveIntensity:0.5"
+          animation="property:material.emissiveIntensity;from:0.3;to:0.8;loop:true;dir:alternate;dur:1500">
+        </a-text>
+        <a-text id="title-text"
+          value="Video Director / XR Creator"
+          color="#88ccff"
+          align="center"
+          width="0.8"
+          position="0 0.27 0">
+        </a-text>
+      </a-entity>
+    </xrextras-named-image-target>
+
+  </a-scene>
+
+  <script>
+    // 観客SE（Web Audio API）
+    function playAudienceSound() {
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var bufferSize = ctx.sampleRate * 2;
+      var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      var data = buffer.getChannelData(0);
+      for (var i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 0.3);
+      }
+      var filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 1200;
+      filter.Q.value = 0.5;
+      var gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.3);
+      gain.gain.linearRampToValueAtTime(0.6, ctx.currentTime + 0.8);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 2.5);
+      var source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      source.start();
+    }
+
+    // targetFound で歓声再生
+    var targetEl = document.querySelector('[name="sample-target-1"]');
+    if (targetEl) {
+      targetEl.addEventListener('targetFound', function() {
+        playAudienceSound();
+      });
+    }
+  </script>
+
+  <script>
+    // Object switcher (将来拡張用)
+    function switchObject(type, btn) {
+      document.querySelectorAll('#object-switcher button').forEach(function(b) {
+        b.style.borderColor = '#555';
+        b.style.color = '#aaa';
+      });
+      btn.style.borderColor = '#00ffff';
+      btn.style.color = '#fff';
+    }
+  </script>
+
+  <script>
+    // Unified error handling
+    function showError(type) {
+      var messages = {
+        camera: { icon: '\uD83D\uDCF7', title: 'カメラへのアクセスが必要です', message: 'ブラウザの設定からカメラのアクセスを許可してください。\n\nSettings > Safari/Chrome > Camera > Allow' },
+        gps: { icon: '\uD83D\uDCCD', title: '位置情報へのアクセスが必要です', message: 'このデモはGPS位置情報を使用します。\nブラウザの設定から位置情報のアクセスを許可してください。' },
+        browser: { icon: '\uD83C\uDF10', title: 'ブラウザが対応していません', message: 'このARデモはiOS Safari またはAndroid Chromeでご利用ください。\n\niOS: Safari最新版\nAndroid: Chrome最新版' },
+        https: { icon: '\uD83D\uDD12', title: 'HTTPSが必要です', message: 'このデモはHTTPS環境が必要です。\nhttps://xr-ar-lab.netlify.app からアクセスしてください。' }
+      };
+      var m = messages[type] || messages.browser;
+      document.getElementById('error-icon').textContent = m.icon;
+      document.getElementById('error-title').textContent = m.title;
+      document.getElementById('error-message').textContent = m.message;
+      document.getElementById('error-overlay').style.display = 'flex';
+    }
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      showError('https');
+    }
+    if (typeof navigator.mediaDevices === 'undefined' || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      showError('browser');
+    }
+  </script>
+
+  <script>
+    // Help overlay
+    function toggleHelp() {
+      document.getElementById('help-overlay').classList.toggle('visible');
+    }
+    // Auto-show after 3s, auto-hide after 5s or on first touch
+    setTimeout(function() {
+      document.getElementById('help-overlay').classList.add('visible');
+      setTimeout(function() {
+        document.getElementById('help-overlay').classList.remove('visible');
+      }, 5000);
+    }, 3000);
+    document.addEventListener('touchstart', function _h() {
+      document.getElementById('help-overlay').classList.remove('visible');
+      document.removeEventListener('touchstart', _h);
+    });
+  </script>
+
+  <!-- Required attribution for the 8th Wall engine -->
+  <script src="../../../shared/attribution.js"></script>
+</body>
+</html>
