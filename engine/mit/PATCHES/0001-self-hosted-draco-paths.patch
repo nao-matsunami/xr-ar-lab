@@ -1,0 +1,15 @@
+diff --git a/reality/app/xr/js/src/resources.ts b/reality/app/xr/js/src/resources.ts
+index f229d90..6d119d4 100644
+--- a/reality/app/xr/js/src/resources.ts
++++ b/reality/app/xr/js/src/resources.ts
+@@ -29,8 +29,8 @@ const ResourceUrls = {
+   resolveSemanticsModel: resolver('resources/semantics-model.tflite'),
+   resolveMediaWorker: resolver('resources/media-worker.js'),
+   resolvePoweredLogo: resolver('resources/powered-by.svg'),
+-  resolveDracoWorker: unsupported('https://cdn.8thwall.com/web/resources/draco-worker-l5sniji5.js'),
+-  resolveDracoWrapper: unsupported('https://cdn.8thwall.com/web/resources/draco_wasm_wrapper-l325u8do.js'),
++  resolveDracoWorker: unsupported('/lib/vendor/web/resources/draco-worker-l5sniji5.js'),
++  resolveDracoWrapper: unsupported('/lib/vendor/web/resources/draco_wasm_wrapper-l325u8do.js'),
+   resolveDomTabletFrameGlb: resolver('resources/dom-tablet-frame.glb'),
+   resolveDomTabletButtonGlb: resolver('resources/dom-tablet-button.glb'),
+   setBaseUrl,

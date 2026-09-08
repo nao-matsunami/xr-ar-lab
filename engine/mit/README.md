@@ -34,3 +34,41 @@ Dropping the attribute leaves `XR8.XrController` undefined and initialization ha
 | `xr-face.js` | 7,660,469 | 7,676,409 |
 
 `resources/` is the same file set as `lib/resources/`.
+
+---
+
+## 再ビルド手順（パッチ適用込み）
+
+```bash
+git clone --depth 1 https://github.com/8thwall/8thwall.git ~/build/8thwall
+cd ~/build/8thwall
+git apply /path/to/xr-ar-lab/engine/mit/PATCHES/0001-self-hosted-draco-paths.patch
+bazel build --config=wasmreleasesimd //reality/app/xr/js:bundle
+unzip -o bazel-bin/reality/app/xr/js/bundle.zip -d /path/to/xr-ar-lab/engine/mit/
+```
+
+初回ビルドは約41分（4,273アクション）。bazelキャッシュが温まっていれば
+JSバンドルの再生成のみで **約43秒 / 8アクション**。
+
+## パッチ
+
+### `PATCHES/0001-self-hosted-draco-paths.patch`
+
+`reality/app/xr/js/src/resources.ts` の `resolveDracoWorker` /
+`resolveDracoWrapper` が持つ `cdn.8thwall.com` のURL文字列を、自前ホストの
+`/lib/vendor/web/resources/` に向ける。
+
+**注意: これは動作を変えないコスメティックな変更。** この2つは
+`unsupported()` でラップされており、実体は
+
+```js
+const unsupported = (resource: string) => () => {
+  throw new Error(`[XR] Resource "${resource}" is not supported in this environment.`)
+}
+```
+
+つまり**URLは投げられる例外のメッセージにしか使われず、fetchは一度も走らない**
+（配布バイナリ `lib/xr.js` 側も同じ `dI=A=>()=>{throw new Error(...)}` で同一）。
+パッチの目的は、リポジトリを `cdn.8thwall.com` で grep したときにゼロになること、
+および将来この機能が有効化されたときに自前ホストを指していること。
+実ファイルは `lib/vendor/web/resources/` に配置済み。
