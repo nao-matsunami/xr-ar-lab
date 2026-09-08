@@ -217,7 +217,7 @@ await XR8.loadChunk('face')
 
 ## XRExtras API
 
-CDN（`cdn.8thwall.com/web/xrextras/xrextras.js`）から提供されるユーティリティ。
+自前ホストの `lib/vendor/web/xrextras/xrextras.js` から提供されるユーティリティ（MIT）。元は `cdn.8thwall.com` 配信だったが、2027-02-28 の停止に備えてリポジトリ内へベンダリング済み。
 
 ### パイプラインモジュール
 

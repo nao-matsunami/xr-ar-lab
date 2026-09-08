@@ -25,7 +25,7 @@ index.html:
 
     <!-- XR Extras - provides utilities like load screen, almost there, and error handling.
          See github.com/8thwall/web/tree/master/xrextras -->
-    <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
+    <script src="../../../lib/vendor/web/xrextras/xrextras.js"></script>
 
     <!-- 8thWall Web - Replace the app key here with your own app key -->
     <script async src="//apps.8thwall.com/xrweb?appKey=XXXXXX"></script>

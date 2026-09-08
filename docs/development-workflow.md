@@ -22,15 +22,15 @@ mkdir -p ~/xr-ar-lab/templates/my-template/assets
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>My Template</title>
 
-  <!-- 必ずこの順序で読み込む -->
-  <script src="//cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
-  <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
-  <script src="//cdn.8thwall.com/web/landing-page/landing-page.js"></script>
-  <script async src="../../vendor/engine/xr-standalone/xr.js" data-preload-chunks="slam"></script>
+  <!-- 必ずこの順序で読み込む。すべて自前ホスト（cdn.8thwall.com は使わない） -->
+  <script src="../../lib/vendor/web/aframe/8frame-1.3.0.min.js"></script>
+  <script src="../../lib/vendor/web/xrextras/xrextras.js"></script>
+  <script src="../../lib/vendor/qrcode-generator/qrcode.js"></script>
+  <script src="../../shared/landing.js"></script>
+  <script async src="../../lib/xr.js" data-preload-chunks="slam"></script>
 </head>
 <body>
   <a-scene
-    landing-page
     xrextras-loading
     xrextras-runtime-error
     renderer="colorManagement: true"

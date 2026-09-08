@@ -334,7 +334,8 @@ git lfs pull
 **対処:**
 1. ブラウザのDevToolsでネットワークタブを確認
 2. xr.js, xr-slam.js（またはxr-face.js）が正常に配信されているか確認
-3. CDN（cdn.8thwall.com）へのアクセスがブロックされていないか確認
+3. `lib/vendor/web/` 配下（8frame / xrextras）が 200 で配信されているか確認
+   ※ 外部CDNには一切依存していないので、CDN到達性の問題は起こらない
 
 ### 自己署名証明書の警告
 

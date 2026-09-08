@@ -51,8 +51,8 @@ graph LR
         P3[...]
     end
 
-    subgraph "CDN (外部)"
-        CDN1[cdn.8thwall.com<br>8frame, xrextras,<br>landing-page,<br>coaching-overlay]
+    subgraph "自前ホスト lib/vendor/"
+        CDN1[lib/vendor/web/<br>8frame, xrextras,<br>coaching-overlay<br>+ fonts/img/assets]
     end
 
     WEB -->|参考| IT
@@ -110,7 +110,7 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant B as ブラウザ
-    participant CDN as cdn.8thwall.com
+    participant CDN as lib/vendor/ (same-origin)
     participant L as ローカルサーバー
 
     B->>CDN: 1. 8frame-1.3.0.min.js (sync)
@@ -139,7 +139,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant B as ブラウザ
-    participant CDN as cdn.8thwall.com
+    participant CDN as lib/vendor/ (same-origin)
     participant NPM as unpkg.com
     participant L as ローカルサーバー
 

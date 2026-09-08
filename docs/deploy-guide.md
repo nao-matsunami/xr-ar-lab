@@ -71,8 +71,8 @@ netlify deploy --prod --dir=.
 ## CORS ヘッダーについて
 
 - **COOP (Cross-Origin-Opener-Policy)**: `same-origin` — SharedArrayBuffer に必要
-- **COEP (Cross-Origin-Embedder-Policy)**: `credentialless` — CDN からのスクリプト読み込みと互換性を保つ
-- `require-corp` を使うと CDN (cdn.8thwall.com) からの読み込みがブロックされる場合がある
+- **COEP (Cross-Origin-Embedder-Policy)**: `credentialless`
+- スクリプトはすべて same-origin（`lib/vendor/`）から配信しているため、外部CDN由来のCOEP問題は発生しない
 
 ## カスタムドメイン設定
 

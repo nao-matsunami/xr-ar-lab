@@ -17,7 +17,7 @@ export const initWorldScenePipelineModule = () => {
     const material = new THREE.MeshBasicMaterial()
     material.side = THREE.DoubleSide
     material.map = new THREE.TextureLoader().load(
-      'https://cdn.8thwall.com/web/assets/cube-texture.png'
+      '../../../lib/vendor/web/assets/cube-texture.png'
     )
     material.color = new THREE.Color(0xAD50FF)
 

@@ -5,17 +5,18 @@
     <title>8th Wall: Sky Effects</title>
 
     <!-- We've included a slightly modified version of A-Frame, which fixes some polish concerns -->
-    <script src="//cdn.8thwall.com/web/aframe/8frame-1.4.1.min.js"></script>
+    <script src="../../lib/vendor/web/aframe/8frame-1.4.1.min.js"></script>
 
     <!-- XR Extras - provides utilities like load screen, almost there, and error handling.
          See github.com/8thwall/web/tree/master/xrextras -->
-    <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
+    <script src="../../lib/vendor/web/xrextras/xrextras.js"></script>
 
     <!-- Landing Pages - see https://www.8thwall.com/docs/web/#landing-pages -->
-    <script src='//cdn.8thwall.com/web/landing-page/landing-page.js'></script>
+  <script src="../../lib/vendor/qrcode-generator/qrcode.js"></script>
+  <script src="../../shared/landing.js"></script>
 
     <!-- Coaching Overlay - see https://www.8thwall.com/docs/web/#sky-effects-coaching-overlay -->
-    <script src='https://cdn.8thwall.com/web/coaching-overlay/coaching-overlay.js'></script>
+    <script src='../../lib/vendor/web/coaching-overlay/coaching-overlay.js'></script>
 
     <!-- 8th Wall Web - Replace the app key here with your own app key -->
     <script async src="../../lib/xr.js" data-preload-chunks="slam"></script>
@@ -27,7 +28,6 @@
     <a-scene 
         xrextras-loading
         xrextras-runtime-error
-        landing-page
         sky-coaching-overlay
         sky-recenter
         renderer="colorManagement: true"
@@ -47,7 +47,7 @@
                 scale="5 5 5"
                 material="
                 color: #AD50FF; shader: flat; 
-                src: https://cdn.8thwall.com/web/assets/cube-texture.png"
+                src: ../../lib/vendor/web/assets/cube-texture.png"
                 shadow>
             </a-box>
 

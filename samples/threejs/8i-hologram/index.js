@@ -1,3 +1,15 @@
+// ============================================================================
+// KNOWN-DEAD DEMO — 2026-09-08
+// このデモは cdn.8thwall.com 排除の対象外として保留されている。理由は2つ:
+//   1. 下記 assetFile (.hvrs, 約95MB x2) が cdn.8thwall.com にのみ存在する。
+//      LFS 未使用のこのリポジトリに入れるにはサイズが大きすぎる。
+//   2. 再生に必要な player.8i.com (8i 社の Web Playback SDK) は
+//      cdn.8thwall.com とは無関係の第三者ホストで、8i 社は既にサービス終了。
+//      アセットを取り込んでも、このデモは動作しない。
+// => 2027-02-28 以降このデモは動かない。削除の可否は Nao の判断待ち。
+//    詳細: reports/8thwall-cdn-removal-report.md
+// ============================================================================
+
 // Made with teamwork between 8i and 8thWall, 2019
 const applicationName = "8thWall-8i"
 const version = "0.1"
