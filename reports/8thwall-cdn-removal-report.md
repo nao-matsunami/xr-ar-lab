@@ -315,7 +315,7 @@ GitHub Pages は main しか配信しないため、ローカル配信 + Cloudfl
 
 ### 6.1 開く URL（この順で）
 
-**ベース URL: `https://par-stunning-hazardous-rehab.trycloudflare.com`**
+**ベース URL: `https://diffs-filters-hired-late.trycloudflare.com`**
 
 | # | URL | 確認項目 |
 |---|---|---|
@@ -353,8 +353,16 @@ pkill -f "http.server 8080"; pkill -f "cloudflared tunnel"
 
 > トンネル URL は cloudflared を再起動すると変わる。PC がスリープすると切れる。
 > 立て直す場合は `nohup python3 -m http.server 8080 > /tmp/xr-http.log 2>&1 &` と
-> `nohup cloudflared tunnel --url http://localhost:8080 > /tmp/xr-tunnel.log 2>&1 &` を
+> `nohup cloudflared tunnel --no-autoupdate --url http://localhost:8080 > /tmp/xr-tunnel.log 2>&1 &` を
 > リポジトリルートで実行し、後者のログから `https://*.trycloudflare.com` を拾う。
+>
+> **`--no-autoupdate` を必ず付けること。** 最初に立てたトンネルは
+> ちょうど 24 時間後に cloudflared の自動アップデートが走り、
+> `ERR Initiating shutdown error="cloudflared has been updated to version 2026.8.3"`
+> で**自分から落ちた**（exit 11）。上の URL は張り直したもので、
+> このフラグを付けてあるので今度は 24 時間で落ちない。
+> 逆に言うと**トンネルは長期運用向けではない**ので、実機確認は一気に済ませるのが吉。
+> URL が死んでいたら上のコマンドで立て直して URL を取り直す。
 
 ---
 
