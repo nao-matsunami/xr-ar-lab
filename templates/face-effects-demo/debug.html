@@ -1,6 +1,7 @@
 <!doctype html>
 <html>
 <head>
+  <script>window.__XR_ENGINE_LICENSE = 'mit'</script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,8 +17,8 @@
   <script src="../../lib/vendor/qrcode-generator/qrcode.js"></script>
   <script src="../../shared/landing.js"></script>
 
-  <!-- 8th Wall Engine (ローカルバイナリ — Face チャンクをプリロード) -->
-  <script async src="../../lib/xr.js" data-preload-chunks="face"></script>
+  <!-- MIT エンジン (engine/mit/ — 自前ビルド)。Face チャンクをプリロード -->
+  <script async src="../../engine/mit/xr.js" data-preload-chunks="face"></script>
 
   <style>
     body { margin: 0; overflow: hidden; }

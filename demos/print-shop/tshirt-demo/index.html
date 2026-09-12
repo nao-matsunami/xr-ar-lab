@@ -1,6 +1,7 @@
 <!doctype html>
 <html>
 <head>
+  <script>window.__XR_ENGINE_LICENSE = 'mit'</script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,8 +17,11 @@
   <script src="../../../lib/vendor/qrcode-generator/qrcode.js"></script>
   <script src="../../../shared/landing.js"></script>
 
-  <!-- 8th Wall Engine (ローカルバイナリ — slam チャンク必須: XrController を生成) -->
-  <script async src="../../../lib/xr.js" data-preload-chunks="slam"></script>
+  <!-- MIT エンジン (engine/mit/ — github.com/8thwall/8thwall を自前ビルド)
+       slam チャンクは必須。MIT ビルドではチャンク名 "slam" が xr-tracking.js に
+       解決され、それが XR8.XrController を生やす。外すと初期化がハングする。
+       名前に反して SLAM アルゴリズムは入っていない。 -->
+  <script async src="../../../engine/mit/xr.js" data-preload-chunks="slam"></script>
 
   <script>
     const onxrloaded = () => {

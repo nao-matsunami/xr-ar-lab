@@ -28,7 +28,7 @@ tools/certs/
 
 # Local Netlify folder
 .netlify
-#vendor/
-!vendor/engine/
-!vendor/engine/xr-standalone/
-!vendor/engine/xr-standalone/xr.js
+# 上流クローン（8th Wall の web/engine リポジトリ）。参照用に手元に置くだけで
+# 追跡しない。エンジン実体は lib/ に、CDN 配布物は lib/vendor/ にコピー済み。
+# ここを無効化すると git add -A が 1GB 超の埋め込みリポジトリを巻き込む。
+vendor/

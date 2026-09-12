@@ -72,3 +72,53 @@ const unsupported = (resource: string) => () => {
 パッチの目的は、リポジトリを `cdn.8thwall.com` で grep したときにゼロになること、
 および将来この機能が有効化されたときに自前ホストを指していること。
 実ファイルは `lib/vendor/web/resources/` に配置済み。
+
+
+---
+
+## どのページが MIT 版を使っているか
+
+2026-09-12 以降、**Image Target / Face / Sky の 22 ページは MIT 版**、
+**World/SLAM の 28 ページはバイナリ `lib/xr.js`** というハイブリッド構成。
+MIT 版には SLAM アルゴリズムが入っていないため、平面検出・ワールドトラッキングを
+使うデモはバイナリのままにしてある。
+
+### 判別方法 1: ソース
+
+```bash
+# MIT 版を読んでいるページ
+grep -rl "engine/mit/xr.js" --include=index.html --include=debug.html .
+
+# バイナリを読んでいるページ
+grep -rl "lib/xr.js" --include=index.html . | grep -v vendor/
+```
+
+### 判別方法 2: 実行時フラグ
+
+MIT 版のページは `<head>` の先頭で次を宣言している:
+
+```html
+<script>window.__XR_ENGINE_LICENSE = 'mit'</script>
+```
+
+ブラウザのコンソールで `window.__XR_ENGINE_LICENSE` を評価すると、
+MIT 版なら `'mit'`、バイナリなら `undefined` が返る。
+
+### 判別方法 3: ⓘ モーダルの文面
+
+`shared/attribution.js` はこのフラグを見てライセンス文面を切り替える。
+右下の ⓘ を開いたとき:
+
+| 表示 | エンジン |
+|---|---|
+| **MIT License** の文面 | `engine/mit/` |
+| **XR Engine License Agreement**（Niantic Spatial）の文面 | `lib/xr.js` |
+
+実機で「今どちらのエンジンで動いているか」を確認する一番早い方法がこれ。
+
+### 注意
+
+- `data-preload-chunks="slam"` は **MIT 版でも外さないこと**。チャンク名 `slam` は
+  `xr-tracking.js` に解決され、それが `XR8.XrController` を生やす（§4.4 の落とし穴）。
+- `samples/threejs/swap-camera/` は Face と World の両方を使うため、
+  Face デモだがバイナリのまま。MIT 版に SLAM が無く、背面カメラの WorldScene が成立しない。
