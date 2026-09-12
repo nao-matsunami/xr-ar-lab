@@ -23,4 +23,4 @@ echo "========================================="
 echo "  Ctrl+C で停止"
 echo ""
 
-cloudflared tunnel --url https://localhost:$PORT --no-tls-verify
+cloudflared tunnel --no-autoupdate --url https://localhost:$PORT --no-tls-verify

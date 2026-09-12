@@ -315,7 +315,13 @@ GitHub Pages は main しか配信しないため、ローカル配信 + Cloudfl
 
 ### 6.1 開く URL（この順で）
 
-**ベース URL: `https://diffs-filters-hired-late.trycloudflare.com`**
+**ベース URL（2026-09-12 時点で稼働中）: `https://maria-atom-drilling-set.trycloudflare.com`**
+
+> ⚠️ **この URL は使い捨てで、頻繁に変わる。**（§6.2 に立て直し手順）
+> ここまでに 2 回失効している — 1 回目は cloudflared の自動アップデート（24時間後）、
+> 2 回目はマシンのスワップ枯渇による OOM で http.server ごと停止。
+> **URL が死んでいたら §6.2 のコマンドで立て直して、新しい URL を使えばよい。**
+> 確認すべきパスは URL が変わっても同じ。
 
 | # | URL | 確認項目 |
 |---|---|---|
@@ -359,10 +365,14 @@ pkill -f "http.server 8080"; pkill -f "cloudflared tunnel"
 > **`--no-autoupdate` を必ず付けること。** 最初に立てたトンネルは
 > ちょうど 24 時間後に cloudflared の自動アップデートが走り、
 > `ERR Initiating shutdown error="cloudflared has been updated to version 2026.8.3"`
-> で**自分から落ちた**（exit 11）。上の URL は張り直したもので、
-> このフラグを付けてあるので今度は 24 時間で落ちない。
-> 逆に言うと**トンネルは長期運用向けではない**ので、実機確認は一気に済ませるのが吉。
-> URL が死んでいたら上のコマンドで立て直して URL を取り直す。
+> で**自分から落ちた**（exit 11）。
+> 同じ穴が `tools/tunnel.sh` にも空いていたので、そちらにもフラグを追加した。
+>
+> **トンネルは長期運用向けではない。** 2 回目の失効は
+> マシンのスワップ枯渇（4.0Gi 全消費）で OOM killer が
+> `http.server` と `cloudflared` を巻き添えにしたもの。
+> どちらも数十MB のプロセスなので原因は別にあるが、いずれにせよ
+> **実機確認は立てたその場で一気に済ませるのが吉**。
 
 ---
 
