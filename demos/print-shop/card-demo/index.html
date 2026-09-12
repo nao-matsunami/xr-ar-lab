@@ -86,6 +86,29 @@
         var earth = new THREE.Mesh(earthGeo, earthMat);
         earth.position.set(0, 0.18, 0);
 
+        // 月 / クリスタル（切り替え表示用。外部テクスチャは足さない）
+        var moonMat = new THREE.MeshPhongMaterial({
+          color: 0xbfbfbf,
+          specular: new THREE.Color(0x222222),
+          shininess: 4,
+        });
+        var moon = new THREE.Mesh(earthGeo.clone(), moonMat);
+        moon.position.copy(earth.position);
+        moon.visible = false;
+
+        var crystalGeo = new THREE.OctahedronGeometry(0.095, 0);
+        var crystalMat = new THREE.MeshPhongMaterial({
+          color: 0xcc66ff,
+          specular: new THREE.Color(0xffffff),
+          shininess: 80,
+          transparent: true,
+          opacity: 0.75,
+          flatShading: true,
+        });
+        var crystal = new THREE.Mesh(crystalGeo, crystalMat);
+        crystal.position.copy(earth.position);
+        crystal.visible = false;
+
         // 大気圏（半透明の球）
         var atmGeo = new THREE.SphereGeometry(0.085, 64, 64);
         var atmMat = new THREE.MeshPhongMaterial({
@@ -203,6 +226,8 @@
         // ===== エンティティに追加 =====
         var root = el.object3D;
         root.add(earth);
+        root.add(moon);
+        root.add(crystal);
         root.add(atmosphere);
         root.add(stars);
         root.add(stage);
@@ -220,7 +245,10 @@
 
         // Store references for tick
         this._earth = earth;
+        this._moon = moon;
+        this._crystal = crystal;
         this._atmosphere = atmosphere;
+        window.__liveStage = this;
         this._stars = stars;
         this._lasers = lasers;
         this._spots = spots;
@@ -235,9 +263,15 @@
         this._time += dt * 0.001;
         var time = this._time;
 
-        // 地球の自転
-        this._earth.rotation.y += 0.003;
-        this._atmosphere.rotation.y += 0.001;
+        // 自転（表示中の天体だけ回す）
+        if (this._earth.visible) {
+          this._earth.rotation.y += 0.003;
+          this._atmosphere.rotation.y += 0.001;
+        } else if (this._moon.visible) {
+          this._moon.rotation.y += 0.002;
+        } else if (this._crystal.visible) {
+          this._crystal.rotation.y += 0.006;
+        }
 
         // 星フィールドのゆっくり回転
         this._stars.rotation.y += 0.0005;
@@ -316,6 +350,15 @@
       text-align: center; max-width: 90vw;
     }
 
+    #sound-btn {
+      position: fixed; top: 124px; right: 20px; z-index: 998;
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.4);
+      color: #fff; font-size: 20px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     #help-btn {
       position: fixed; top: 20px; right: 20px; z-index: 998;
       width: 36px; height: 36px; border-radius: 50%;
@@ -377,6 +420,9 @@
   <!-- Help Button -->
   <button id="help-btn" onclick="toggleHelp()">?</button>
 
+  <!-- Sound Toggle (記号のみ) -->
+  <button id="sound-btn" onclick="toggleSound(event)">&#x1F507;</button>
+
   <!-- Help Overlay -->
   <div id="help-overlay" onclick="toggleHelp()">
     <div id="help-content" onclick="event.stopPropagation()">
@@ -389,7 +435,6 @@
         <li>地球が回転するライブステージ</li>
         <li>レーザービーム &amp; スポットライト</li>
         <li>星空 &amp; パーティクル</li>
-        <li>観客歓声SE</li>
       </ul>
       <button class="close-help" onclick="toggleHelp()">閉じる</button>
     </div>
@@ -449,8 +494,56 @@
 
   <script>
     // 観客SE（Web Audio API）
+    //
+    // 以前は targetFound のたびに new AudioContext() していた。ブラウザは
+    // ユーザー操作なしに音を鳴らさないので、AudioContext は suspended のまま
+    // 生成され、一度も鳴らないままインスタンスだけが増えていた。
+    // AudioContext は1つだけ作り、最初のタップで resume する。
+    var audioCtx = null;
+    var soundArmed = false;   // ユーザー操作で resume 済みか
+    var soundMuted = false;   // ユーザーが明示的にミュートしたか
+
+    function getAudioCtx() {
+      if (!audioCtx) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        audioCtx = new AC();
+      }
+      return audioCtx;
+    }
+
+    function updateSoundIcon() {
+      var btn = document.getElementById('sound-btn');
+      if (!btn) return;
+      var on = soundArmed && !soundMuted;
+      btn.innerHTML = on ? '&#x1F50A;' : '&#x1F507;';
+      btn.style.borderColor = on ? 'rgba(0,255,255,0.9)' : 'rgba(255,255,255,0.4)';
+    }
+
+    // 最初のタップ（ARシーンのどこでも）で音を有効化する
+    function armSound() {
+      var ctx = getAudioCtx();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') { ctx.resume(); }
+      soundArmed = true;
+      updateSoundIcon();
+    }
+
+    document.addEventListener('touchend', armSound, {once: true, passive: true});
+    document.addEventListener('click', armSound, {once: true});
+
+    // アイコンタップでミュート切り替え
+    function toggleSound(e) {
+      if (e) { e.stopPropagation(); }
+      if (!soundArmed) { armSound(); return; }
+      soundMuted = !soundMuted;
+      updateSoundIcon();
+    }
+
     function playAudienceSound() {
-      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!soundArmed || soundMuted) return;
+      var ctx = getAudioCtx();
+      if (!ctx || ctx.state !== 'running') return;
       var bufferSize = ctx.sampleRate * 2;
       var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       var data = buffer.getChannelData(0);
@@ -474,6 +567,8 @@
       source.start();
     }
 
+    updateSoundIcon();
+
     // targetFound で歓声再生
     var targetEl = document.querySelector('[name="sample-target-1"]');
     if (targetEl) {
@@ -484,15 +579,42 @@
   </script>
 
   <script>
-    // Object switcher (将来拡張用)
+    // Object switcher
+    // 以前はボタンの見た目だけ変えて 3D 側に一切触れていなかった（"将来拡張用"）。
+    // live-stage 側に moon / crystal を用意したので、実際に表示を切り替える。
+    var currentObject = 'earth';
+
     function switchObject(type, btn) {
+      currentObject = type;
+
+      var stage = window.__liveStage;
+      if (stage && stage._earth) {
+        stage._earth.visible = (type === 'earth');
+        stage._atmosphere.visible = (type === 'earth');
+        stage._moon.visible = (type === 'moon');
+        stage._crystal.visible = (type === 'crystal');
+      }
+
+      // アクティブ側を明るく（文字は変えない）
       document.querySelectorAll('#object-switcher button').forEach(function(b) {
         b.style.borderColor = '#555';
         b.style.color = '#aaa';
+        b.style.opacity = '0.55';
+        b.style.boxShadow = 'none';
       });
-      btn.style.borderColor = '#00ffff';
-      btn.style.color = '#fff';
+      if (btn) {
+        btn.style.borderColor = '#00ffff';
+        btn.style.color = '#fff';
+        btn.style.opacity = '1';
+        btn.style.boxShadow = '0 0 10px rgba(0,255,255,0.6)';
+      }
     }
+
+    // 初期状態（地球）をボタンの見た目にも反映させる
+    document.addEventListener('DOMContentLoaded', function() {
+      var first = document.querySelector('#object-switcher button');
+      if (first) switchObject('earth', first);
+    });
   </script>
 
   <script>
