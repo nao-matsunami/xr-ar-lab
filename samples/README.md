@@ -34,7 +34,6 @@
 | サンプル | AR機能 | チャンク | 動作状態 | 備考 |
 |---|---|---|---|---|
 | placeground | SLAM | slam | ○ | Three.js版タップ配置 |
-| 8i-hologram | SLAM | slam | ○ | ホログラム表示 |
 | flyer | Image Target | なし | △ | Three.js版画像認識。要ターゲット設定 |
 | swap-camera | Face + SLAM | face,slam | ○ | 前面/背面カメラ切替（顔+空間） |
 | custom-pipeline-module | SLAM | slam | ○ | カスタムパイプライン作成例 |
