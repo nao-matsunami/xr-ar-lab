@@ -315,7 +315,13 @@ GitHub Pages は main しか配信しないため、ローカル配信 + Cloudfl
 
 ### 6.1 開く URL（この順で）
 
-**ベース URL（2026-09-12 時点で稼働中）: `https://maria-atom-drilling-set.trycloudflare.com`**
+> ⛔ **この章は役目を終えた（2026-09-13 追記）。**
+> このブランチは main にマージ済みで、GitHub Pages から配信されている。
+> 実機確認は使い捨てトンネルではなく **`https://nao-matsunami.github.io/xr-ar-lab`** を使うこと。
+> 確認項目の最新版は [`mit-migration-report.md`](./mit-migration-report.md) §5 にある。
+> 以下は当時の記録として残す（トンネルは停止済み）。
+
+**ベース URL（当時）: `https://maria-atom-drilling-set.trycloudflare.com`** — 停止済み
 
 > ⚠️ **この URL は使い捨てで、頻繁に変わる。**（§6.2 に立て直し手順）
 > ここまでに 2 回失効している — 1 回目は cloudflared の自動アップデート（24時間後）、
