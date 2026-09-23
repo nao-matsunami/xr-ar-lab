@@ -77,7 +77,7 @@ xr-ar-lab/
 ├── shared/           共通アセット・3Dモデル
 ├── tools/            開発ツール・SSL証明書・起動スクリプト
 ├── docs/             ドキュメント
-├── showcase/         ショーケースページ
+├── showcase/         antymark 名刺 AR（demos.html がデモ一覧）
 ├── qr/               QRコード一覧
 ├── netlify.toml      Netlifyデプロイ設定
 └── README.md
