@@ -18,6 +18,8 @@ Thumbs.db
 # ビルド成果物
 dist/
 build/
+__pycache__/
+*.pyc
 
 # ログ
 *.log
@@ -31,4 +33,6 @@ tools/certs/
 # 上流クローン（8th Wall の web/engine リポジトリ）。参照用に手元に置くだけで
 # 追跡しない。エンジン実体は lib/ に、CDN 配布物は lib/vendor/ にコピー済み。
 # ここを無効化すると git add -A が 1GB 超の埋め込みリポジトリを巻き込む。
-vendor/
+# 先頭の / はリポジトリ直下の vendor/ だけを指す。これが無いと lib/vendor/ まで
+# 巻き込まれ、同梱している three.js / xrextras が追跡されなくなる。
+/vendor/

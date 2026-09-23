@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>showcase particle self test</title>
+<link rel="icon" href="data:,">
+<!--
+  showcase/ar/particles.js を XR8 抜きで動かす確認用ページ。
+  ヘッドレス Chrome にはカメラが無く XR8.run() が走らないので、
+  シェーダが通るか / 形状が正しいかはここで見る。
+
+    node tools/headless-check.mjs http://127.0.0.1:8811/tools/showcase-selftest.html \
+      --wait 8000 --eval "window.__selftest"
+-->
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+<script type="importmap">
+{ "imports": { "three": "../lib/vendor/three/three.module.min.js" } }
+</script>
+</head>
+<body>
+<script type="module">
+import * as THREE_NS from 'three'
+import {ParticleField, MODE} from '../showcase/ar/particles.js'
+import {CARD} from '../showcase/ar/config.js'
+
+const THREE = THREE_NS
+window.THREE = THREE
+
+const VARIANT = new URLSearchParams(location.search).get('variant') || 'normal'
+const COLS = 3
+const ROWS = 2
+const TILE = 520
+const report = {variant: VARIANT, ok: false, tiles: []}
+window.__selftest = report
+
+const main = async () => {
+  const [particles, shapes] = await Promise.all([
+    fetch(`../showcase/ar/particles-${VARIANT}.json`).then(r => r.json()),
+    fetch(`../showcase/ar/shapes-${VARIANT}.json`).then(r => r.json()),
+  ])
+  report.count = particles.count
+  report.shapes = Object.keys(shapes.shapes)
+
+  const canvas = document.createElement('canvas')
+  canvas.width = COLS * TILE
+  canvas.height = ROWS * TILE
+  document.body.appendChild(canvas)
+
+  const renderer = new THREE.WebGLRenderer({canvas, antialias: false})
+  renderer.setClearColor(0x000000, 1)
+  renderer.setScissorTest(true)
+
+  const field = new ParticleField(THREE, particles, shapes)
+  const scene = new THREE.Scene()
+  const root = new THREE.Group()
+  root.add(field.makeCardPlane())
+  root.add(field.points)
+  scene.add(root)
+
+  // カード全体が入るように正面から見る
+  const camera = new THREE.PerspectiveCamera(40, 1, 1, 2000)
+  camera.position.set(0, 0, 130)
+  camera.lookAt(0, 0, 0)
+
+  const setup = [
+    {label: 'breathe (printed rest)', mode: MODE.BREATHE, t: 1.0},
+    {label: 'tilt slide + pile', mode: MODE.BREATHE, t: 1.0, grav: [0.9, -0.42]},
+    {label: 'scatter t=0.45s', mode: MODE.SCATTER, t: 0.45, wind: 0.9},
+    {label: 'reform logotype', mode: MODE.REFORM, shape: 'logotype', t: 3.4, wind: 0.9},
+    {label: 'reform fish', mode: MODE.REFORM, shape: 'fish', t: 3.4, wind: 0.9},
+    {label: 'reform ant', mode: MODE.REFORM, shape: 'ant', t: 3.4, wind: 0.9},
+  ]
+
+  setup.forEach((s, i) => {
+    const u = field.uniforms
+    u.uWind.value = s.wind || 0
+    u.uGrav.value.set(...(s.grav || [0, 0]))
+    u.uSpillT0.value = -1
+    u.uRespawnT0.value = -1
+    if (s.shape) {
+      field.setShape(s.shape, 0)     // uMode=REFORM, uT0=0
+      u.uScatterT0.value = 0
+    } else {
+      u.uMode.value = s.mode
+      u.uT0.value = 0
+      u.uScatterT0.value = 0
+    }
+    field.update(s.t, TILE, 1.0)
+
+    const cx = (i % COLS) * TILE
+    const cy = canvas.height - (Math.floor(i / COLS) + 1) * TILE
+    renderer.setViewport(cx, cy, TILE, TILE)
+    renderer.setScissor(cx, cy, TILE, TILE)
+    renderer.render(scene, camera)
+    report.tiles.push(s.label)
+  })
+
+  const gl = renderer.getContext()
+  report.glError = gl.getError()
+  report.programs = renderer.info.programs.length
+  report.shaderLog = renderer.info.programs
+    .map(p => `${p.diagnostics ? 'DIAGNOSTICS ' + JSON.stringify(p.diagnostics) : 'ok'}`)
+  report.drawCalls = renderer.info.render.calls
+  report.pointsDrawn = field.drawCount
+  report.cardMm = [CARD.widthMm, CARD.heightMm]
+  report.ok = report.glError === 0 && report.drawCalls > 0
+}
+
+main().then(() => { window.__selftestDone = true })
+  .catch((e) => { report.error = String(e && e.stack || e); window.__selftestDone = true })
+</script>
+</body>
+</html>
