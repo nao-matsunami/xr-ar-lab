@@ -495,6 +495,9 @@ node tools/headless-check.mjs "http://127.0.0.1:8811/tools/showcase-selftest.htm
 ## `git log --oneline -10 main`
 
 ```
+d831805 Fix showcase card overlay scale/axes and make tilt relative to found pose
+dddf54c Raise background particle min size and lift its brightness
+c05c9e1 Fill git log tail in showcase-card report
 c51e8df Merge showcase-card: antymark 名刺の印刷面生成と粒子AR
 5d81c49 Add antymark showcase card: print-face generator and particle AR
 8501788 Mark the quick-tunnel test section superseded by GitHub Pages
@@ -502,7 +505,4 @@ c51e8df Merge showcase-card: antymark 名刺の印刷面生成と粒子AR
 74207e7 Fix card-demo object switcher and gate audience SE behind a user gesture
 2a187f0 Fix buri-slam-demo gestures: drag rotates instead of placing, pinch scales
 8bf9f82 Switch image-target/face/sky demos to MIT engine (SLAM demos stay on binary)
-a76ef81 Remove 8i-hologram sample (unrecoverable external deps)
-325a972 Re-establish test tunnel, fix same autoupdate bug in tools/tunnel.sh
-cd63ffa Update test tunnel URL after cloudflared autoupdate killed the old one
 ```
