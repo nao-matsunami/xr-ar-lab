@@ -605,6 +605,8 @@ node tools/headless-check.mjs "http://127.0.0.1:8811/tools/showcase-selftest.htm
 ## `git log --oneline -10 main`
 
 ```
+d6459a0 Add wind-detection debug HUD, ?wind=low profile, and long-press selftest
+e3abfef Update git log tail in showcase-card report
 d831805 Fix showcase card overlay scale/axes and make tilt relative to found pose
 dddf54c Raise background particle min size and lift its brightness
 c05c9e1 Fill git log tail in showcase-card report
@@ -613,6 +615,4 @@ c51e8df Merge showcase-card: antymark 名刺の印刷面生成と粒子AR
 8501788 Mark the quick-tunnel test section superseded by GitHub Pages
 96c3dba Add MIT migration and bugfix report
 74207e7 Fix card-demo object switcher and gate audience SE behind a user gesture
-2a187f0 Fix buri-slam-demo gestures: drag rotates instead of placing, pinch scales
-8bf9f82 Switch image-target/face/sky demos to MIT engine (SLAM demos stay on binary)
 ```
