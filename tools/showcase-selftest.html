@@ -21,16 +21,147 @@
 <script type="module">
 import * as THREE_NS from 'three'
 import {ParticleField, MODE} from '../showcase/ar/particles.js'
-import {CARD} from '../showcase/ar/config.js'
+import {CARD, TILT} from '../showcase/ar/config.js'
+import {cardPoseFromDetail} from '../showcase/ar/targets.js'
+import {Tilt} from '../showcase/ar/tilt.js'
 
 const THREE = THREE_NS
 window.THREE = THREE
 
 const VARIANT = new URLSearchParams(location.search).get('variant') || 'normal'
 const COLS = 3
-const ROWS = 2
+const ROWS = 3
 const TILE = 520
-const report = {variant: VARIANT, ok: false, tiles: []}
+const report = {variant: VARIANT, ok: false, tiles: [], checks: {}}
+
+// MIT エンジンが返した実際の detail（ヘッドレス Chrome + 偽カメラで取得。
+// 名刺を正面・面内 12° 回転で写したもの）。scale はカード長辺のワールド長。
+const REAL_DETAIL = {
+  name: 'antymark-card-normal',
+  position: {x: -0.000028, y: 1.998735, z: -0.967302},
+  rotation: {x: 0.000603, y: 0.000443, z: -0.104514, w: -0.994523},
+  scale: 0.6318985223770142,
+  scaledWidth: 1.5444947209653093,
+  scaledHeight: 1,
+}
+
+const near = (a, b, eps) => Math.abs(a - b) <= eps
+
+// imagefound の detail -> root(姿勢・倍率) -> card(roll) を main.js と同じ組み方で作る
+const placeCard = (THREE, root, card, detail) => {
+  const pose = cardPoseFromDetail(detail)
+  root.position.copy(detail.position)
+  root.quaternion.copy(detail.rotation)
+  root.scale.setScalar(pose.mmToWorld)
+  card.rotation.z = pose.roll
+  root.updateMatrixWorld(true)
+  return pose
+}
+
+// (1) 板と点群が 85x55mm でターゲットに重なるか
+const checkPose = (THREE) => {
+  const root = new THREE.Group()
+  const card = new THREE.Group()
+  root.add(card)
+  const pose = placeCard(THREE, root, card, REAL_DETAIL)
+  const hw = CARD.widthMm / 2
+  const hh = CARD.heightMm / 2
+  const toRoot = (x, y) => {
+    // カード mm -> root ローカル（エンジンの縦長画像の軸、単位はまだ mm）
+    const v = new THREE.Vector3(x, y, 0).applyEuler(card.rotation)
+    return [v.x, v.y]
+  }
+  const w = (x, y) => new THREE.Vector3(x, y, 0).applyMatrix4(card.matrixWorld)
+  const tl = w(-hw, hh)
+  const tr = w(hw, hh)
+  const bl = w(-hw, -hh)
+  const longWorld = tl.distanceTo(tr)
+  const shortWorld = tl.distanceTo(bl)
+  const tlRoot = toRoot(-hw, hh)
+  const c = {
+    mmToWorld: pose.mmToWorld,
+    rollDeg: pose.roll * 180 / Math.PI,
+    aspectRatio: pose.aspectRatio,
+    longWorld,
+    shortWorld,
+    // 長辺 85mm が detail.scale に、短辺がその 55/85 に一致すること
+    longIsScale: near(longWorld, REAL_DETAIL.scale, 1e-6),
+    shortIsScaled: near(shortWorld, REAL_DETAIL.scale * CARD.heightMm / CARD.widthMm, 1e-6),
+    // エンジンの姿勢では長辺がローカル Y。カード左上は (+27.5, +42.5) に来る
+    topLeftInEngineAxes: tlRoot.map(v => Math.round(v * 100) / 100),
+    longAlongEngineY: near(tlRoot[0], hh, 1e-4) && near(tlRoot[1], hw, 1e-4),
+    aspectOk: near(pose.aspectRatio, 1, 0.01),
+  }
+  c.ok = c.longIsScale && c.shortIsScaled && c.longAlongEngineY && c.aspectOk
+  return c
+}
+
+// (2) 傾きが「認識時の姿勢からの相対角」になっているか
+const checkTilt = (THREE) => {
+  const camera = new THREE.Object3D()       // XR8 のカメラ相当（ワールド原点・正面）
+  const root = new THREE.Group()
+  const card = new THREE.Group()
+  root.add(card)
+  const tilt = new Tilt(THREE)
+  const out = {}
+
+  // 机のカードを斜め 35° から覗いて認識した、という姿勢
+  const foundQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(-35 * Math.PI / 180, 0.3, 0.2))
+  const at = (q) => {
+    root.quaternion.copy(q)
+    card.rotation.z = -Math.PI / 2
+    root.updateMatrixWorld(true)
+    camera.updateMatrixWorld(true)
+    tilt.update(camera, card)
+    return {deg: +tilt.degrees.toFixed(3), gx: +tilt.downCard.x.toFixed(4), gy: +tilt.downCard.y.toFixed(4)}
+  }
+  // 「下」に直交するワールド軸回りに回す = その角度だけ傾ける。
+  // which=0 は下とカード法線の両方に直交する軸（手前・奥）、1 はそれと下に直交する軸（左右）
+  const tiltedBy = (deg, which) => {
+    const down = new THREE.Vector3(0, -1, 0)
+    const n = new THREE.Vector3(0, 0, 1).applyQuaternion(foundQ)
+    const a0 = down.clone().cross(n).normalize()
+    const ax = which === 0 ? a0 : down.clone().cross(a0).normalize()
+    return new THREE.Quaternion().setFromAxisAngle(ax, deg * Math.PI / 180).multiply(foundQ)
+  }
+
+  tilt.resetBase()
+  out.atFound = at(foundQ)
+  out.foundIsLevel = out.atFound.deg < 1e-3 && out.atFound.gx === 0 && out.atFound.gy === 0
+  // 旧実装（基準なしの絶対角）なら、認識した瞬間にこの角度だけ傾いていると判定されていた
+  out.absoluteDegAtFound = +(Math.asin(Math.min(1, Math.hypot(tilt.downLocal.x, tilt.downLocal.y))) * 180 / Math.PI).toFixed(2)
+
+  out.jitter3deg = at(tiltedBy(3, 0))
+  out.jitterIgnored = out.jitter3deg.gx === 0 && out.jitter3deg.gy === 0
+
+  out.tilt25 = at(tiltedBy(25, 0))
+  out.tilt25Ok = near(out.tilt25.deg, 25, 0.05) &&
+    near(Math.hypot(out.tilt25.gx, out.tilt25.gy), Math.sin((25 - TILT.deadzoneDeg) * Math.PI / 180), 1e-3) &&
+    out.tilt25.deg < TILT.spillDeg
+
+  out.tilt50 = at(tiltedBy(50, 1))
+  out.tilt50Spills = out.tilt50.deg > TILT.spillDeg
+
+  // 傾けたまま見失って再認識 -> そこが新しい基準
+  tilt.resetBase()
+  out.refound = at(tiltedBy(50, 1))
+  out.refoundIsLevel = out.refound.deg < 1e-3 && out.refound.gx === 0 && out.refound.gy === 0
+  // 再認識後に元の姿勢へ戻すと、今度はそちらが 50° の傾きになる
+  out.backToOld = at(foundQ)
+  out.backToOldOk = near(out.backToOld.deg, 50, 0.05)
+
+  // DeviceMotion の許可が下りて「下」の情報源が変わったら取り直す
+  tilt.resetBase()
+  at(foundQ)
+  tilt._downDevice.set(0.3, -0.9, -0.3).normalize()
+  tilt.hasMotion = true
+  out.sourceSwitch = at(foundQ)
+  out.sourceSwitchRebased = out.sourceSwitch.deg < 1e-3
+
+  out.ok = out.foundIsLevel && out.jitterIgnored && out.tilt25Ok && out.tilt50Spills &&
+    out.refoundIsLevel && out.backToOldOk && out.sourceSwitchRebased
+  return {out, grav: [out.tilt25.gx, out.tilt25.gy]}
+}
 window.__selftest = report
 
 const main = async () => {
@@ -62,6 +193,10 @@ const main = async () => {
   camera.position.set(0, 0, 130)
   camera.lookAt(0, 0, 0)
 
+  report.checks.pose = checkPose(THREE)
+  const tiltCheck = checkTilt(THREE)
+  report.checks.tilt = tiltCheck.out
+
   const setup = [
     {label: 'breathe (printed rest)', mode: MODE.BREATHE, t: 1.0},
     {label: 'tilt slide + pile', mode: MODE.BREATHE, t: 1.0, grav: [0.9, -0.42]},
@@ -69,7 +204,11 @@ const main = async () => {
     {label: 'reform logotype', mode: MODE.REFORM, shape: 'logotype', t: 3.4, wind: 0.9},
     {label: 'reform fish', mode: MODE.REFORM, shape: 'fish', t: 3.4, wind: 0.9},
     {label: 'reform ant', mode: MODE.REFORM, shape: 'ant', t: 3.4, wind: 0.9},
+    // 斜め 35° で認識した直後の BREATHE。tilt.js の出力をそのまま重力に入れる -> 印刷位置のまま
+    {label: 'found at 35deg (relative tilt 0)', mode: MODE.BREATHE, t: 1.0, grav: [0, 0], read: true},
+    {label: 'relative tilt 25deg', mode: MODE.BREATHE, t: 1.0, grav: tiltCheck.grav, read: true},
   ]
+  const pixels = {}
 
   setup.forEach((s, i) => {
     const u = field.uniforms
@@ -91,9 +230,34 @@ const main = async () => {
     const cy = canvas.height - (Math.floor(i / COLS) + 1) * TILE
     renderer.setViewport(cx, cy, TILE, TILE)
     renderer.setScissor(cx, cy, TILE, TILE)
+    const read = () => {
+      const buf = new Uint8Array(TILE * TILE * 4)
+      renderer.getContext().readPixels(cx, cy, TILE, TILE, 0x1908, 0x1401, buf)
+      return buf
+    }
+    if (s.read) {
+      // 同じビューポートで、重力 0（印刷どおりの静止）を先に描いて比較の基準にする
+      const g = u.uGrav.value.clone()
+      u.uGrav.value.set(0, 0)
+      renderer.render(scene, camera)
+      pixels[`${i}rest`] = read()
+      u.uGrav.value.copy(g)
+    }
     renderer.render(scene, camera)
     report.tiles.push(s.label)
+    if (s.read) { pixels[i] = read() }
   })
+
+  // 斜めで認識した直後（タイル 6）は印刷どおりの静止と同一の画、相対 25° のタイル 7 は違う画であること
+  const diff = (a, b) => {
+    let n = 0
+    for (let k = 0; k < a.length; k++) { if (a[k] !== b[k]) { n++ } }
+    return n
+  }
+  report.checks.restPixelsDiff = diff(pixels['6rest'], pixels[6])
+  report.checks.tiltPixelsDiff = diff(pixels['7rest'], pixels[7])
+  report.checks.breatheStaysPrinted = report.checks.restPixelsDiff === 0 &&
+    report.checks.tiltPixelsDiff > 0
 
   const gl = renderer.getContext()
   report.glError = gl.getError()
@@ -103,7 +267,8 @@ const main = async () => {
   report.drawCalls = renderer.info.render.calls
   report.pointsDrawn = field.drawCount
   report.cardMm = [CARD.widthMm, CARD.heightMm]
-  report.ok = report.glError === 0 && report.drawCalls > 0
+  report.ok = report.glError === 0 && report.drawCalls > 0 &&
+    report.checks.pose.ok && report.checks.tilt.ok && report.checks.breatheStaysPrinted
 }
 
 main().then(() => { window.__selftestDone = true })

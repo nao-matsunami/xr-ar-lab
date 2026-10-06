@@ -31,6 +31,8 @@ export const BREATHE = {
 export const TILT = {
   // BREATHE 中の「暗黙のチュートリアル」。傾けると点群全体がこれだけ低い側に寄る。
   biasMm: 0.5,
+  // 傾きは認識時の姿勢からの相対角（tilt.js）。これ以下はトラッキングの揺れとみなして 0 にする。
+  deadzoneDeg: 4,
   // ここを越えると本格的に滑り出す（カード面内重力の大きさ 0..1）
   slideThreshold: 0.18,
   // 閾値超過分 1.0 あたり何 mm 滑るか

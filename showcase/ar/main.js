@@ -7,7 +7,7 @@
 
 import * as THREE_NS from 'three'
 import {CARD, PARTICLES, PERF, REFORM, TILT, WIND} from './config.js'
-import {configureTargets, variantOf} from './targets.js'
+import {cardPoseFromDetail, configureTargets, variantOf} from './targets.js'
 import {ParticleField, MODE} from './particles.js'
 import {Audio} from './audio.js'
 import {Wind} from './wind.js'
@@ -19,13 +19,20 @@ import {Ui} from './ui.js'
 window.THREE = {...THREE_NS}
 const THREE = window.THREE
 
+// ?debug: 占有板を半透明の赤にし、カード左上に黄色の目印を出す（重なりの確認用）
+// ?anydevice: デスクトップ（ヘッドレス Chrome + 偽カメラ）でもパイプラインを回す
+const PARAMS = new URLSearchParams(location.search)
+const DEBUG = PARAMS.has('debug')
+
 const STATE = {IDLE: 'IDLE', BREATHE: 'BREATHE', SCATTER: 'SCATTER', REFORM: 'REFORM'}
 
 const app = {
   state: STATE.IDLE,
   variant: null,
   field: null,
-  root: null,
+  root: null,       // ターゲットの姿勢 + mm -> ワールドの倍率
+  card: null,       // root の子。カードローカル mm（x 右・y 上）。板と点群はここに付ける
+  lastPose: null,
   scene: null,
   camera: null,
   renderer: null,
@@ -133,11 +140,24 @@ const attachVariant = async (variant) => {
   const field = new ParticleField(THREE, particles, shapes)
   const root = new THREE.Group()
   root.visible = false
-  root.add(field.makeCardPlane())
-  root.add(field.points)
+  const card = new THREE.Group()
+  const plate = field.makeCardPlane()
+  card.add(plate)
+  card.add(field.points)
+  if (DEBUG) {
+    plate.material.transparent = true
+    plate.material.opacity = 0.45
+    plate.material.color.set(0xff0000)
+    const mark = new THREE.Mesh(new THREE.PlaneGeometry(6, 6),
+      new THREE.MeshBasicMaterial({color: 0xffff00}))
+    mark.position.set(-CARD.widthMm / 2 + 3, CARD.heightMm / 2 - 3, 0.5)
+    card.add(mark)
+  }
+  root.add(card)
   app.scene.add(root)
   app.field = field
   app.root = root
+  app.card = card
   app.variant = variant
   loadingVariant = null
   console.log(`[showcase] variant "${variant}" attached: ` +
@@ -146,7 +166,7 @@ const attachVariant = async (variant) => {
   wind.attachLongPress(app.canvas)
 }
 
-const onImage = ({detail}) => {
+const onImage = ({detail}, found) => {
   const variant = variantOf(detail.name)
   if (!variant) { return }
   if (!app.variant && !loadingVariant) {
@@ -155,18 +175,31 @@ const onImage = ({detail}) => {
     attachVariant(variant).catch(e => console.error('[showcase] load failed', e))
     return
   }
+  if (!app.variant) { return }     // 点群の読み込み中
   if (variant !== app.variant) {
     // 3 枚のうち別のバリアントも同時に見えている場合。実機比較のために出すだけ。
     console.log(`[showcase] also visible: ${detail.name} (using ${app.variant})`)
     return
   }
   if (!app.root) { return }
+  // detail.scale はカード長辺（85mm）のワールド長、姿勢の軸は 90° 回った縦長画像のもの。
+  // 詳細は targets.js の cardPoseFromDetail。
+  const pose = cardPoseFromDetail(detail)
   app.root.position.copy(detail.position)
   app.root.quaternion.copy(detail.rotation)
-  // detail.scale はターゲットの物理サイズ、scaledHeight はカード高さの相対値。
-  // 点群は mm で持っているので mm -> ワールドの倍率をここで作る。
-  const h = detail.scaledHeight || 1.0
-  app.root.scale.setScalar(detail.scale * h / CARD.heightMm)
+  app.root.scale.setScalar(pose.mmToWorld)
+  app.card.rotation.z = pose.roll
+  app.lastPose = pose
+  if (found || !app.root.visible) {
+    // 傾きの基準は認識した瞬間の姿勢。再認識のたびに取り直す。
+    // 最初の imagefound は点群の読み込みに使われて root がまだ無いので、
+    // 「root が見えるようになった最初の更新」も認識の瞬間として扱う。
+    tilt.resetBase()
+    console.log(`[showcase] pose: scale=${detail.scale.toFixed(4)} ` +
+      `scaled=${(detail.scaledWidth || 1).toFixed(3)}x${(detail.scaledHeight || 1).toFixed(3)} ` +
+      `-> mm=${pose.mmToWorld.toExponential(3)} world, roll=${Math.round(pose.roll * 180 / Math.PI)}deg, ` +
+      `aspect=${pose.aspectRatio.toFixed(3)}`)
+  }
   if (!app.root.visible) {
     app.root.visible = true
     if (app.state === STATE.IDLE) { app.state = STATE.BREATHE }
@@ -237,17 +270,19 @@ const showcasePipelineModule = () => ({
     const gl = app.renderer && app.renderer.getContext()
     field.update(t, gl ? gl.drawingBufferHeight : 1080, app.root.scale.x)
 
+    // 傾きは毎フレーム測る（散っている最中に再認識しても、その瞬間の姿勢を基準にするため）。
+    // 使うのは BREATHE 中だけ。
+    tilt.update(app.camera, app.card)
     if (app.state === STATE.BREATHE) {
-      tilt.update(app.camera, app.root)
       field.setGravity(tilt.downCard.x, tilt.downCard.y)
       const spilling = tilt.degrees > TILT.spillDeg
-      field.setSpill(spilling, tilt.downCard.x, tilt.downCard.y, tilt.downCard, t)
+      field.setSpill(spilling, tilt.downCard.x, tilt.downCard.y, tilt.downLocal, t)
     }
   },
 
   listeners: [
-    {event: 'reality.imagefound', process: onImage},
-    {event: 'reality.imageupdated', process: onImage},
+    {event: 'reality.imagefound', process: e => onImage(e, true)},
+    {event: 'reality.imageupdated', process: e => onImage(e, false)},
     {event: 'reality.imagelost', process: onImageLost},
   ],
 })
@@ -290,7 +325,10 @@ const onxrloaded = () => {
     XRExtras.FullWindowCanvas.pipelineModule(),
     showcasePipelineModule(),
   ])
-  XR8.run({canvas: document.getElementById('camerafeed')})
+  XR8.run({
+    canvas: document.getElementById('camerafeed'),
+    ...(PARAMS.has('anydevice') ? {allowedDevices: XR8.XrConfig.device().ANY} : {}),
+  })
 }
 
 if (window.XR8) {

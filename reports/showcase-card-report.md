@@ -344,6 +344,132 @@ URL: **https://nao-matsunami.github.io/xr-ar-lab/showcase/**
 
 ---
 
+## 追記 2026-10-06：占有板の位置ずれと、傾きの基準
+
+実機で出ていた 2 件を直した。
+
+1. **黒い占有板が名刺に重ならず、縦長で数倍大きく宙に浮く**
+2. **認識した瞬間から点が片側に寄っている**（傾きを絶対角で見ていたため）
+
+### E1. 原因：`scale` の意味の取り違えと、エンジンが返す軸の 90° ずれ
+
+**実測で確かめた。** ヘッドレス Chrome に、名刺の PNG を合成した y4m を偽カメラとして流し
+（`--use-file-for-fake-video-capture`）、`?anydevice` 付きで `XR8.run` を回した。
+MIT エンジンが実際に返した `reality.imagefound` の `detail` は次のとおり
+（正面・面内 12° 回転で写したもの）：
+
+```
+position  {x: -0.00003, y: 1.99873, z: -0.96730}
+rotation  {x: 0.0006, y: 0.0004, z: -0.1045, w: -0.9945}   ← Z 回り 12°
+scale     0.6318985
+scaledWidth 1.5444947   scaledHeight 1
+```
+
+| 量 | ドキュメント / 旧コードの想定 | 実際（実測とエンジンのソース） |
+|---|---|---|
+| `scale` | ターゲットの物理サイズ（m） | `max(widthInMeters, heightInMeters)`（`tracking-controller.ts:716`）。中身はエンジン内部の任意単位で、**名刺の長辺のワールド長**。写る大きさを変えても 0.6319 のまま変わらず、遠近は `position` の距離に出る（330px 幅で z=−0.968、400px 幅で z=−0.798） |
+| `scaledWidth` / `scaledHeight` | `× scale` でシーン上の幅・高さ | `properties.width/height` から作るアスペクト比 1.544 / 1（`:923`）。**`× scale` しても実寸にならない**（幅が 1.544 倍に膨らむ） |
+| `physicalWidthInMeters` | 85mm を伝えている | JS のメタデータには載るが、**C++ 側は一切読んでいない**（`reality/engine` 以下に参照ゼロ）。メートル単位にはならない |
+| 姿勢の軸 | ローカル +X = 名刺の横（85mm） | 横長画像はエンジン内で **90° 回して縦長として読まれる**（`detection-image-loader.cc` の `rotation_ = width > height ? 90 : 0`）。返る姿勢もその縦長画像の軸なので、**+X = 短辺（55mm）、+Y = 長辺（85mm）** |
+
+旧コードは `root.scale = detail.scale * scaledHeight / 55` としていた。これは「`scale × scaledHeight` が
+高さ 55mm」とみなす計算で、mm あたりの倍率は正しい値（`scale / 85`）の **85/55 = 1.545 倍**だった。
+しかも 85mm の辺をローカル X（実際は名刺の短辺方向）に置いていたので、板は 90° 回って**縦長**になる。
+そのため画面上では、名刺の短辺方向に 85×1.545 = 131mm 相当、長辺方向に 55×1.545 = 85mm 相当の板が出ていた。
+名刺の短辺に対しては 131/55 ≒ **2.4 倍**になり、「縦長で数倍大きい」という症状はこれで説明がつく。
+宙に浮いて見えたのも同じ原因で、外にはみ出した部分は名刺の上に重なる場所が無いので浮いて見えていた
+（中心の位置と距離は正しかった）。
+
+旧コードのまま偽カメラで撮った画面では、板が画面全体を覆い、名刺はまったく見えなかった。
+倍率だけ `scale / 85` に直して板を半透明にすると、大きさは合うものの、名刺に対して直角に回った板が
+上下にはみ出していた。これで残りの原因が軸の 90° ずれだと切り分けられた。
+
+### E2. 修正
+
+- `targets.js` に `cardPoseFromDetail(detail)` を追加。
+  - `mmToWorld = detail.scale / 85`（長辺 85mm を `scale` に合わせる）
+  - `roll = −90°`（`scaledWidth > scaledHeight`、つまり横長 PNG のとき）
+  - `aspectRatio`：画像アスペクトと 85/55 の比（実測 0.999。663px の丸め分）。ログに出す
+- `main.js`：`root`（ターゲット姿勢 + `mmToWorld`）の子に `card` グループ（`rotation.z = roll`）を挟み、
+  **板と点群はカードローカル mm（x 右・y 上）のまま `card` に付ける**。
+  `particles.js` の座標系（左上原点 mm → 中心原点 mm、`PlaneGeometry(85, 55)`）は元から正しかったので、
+  形状の変更は不要。`uWorldScale`（点の見かけの大きさ）は `root.scale.x` のままで正しい値になる
+- 認識時に `[showcase] pose: scale=… scaled=…x… -> mm=… world, roll=-90deg, aspect=…` をログに出す
+- `?debug`：板を半透明の赤にし、名刺の左上に黄色の目印を出す。実機で重なりを見る用
+- `?anydevice`：`allowedDevices: ANY` で `XR8.run`。デスクトップ（ヘッドレス + 偽カメラ）検証用
+- `tools/headless-check.mjs`：`CHROME_EXTRA_ARGS` で Chrome に引数を足せるようにした（偽カメラの映像を指定するため）
+
+修正後、名刺の左上に赤い目印を付けた映像に `?debug` を重ねると、**黄色の目印が赤い目印にぴったり乗り**、
+外形も一致した（正面 0° と面内 12° の両方）。点群も、印刷された点の上にそのまま重なる
+（ロゴタイプも斜めに欠けた角も一致）。
+
+### E3. 傾きを「認識時の姿勢からの相対角」に
+
+旧 `tilt.js` は、「下」をカードローカルに引き戻した `downCard.xy` をそのまま面内重力にしていた。
+DeviceMotion が無いとき（許可前は常にそう）は「下」の代わりに**画面の下方向**を使うので、
+名刺を斜めから覗いて認識しただけで、もう傾いていると判定される。偽カメラで正面から撮った場合でも、
+認識直後から点が下側へ滑り、縁に溜まっていた。
+
+新しい `tilt.js` は次のように動く：
+
+- `resetBase()` を呼ぶと、次の `update()` の「下」（カードローカル）を基準として覚える
+  （基準を −Z に回す四元数 `_baseQ` を作る）
+- 以降は `downCard = _baseQ · downLocal`。基準姿勢のままなら `(0, 0, −1)` なので、**面内重力は 0**
+- `degrees` は基準との角度差。こぼれ判定（`spillDeg` 40°）はこの相対角で行う
+- `TILT.deadzoneDeg = 4`（`config.js`）：これ以下はトラッキングの揺れとみなして重力 0。
+  4° を越えた分を `sin` で面内重力の大きさにする（`TILT.biasMm` によるわずかな寄りも、静止時には出ない）
+- 基準を取り直すタイミング：
+  - **`reality.imagefound` のたび**（見失ってから再認識した場合を含む）
+  - root が非表示から表示に変わった最初の更新。最初の `imagefound` は点群の読み込みに使われていて、
+    その時点ではまだ root が無いので、こちらで拾う
+  - 「下」の情報源が切り替わったとき（最初のタップで DeviceMotion の許可が下りた瞬間）
+- `tilt.update()` は状態に関係なく毎フレーム回す（散っている最中に再認識しても、その瞬間の姿勢が基準になる）。
+  面内重力を点群に渡すのは従来どおり `BREATHE` 中だけ
+- こぼれた点が落ちていく向き（`uSpillDown`）は、相対ではなく今の実際の「下」（`downLocal`）を使う
+
+偽カメラの実ページでは、認識後 `tilt.degrees = 0.07°`、状態は `BREATHE` で、点は印刷位置に留まっている。
+
+### E4. `tools/showcase-selftest.html` での確認
+
+既存の 6 タイルに 2 タイルと数値チェックを足した。3 バリアントとも `ok: true`、
+コンソールエラー 0、外部 URL 0。
+
+| チェック | 内容 | 結果 |
+|---|---|---|
+| `pose` | 実測の `detail` → `root`/`card` → 名刺の 4 隅。長辺 = `scale`（0.6319）、短辺 = `scale × 55/85`（0.4089）、カード左上がエンジン軸で (+27.5, +42.5) | 全部一致 |
+| `tilt.atFound` | 斜め 35° で認識（旧実装の絶対角だと 56.8° 傾いていると判定される姿勢） | 0°、重力 (0, 0) |
+| `tilt.jitter3deg` | そこから 3° | 重力 0（デッドゾーン内） |
+| `tilt.tilt25` | 25° 傾ける | 25.00°、面内重力 = sin 21° |
+| `tilt.tilt50` | 50° | 50.00°、こぼれ判定 on |
+| `tilt.refound` | 50° のまま `resetBase()`（再認識） | 0° に戻る |
+| `tilt.backToOld` | 再認識後に元の姿勢へ | 今度はそちらが 50° |
+| `tilt.sourceSwitch` | DeviceMotion に切り替わる | 0° で取り直し |
+| `restPixelsDiff` | 「35° で認識直後」のタイルと、同じ位置に描いた印刷どおりの静止 | **0 バイト差**（同一の画） |
+| `tiltPixelsDiff` | 相対 25° のタイル | 差あり（滑っている） |
+
+確認コマンド（偽カメラの y4m は、`front-target-normal.png` を灰色の背景に置いた 640×480 の静止画を
+`ffmpeg -loop 1 -i frame.png -t 4 -r 30 -pix_fmt yuv420p card.y4m` で動画にしたもの）：
+
+```bash
+node tools/headless-check.mjs "http://127.0.0.1:8811/tools/showcase-selftest.html?variant=normal" \
+  --wait 9000 --eval "JSON.stringify(window.__selftest.checks)"
+CHROME_EXTRA_ARGS="--use-file-for-fake-video-capture=/tmp/card.y4m" \
+  node tools/headless-check.mjs "http://127.0.0.1:8811/showcase/?anydevice&debug" \
+  --wait 22000 --screenshot /tmp/overlay.png --eval "window.__showcase.tilt.degrees"
+```
+
+### E5. 実機でまだ見ていないこと
+
+- 偽カメラはデスクトップ（`allowedDevices: ANY`）での確認。**Pixel 7 での見た目は未確認**。
+  `scale` と軸の性質はエンジン（`detection-image-loader.cc` / `tracking-controller.ts`）の処理から決まり、
+  端末には依存しないはずだが、念のため https://nao-matsunami.github.io/xr-ar-lab/showcase/?debug
+  で、赤い板が名刺にぴったり重なり、黄色の目印が名刺の左上に来ることを見てほしい。
+  コンソールには `[showcase] pose: … roll=-90deg, aspect=0.999` が出る
+- DeviceMotion を使った場合の傾きの向き（端末座標 → カメラ座標の対応）は、相対化しても残る誤差がありうる。
+  手前に傾けて手前に滑るかを見る（D3 の 5・6 番）
+
+---
+
 ## 再生成の手順
 
 ```bash

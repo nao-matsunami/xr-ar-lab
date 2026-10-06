@@ -36,6 +36,8 @@ const chrome = spawn(CHROME, [
   '--use-fake-device-for-media-stream',
   '--autoplay-policy=no-user-gesture-required',
   '--window-size=800,1200',
+  // 偽カメラに任意の映像を流すときなど: CHROME_EXTRA_ARGS="--use-file-for-fake-video-capture=/tmp/card.y4m"
+  ...(process.env.CHROME_EXTRA_ARGS || '').split(' ').filter(Boolean),
   'about:blank',
 ], {stdio: ['ignore', 'ignore', 'pipe']})
 
