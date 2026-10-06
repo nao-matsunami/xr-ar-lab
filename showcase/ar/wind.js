@@ -8,7 +8,7 @@
 // 後者が無いと、会話・拍手・環境音で簡単に誤爆する。息はほぼ低域の乱流ノイズなので
 // 帯域比で分けられる。閾値は config.js。
 
-import {WIND} from './config.js'
+import {WIND, WIND_PROFILE} from './config.js'
 
 export class Wind {
   /**
@@ -27,21 +27,44 @@ export class Wind {
     this.stream = null
     this._td = null
     this._fd = null
+    // 以下は ?debug の表示用（判定には使わない）
+    this.micState = 'idle'      // idle / requesting / granted / denied:<name> / unsupported
+    this.rms = 0
+    this.lowRatio = 0
+    this.lastEvent = null       // {at: Date.now(), strength, source: 'mic' | 'longpress'}
   }
 
   /** 認識後の最初のタップから呼ぶ。拒否されたら false（長押しにフォールバック）。 */
   async request() {
     const ctx = this.audio.ensureCtx()
     if (!ctx || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      this.micState = 'unsupported'
+      console.log(`[showcase] wind: getUserMedia unavailable (AudioContext=${!!ctx}, ` +
+        `mediaDevices=${!!navigator.mediaDevices}, secure=${window.isSecureContext})`)
       return false
     }
+    console.log(`[showcase] wind: profile=${WIND_PROFILE} rmsThreshold=${WIND.rmsThreshold} ` +
+      `lowBandRatio=${WIND.lowBandRatio} holdS=${WIND.holdS}`)
+    console.log(`[showcase] wind: AudioContext state=${ctx.state} sampleRate=${ctx.sampleRate}`)
+    this.micState = 'requesting'
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({
         audio: {echoCancellation: false, noiseSuppression: false, autoGainControl: false},
       })
     } catch (e) {
-      console.log('[showcase] microphone denied, falling back to long press:', e && e.name)
+      this.micState = `denied:${e && e.name}`
+      console.log('[showcase] wind: getUserMedia failed, falling back to long press:',
+        e && e.name, e && e.message)
       return false
+    }
+    const track = this.stream.getAudioTracks()[0]
+    console.log(`[showcase] wind: getUserMedia ok: "${track && track.label}" ` +
+      `readyState=${track && track.readyState} muted=${track && track.muted} ` +
+      `settings=${JSON.stringify(track && track.getSettings ? track.getSettings() : {})}`)
+    if (track) {
+      track.addEventListener('ended', () => console.log('[showcase] wind: mic track ended'))
+      track.addEventListener('mute', () => console.log('[showcase] wind: mic track muted'))
+      track.addEventListener('unmute', () => console.log('[showcase] wind: mic track unmuted'))
     }
     const src = ctx.createMediaStreamSource(this.stream)
     this.analyser = ctx.createAnalyser()
@@ -51,8 +74,16 @@ export class Wind {
     this._td = new Float32Array(this.analyser.fftSize)
     this._fd = new Float32Array(this.analyser.frequencyBinCount)
     this.granted = true
-    console.log('[showcase] microphone granted')
+    this.micState = 'granted'
+    console.log(`[showcase] wind: AnalyserNode connected: MediaStreamSource -> Analyser ` +
+      `(fftSize=${this.analyser.fftSize}, bins=${this.analyser.frequencyBinCount}, ` +
+      `lowBand bins=${this._lowCut()}, AudioContext state=${ctx.state})`)
     return true
+  }
+
+  _lowCut() {
+    const nyquist = this.audio.ctx.sampleRate / 2
+    return Math.max(1, Math.round(WIND.lowBandHz / nyquist * this._fd.length))
   }
 
   /** 毎フレーム呼ぶ。 */
@@ -63,21 +94,20 @@ export class Wind {
     let sum = 0
     for (let i = 0; i < this._td.length; i++) { sum += this._td[i] * this._td[i] }
     const rms = Math.sqrt(sum / this._td.length)
+    this.rms = rms
 
-    let low = false
-    if (rms > WIND.rmsThreshold) {
-      a.getFloatFrequencyData(this._fd)
-      const nyquist = this.audio.ctx.sampleRate / 2
-      const cut = Math.max(1, Math.round(WIND.lowBandHz / nyquist * this._fd.length))
-      let lowE = 0
-      let allE = 0
-      for (let i = 0; i < this._fd.length; i++) {
-        const e = Math.pow(10, this._fd[i] / 10)  // dB -> パワー
-        allE += e
-        if (i < cut) { lowE += e }
-      }
-      low = allE > 0 && (lowE / allE) >= WIND.lowBandRatio
+    // 帯域比は ?debug で常に見えるよう毎フレーム出す（512 ビン、負荷は無視できる）
+    a.getFloatFrequencyData(this._fd)
+    const cut = this._lowCut()
+    let lowE = 0
+    let allE = 0
+    for (let i = 0; i < this._fd.length; i++) {
+      const e = Math.pow(10, this._fd[i] / 10)  // dB -> パワー
+      allE += e
+      if (i < cut) { lowE += e }
     }
+    this.lowRatio = allE > 0 ? lowE / allE : 0
+    const low = this.lowRatio >= WIND.lowBandRatio
 
     const over = rms > WIND.rmsThreshold && low
     if (over) {
@@ -87,7 +117,7 @@ export class Wind {
       this.lastStrength = Math.max(this.lastStrength, strength)
       if (!this.blowing && now - this.overSince >= WIND.holdS) {
         this.blowing = true
-        this.onWind(this.lastStrength)
+        this._fire(this.lastStrength, 'mic')
       }
     } else {
       this.overSince = -1
@@ -97,6 +127,12 @@ export class Wind {
         this.onCalm()
       }
     }
+  }
+
+  _fire(strength, source) {
+    this.lastEvent = {at: Date.now(), strength, source}
+    console.log(`[showcase] wind: fired (${source}, strength=${strength.toFixed(2)})`)
+    this.onWind(strength)
   }
 
   /** マイクが使えないときの代替。カードの長押し 500ms。 */
@@ -109,7 +145,7 @@ export class Wind {
       timer = setTimeout(() => {
         fired = true
         this.blowing = true
-        this.onWind(0.85)
+        this._fire(0.85, 'longpress')
       }, WIND.longPressS * 1000)
     }
     const up = () => {

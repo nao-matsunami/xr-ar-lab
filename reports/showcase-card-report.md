@@ -470,6 +470,116 @@ CHROME_EXTRA_ARGS="--use-file-for-fake-video-capture=/tmp/card.y4m" \
 
 ---
 
+## F. 風判定のデバッグ（実機で反応しない件）
+
+Pixel 7 で吹いても散らない、という報告を受けて、実機で判定値を目視できるようにした。
+判定ロジック自体（RMS + 低域比 + 持続）は変えていない。
+
+### F1. 現状の閾値（`showcase/ar/config.js` の `WIND`、この時点の値）
+
+| キー | 値 | 意味 |
+|---|---|---|
+| `rmsThreshold` | **0.055** | 時間領域 RMS（Float, ±1 フルスケール）の閾値 |
+| `holdS` | 0.15 | 上の 2 条件を連続で満たす必要がある時間 (s) |
+| `lowBandHz` | 150 | 「低域」の上限。fftSize 1024 / 48kHz ではビン 0〜2（約 0〜140Hz）になる |
+| `lowBandRatio` | 0.55 | 低域パワー / 全帯域パワー の閾値 |
+| `rmsFull` | 0.30 | 強さ 1.0 になる RMS |
+| `longPressS` | 0.5 | 長押しフォールバックの時間 (s) |
+| `reformDelayS` | 1.5 | 風が止んでから再形成までの待ち (s) |
+
+`getUserMedia` は `echoCancellation / noiseSuppression / autoGainControl` を全部 `false` で取っている。
+`AnalyserNode` は `fftSize 1024`、`smoothingTimeConstant 0.2`、destination には繋いでいない。
+
+### F2. `?wind=low`（代替設定）
+
+`config.js` に `WIND_PROFILES` を足した。URL の `?wind=<名前>` で選び、`WIND` に上書きする。
+
+| プロファイル | 上書き | 用途 |
+|---|---|---|
+| `default` | なし | 既定（`rmsThreshold 0.055`） |
+| `low` | `rmsThreshold: WIND.rmsThreshold / 2` = **0.0275** | Pixel 7 のマイク想定。AGC 無しで入力が小さい端末向け |
+
+`?debug&wind=low` で、計器を見ながら半分の閾値を試せる（`?wind=low` 単独でも効く）。
+良ければ `WIND.rmsThreshold` 自体をその値に書き換えればよい。
+
+### F3. `?debug` の計器（画面上部、debug 時のみ）
+
+`showcase/ar/debug-hud.js`。DOM なので ⏺ の録画（canvas）には写らない。`?debug` が無いときは
+要素自体を作らない（ヘッドレスで `document.getElementById('sc-debug') === null` を確認）。毎フレーム更新：
+
+```
+mic   granted  perm=granted  ctx=running  analyser=on     <- マイク状態 / Permissions API / AudioContext / Analyser
+rms   0.0123 / th 0.0275  [wind=low]                      <- 現在 RMS / 閾値 / プロファイル
+low   0.412 / th 0.55  (<=150Hz)                          <- 低域比 / 閾値
+wind  OFF  over 0.00s / hold 0.15s                        <- 判定 ON/OFF、条件を満たし続けている時間
+last  14:03:21.512 mic s=0.42 (3.2s ago)                  <- 直近の風イベント（時刻・経路・強さ）
+```
+
+閾値を越えている値は緑、越えていない値は赤。`mic` は `idle`（まだタップしていない）/ `requesting` /
+`granted` / `denied:<例外名>` / `unsupported`。`last` の経路は `mic` か `longpress`。
+低域比は以前は RMS が閾値を越えたときしか計算していなかったが、計器に出すため毎フレーム計算するようにした
+（判定結果は同じ）。
+
+### F4. コンソールログ（`?debug` に関係なく常に出る）
+
+```
+[showcase] AudioContext created: state=suspended sampleRate=48000
+[showcase] AudioContext state -> running
+[showcase] AudioContext arm: state=running
+[showcase] wind: profile=default rmsThreshold=0.055 lowBandRatio=0.55 holdS=0.15
+[showcase] wind: AudioContext state=running sampleRate=48000
+[showcase] wind: getUserMedia ok: "<トラック名>" readyState=live muted=false settings={…}
+[showcase] wind: AnalyserNode connected: MediaStreamSource -> Analyser (fftSize=1024, bins=512, lowBand bins=3, AudioContext state=running)
+[showcase] wind: fired (mic, strength=0.42)
+```
+
+失敗時は `getUserMedia failed, falling back to long press: NotAllowedError …`、
+`getUserMedia unavailable (… secure=false)`、`AudioContext resume failed: …`。
+トラックの `ended` / `mute` / `unmute` も出る（他アプリにマイクを取られた場合の確認用）。
+`settings` には端末が実際に受け入れた `autoGainControl` / `noiseSuppression` / `sampleRate` が入る。
+
+### F5. selftest（`tools/showcase-selftest.html` の `checks.wind`）
+
+| チェック | 内容 | 結果 |
+|---|---|---|
+| `shortTapIgnored` | 250ms で離す | 風なし ✅ |
+| `longPressFires` | 500ms 超押し続ける | 強さ 0.85 で 1 回発火、`blowing=true`、`lastEvent.source='longpress'` ✅ |
+| `releaseCalms` | 離す | `onCalm` 1 回 ✅ |
+| `cancelCalms` | 長押し中に `pointercancel` | `onCalm` ✅ |
+| `disabledWhenMicGranted` | マイク許可済みで長押し | 発火しない ✅ |
+| `micBreathFires` | スタブ Analyser: RMS = 閾値×1.5、低域優勢（比 0.983） | 0.15s 後に発火 ✅ |
+| `micVoiceIgnored` | RMS = 閾値×1.5、高域優勢（比 0） | 発火しない ✅ |
+| `micQuietIgnored` | RMS = 閾値×0.8、低域優勢 | 発火しない ✅ |
+| `lowProfileHalf` | `WIND_PROFILES.low.rmsThreshold` が既定の半分 | ✅ |
+
+3 バリアント × 既定、`normal` × `?wind=low`（`rmsThreshold 0.0275` で同じチェックが通る）で `ok: true`、
+コンソールエラー 0、外部 URL 0。
+
+ヘッドレス Chrome の偽マイク（`--use-fake-device-for-media-stream`、1 秒ごとの短いビープ）で
+`Audio.arm()` → `Wind.request()` → `update()` を回し、RMS 最大 0.66 が Analyser から読めることも確認した
+（destination 未接続でも Analyser は値を返す）。ビープは 150ms 未満なので発火はしない（正しい）。
+実ページ `?anydevice&debug` で 🌬 を押すと計器が `mic granted / ctx=running / analyser=on` になる。
+
+```bash
+node tools/headless-check.mjs "http://127.0.0.1:8811/tools/showcase-selftest.html?variant=normal&wind=low" \
+  --wait 12000 --eval "JSON.stringify(window.__selftest.checks.wind)"
+```
+
+### F6. 実機（Pixel 7）で見てほしいこと
+
+https://nao-matsunami.github.io/xr-ar-lab/showcase/?debug&wind=low を開いて名刺を認識させ、1 回タップしてから吹く。
+
+1. `mic` が `granted`、`ctx=running`、`analyser=on` になるか。ならなければそこが原因（コンソールの F4 のログを見る）
+2. 吹いたときの `rms` の最大値。0.0275 に届かなければ閾値をさらに下げる必要がある
+3. 吹いたときの `low` の値。**`rms` は越えているのに `low` が 0.55 に届かない**なら、帯域比が原因。
+   端末側の入力経路で低域が削られている可能性がある（推測、未確認）。その場合は `lowBandRatio` を下げるか
+   `lowBandHz` を上げる
+4. 喋ったとき・環境音で `rms` / `low` がどこまで上がるか（誤爆の余裕を見る）
+
+上の 4 つの数字があれば閾値を決められる。
+
+---
+
 ## 再生成の手順
 
 ```bash

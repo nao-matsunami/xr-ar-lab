@@ -24,6 +24,10 @@ export class Audio {
       // 録画に音を載せるための分岐
       this.recordDest = this.ctx.createMediaStreamDestination()
       this.master.connect(this.recordDest)
+      console.log(`[showcase] AudioContext created: state=${this.ctx.state} sampleRate=${this.ctx.sampleRate}`)
+      this.ctx.addEventListener('statechange', () => {
+        console.log(`[showcase] AudioContext state -> ${this.ctx.state}`)
+      })
     }
     return this.ctx
   }
@@ -33,9 +37,13 @@ export class Audio {
     const ctx = this.ensureCtx()
     if (!ctx) { return false }
     if (ctx.state === 'suspended') {
-      try { await ctx.resume() } catch (e) { /* ユーザー操作が要る端末では次のタップで通る */ }
+      try { await ctx.resume() } catch (e) {
+        // ユーザー操作が要る端末では次のタップで通る
+        console.log('[showcase] AudioContext resume failed:', e && e.name, e && e.message)
+      }
     }
     this.armed = ctx.state === 'running'
+    console.log(`[showcase] AudioContext arm: state=${ctx.state}`)
     return this.armed
   }
 

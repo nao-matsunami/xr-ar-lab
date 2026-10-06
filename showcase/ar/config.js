@@ -63,6 +63,16 @@ export const WIND = {
   reformDelayS: 1.5,
 }
 
+// 風判定の代替設定。URL の ?wind=<名前> で選ぶ（?debug と併用すると画面上部に判定値が出る）。
+//   low: Pixel 7 のマイク想定。息を吹いても RMS が既定の閾値に届かない端末向けに rmsThreshold を半分に
+export const WIND_PROFILES = {
+  default: {},
+  low: {rmsThreshold: WIND.rmsThreshold / 2},
+}
+const windParam = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('wind')
+export const WIND_PROFILE = Object.hasOwn(WIND_PROFILES, windParam) ? windParam : 'default'
+Object.assign(WIND, WIND_PROFILES[WIND_PROFILE])
+
 export const SCATTER = {
   // 風の強さ 1.0 のときの初速 (mm/s)
   speedMm: 420,

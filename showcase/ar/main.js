@@ -14,12 +14,15 @@ import {Wind} from './wind.js'
 import {Tilt} from './tilt.js'
 import {Capture} from './capture.js'
 import {Ui} from './ui.js'
+import {DebugHud} from './debug-hud.js'
 
 // XR8 の three.js レンダラは window.THREE を見る（threejs-renderer.ts）。
 window.THREE = {...THREE_NS}
 const THREE = window.THREE
 
 // ?debug: 占有板を半透明の赤にし、カード左上に黄色の目印を出す（重なりの確認用）
+//         画面上部に風判定の計器（マイク許可・RMS・低域比・閾値・判定・直近の発火）を出す
+// ?wind=low: 風判定の rmsThreshold を半分にする（config.js の WIND_PROFILES）
 // ?anydevice: デスクトップ（ヘッドレス Chrome + 偽カメラ）でもパイプラインを回す
 const PARAMS = new URLSearchParams(location.search)
 const DEBUG = PARAMS.has('debug')
@@ -91,6 +94,7 @@ const onCalm = () => {
 }
 
 const wind = new Wind(audio, onWind, onCalm)
+const hud = DEBUG ? new DebugHud(wind, audio) : null
 
 // --------------------------------------------------------------------------
 // 認識後の最初のタップ: 音の解禁 + マイク許可 + DeviceMotion 許可
@@ -338,4 +342,4 @@ if (window.XR8) {
 }
 
 // デバッグ用（実機のコンソールから触れるように）
-window.__showcase = {app, audio, wind, tilt, ui, MODE, STATE}
+window.__showcase = {app, audio, wind, tilt, ui, hud, MODE, STATE}

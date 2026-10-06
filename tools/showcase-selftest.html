@@ -21,9 +21,10 @@
 <script type="module">
 import * as THREE_NS from 'three'
 import {ParticleField, MODE} from '../showcase/ar/particles.js'
-import {CARD, TILT} from '../showcase/ar/config.js'
+import {CARD, TILT, WIND, WIND_PROFILE, WIND_PROFILES} from '../showcase/ar/config.js'
 import {cardPoseFromDetail} from '../showcase/ar/targets.js'
 import {Tilt} from '../showcase/ar/tilt.js'
+import {Wind} from '../showcase/ar/wind.js'
 
 const THREE = THREE_NS
 window.THREE = THREE
@@ -162,6 +163,68 @@ const checkTilt = (THREE) => {
     out.refoundIsLevel && out.backToOldOk && out.sourceSwitchRebased
   return {out, grav: [out.tilt25.gx, out.tilt25.gy]}
 }
+
+// (3) 風: マイク無しの長押しフォールバックと、マイク経路の判定（AnalyserNode はスタブ）
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+const checkWind = async () => {
+  const out = {profile: WIND_PROFILE, rmsThreshold: WIND.rmsThreshold,
+    lowProfileThreshold: WIND_PROFILES.low.rmsThreshold, longPressS: WIND.longPressS}
+  const fakeAudio = {ctx: {sampleRate: 48000}, ensureCtx() { return this.ctx }}
+  const log = []
+  const wind = new Wind(fakeAudio, s => log.push(['wind', s]), () => log.push(['calm']))
+  const el = document.createElement('div')
+  document.body.appendChild(el)
+  wind.attachLongPress(el)
+  const press = (type) => el.dispatchEvent(new PointerEvent(type, {bubbles: true}))
+  const holdMs = WIND.longPressS * 1000
+
+  // 短いタップ（長押し時間の半分）では吹かない
+  press('pointerdown'); await sleep(holdMs / 2); press('pointerup'); await sleep(holdMs)
+  out.shortTapIgnored = log.length === 0
+  // 長押しで 0.85 の風 -> 離すと止む
+  press('pointerdown'); await sleep(holdMs + 150)
+  out.longPressFires = log.length === 1 && log[0][0] === 'wind' && log[0][1] === 0.85 && wind.blowing
+  out.lastEventSource = wind.lastEvent && wind.lastEvent.source
+  press('pointerup')
+  out.releaseCalms = log.length === 2 && log[1][0] === 'calm' && !wind.blowing
+  // pointercancel（スクロール等で奪われた）でも止む
+  press('pointerdown'); await sleep(holdMs + 150); press('pointercancel')
+  out.cancelCalms = log.length === 4 && log[3][0] === 'calm' && !wind.blowing
+  // マイクが通っていれば長押しは無効
+  wind.granted = true
+  press('pointerdown'); await sleep(holdMs + 150); press('pointerup')
+  out.disabledWhenMicGranted = log.length === 4
+  el.remove()
+
+  // マイク経路: 指定の RMS / 低域比を返すスタブ Analyser で update() を回す
+  const micRun = (rms, lowDb, highDb) => {
+    const events = []
+    const w = new Wind(fakeAudio, s => events.push('wind'), () => events.push('calm'))
+    w.granted = true
+    w._td = new Float32Array(1024)
+    w._fd = new Float32Array(512)
+    w.analyser = {
+      getFloatTimeDomainData: a => a.fill(rms),
+      getFloatFrequencyData: a => { for (let i = 0; i < a.length; i++) { a[i] = i < 3 ? lowDb : highDb } },
+    }
+    for (let k = 0; k <= 20; k++) { w.update(k * 0.02) }   // 0.4 秒
+    return {events, rms: +w.rms.toFixed(4), lowRatio: +w.lowRatio.toFixed(3)}
+  }
+  out.micBreath = micRun(WIND.rmsThreshold * 1.5, -20, -60)      // 低域優勢の強い音
+  out.micBreathFires = out.micBreath.events[0] === 'wind'
+  out.micVoice = micRun(WIND.rmsThreshold * 1.5, -60, -40)       // 大きいが高域優勢（声）
+  out.micVoiceIgnored = out.micVoice.events.length === 0
+  out.micQuiet = micRun(WIND.rmsThreshold * 0.8, -20, -60)       // 低域だが閾値未満
+  out.micQuietIgnored = out.micQuiet.events.length === 0
+  out.lowProfileHalf = Math.abs(WIND_PROFILES.low.rmsThreshold * 2 -
+    (WIND_PROFILE === 'low' ? WIND.rmsThreshold * 2 : WIND.rmsThreshold)) < 1e-9
+
+  out.ok = out.shortTapIgnored && out.longPressFires && out.releaseCalms && out.cancelCalms &&
+    out.disabledWhenMicGranted && out.micBreathFires && out.micVoiceIgnored && out.micQuietIgnored &&
+    out.lowProfileHalf
+  return out
+}
+
 window.__selftest = report
 
 const main = async () => {
@@ -196,6 +259,7 @@ const main = async () => {
   report.checks.pose = checkPose(THREE)
   const tiltCheck = checkTilt(THREE)
   report.checks.tilt = tiltCheck.out
+  report.checks.wind = await checkWind()
 
   const setup = [
     {label: 'breathe (printed rest)', mode: MODE.BREATHE, t: 1.0},
@@ -268,7 +332,8 @@ const main = async () => {
   report.pointsDrawn = field.drawCount
   report.cardMm = [CARD.widthMm, CARD.heightMm]
   report.ok = report.glError === 0 && report.drawCalls > 0 &&
-    report.checks.pose.ok && report.checks.tilt.ok && report.checks.breatheStaysPrinted
+    report.checks.pose.ok && report.checks.tilt.ok && report.checks.wind.ok &&
+    report.checks.breatheStaysPrinted
 }
 
 main().then(() => { window.__selftestDone = true })
