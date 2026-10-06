@@ -94,13 +94,16 @@ HALO_R_FACTOR = 2.10    # 隙間の中のポアソン半径 = r_out * これ
 # 外側はばらつきを大きく取る。点サイズが一定だと画像が「一様な高周波ノイズ」に
 # なってしまい、カメラで縮小されたときに特徴が潰れる。0.15〜0.40 に散らして
 # 複数スケールの塊を作ると、繰り返し感も消えて検出にも効く。
+# 背景（外側）だけは下限を 0.25mm に上げる。細かすぎる点は印刷で潰れやすく、
+# カメラから見ても特徴にならない。ロゴとハローは字面のために従来の 0.15 のまま。
 DIA_MIN, DIA_MAX = 0.15, 0.40
+DIA_OUT_MIN = 0.25
 DIA_OUT_MEAN, DIA_OUT_SD = 0.265, 0.085
 DIA_IN_MEAN, DIA_IN_SD = 0.200, 0.035
 DIA_HALO_MEAN, DIA_HALO_SD = 0.165, 0.025
 
 # 明度 0..1 （0 = 紙色、1 = 現行ロゴの明るさ #c8c7c7）
-LUM_OUT = (0.20, 0.45)
+LUM_OUT = (0.45, 0.65)
 LUM_IN = (0.88, 1.00)
 LUM_HALO = (0.16, 0.34)
 
@@ -560,7 +563,8 @@ def gen_variant(card, name, params, seed, outdir, ardir, quiet=False):
     dia = rng.normal(DIA_OUT_MEAN, DIA_OUT_SD, n)
     dia = np.where(in_halo, rng.normal(DIA_HALO_MEAN, DIA_HALO_SD, n), dia)
     dia = np.where(in_logo, rng.normal(DIA_IN_MEAN, DIA_IN_SD, n), dia)
-    dia = np.clip(dia, DIA_MIN, DIA_MAX)
+    dia_lo = np.where(in_logo | in_halo, DIA_MIN, DIA_OUT_MIN)
+    dia = np.clip(dia, dia_lo, DIA_MAX)
 
     lum = rng.uniform(LUM_OUT[0], LUM_OUT[1], n)
     lum = np.where(in_halo, rng.uniform(LUM_HALO[0], LUM_HALO[1], n), lum)
