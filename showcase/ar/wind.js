@@ -7,6 +7,9 @@
 //
 // 後者が無いと、会話・拍手・環境音で簡単に誤爆する。息はほぼ低域の乱流ノイズなので
 // 帯域比で分けられる。閾値は config.js。
+//
+// 発火後 cooldownS の間は次の発火を受け付けない。強さは閾値超過量で
+// strengthMin..strengthMax に正規化する（閾値ちょうどで min、閾値の strengthFullX 倍で max）。
 
 import {WIND, WIND_PROFILE} from './config.js'
 
@@ -23,6 +26,7 @@ export class Wind {
     this.granted = false
     this.blowing = false
     this.overSince = -1
+    this.lastFireAt = -Infinity  // update() の now 基準（秒）
     this.lastStrength = 0
     this.stream = null
     this._td = null
@@ -44,7 +48,7 @@ export class Wind {
       return false
     }
     console.log(`[showcase] wind: profile=${WIND_PROFILE} rmsThreshold=${WIND.rmsThreshold} ` +
-      `lowBandRatio=${WIND.lowBandRatio} holdS=${WIND.holdS}`)
+      `lowBandRatio=${WIND.lowBandRatio} holdS=${WIND.holdS} cooldownS=${WIND.cooldownS}`)
     console.log(`[showcase] wind: AudioContext state=${ctx.state} sampleRate=${ctx.sampleRate}`)
     this.micState = 'requesting'
     try {
@@ -112,21 +116,28 @@ export class Wind {
     const over = rms > WIND.rmsThreshold && low
     if (over) {
       if (this.overSince < 0) { this.overSince = now }
-      const strength = Math.min(1, Math.max(0,
-        (rms - WIND.rmsThreshold) / Math.max(1e-6, WIND.rmsFull - WIND.rmsThreshold)))
-      this.lastStrength = Math.max(this.lastStrength, strength)
-      if (!this.blowing && now - this.overSince >= WIND.holdS) {
+      this.lastStrength = Math.max(this.lastStrength, Wind.strengthOf(rms))
+      if (!this.blowing && now - this.overSince >= WIND.holdS &&
+          now - this.lastFireAt >= WIND.cooldownS) {
         this.blowing = true
+        this.lastFireAt = now
         this._fire(this.lastStrength, 'mic')
       }
     } else {
       this.overSince = -1
+      this.lastStrength = 0
       if (this.blowing) {
         this.blowing = false
-        this.lastStrength = 0
         this.onCalm()
       }
     }
+  }
+
+  /** RMS -> 強さ。閾値ちょうどで strengthMin、閾値の strengthFullX 倍以上で strengthMax。 */
+  static strengthOf(rms) {
+    const th = WIND.rmsThreshold
+    const x = Math.min(1, Math.max(0, (rms - th) / Math.max(1e-6, th * (WIND.strengthFullX - 1))))
+    return WIND.strengthMin + (WIND.strengthMax - WIND.strengthMin) * x
   }
 
   _fire(strength, source) {

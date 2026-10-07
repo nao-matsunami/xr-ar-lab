@@ -2,6 +2,8 @@
 //
 // 効果音は全部 WebAudio で合成する。音声ファイルは持たない（外部URLゼロの一部）。
 // AudioContext は 1 つだけ作り、最初のユーザー操作で resume する。
+//
+//   各音 -> master(Gain, ミュート) -> DynamicsCompressor -> destination / 録画
 
 import {AUDIO} from './config.js'
 
@@ -18,18 +20,34 @@ export class Audio {
       const AC = window.AudioContext || window.webkitAudioContext
       if (!AC) { return null }
       this.ctx = new AC()
-      this.master = this.ctx.createGain()
-      this.master.gain.value = 1
-      this.master.connect(this.ctx.destination)
-      // 録画に音を載せるための分岐
-      this.recordDest = this.ctx.createMediaStreamDestination()
-      this.master.connect(this.recordDest)
+      this.wire()
       console.log(`[showcase] AudioContext created: state=${this.ctx.state} sampleRate=${this.ctx.sampleRate}`)
       this.ctx.addEventListener('statechange', () => {
         console.log(`[showcase] AudioContext state -> ${this.ctx.state}`)
       })
     }
     return this.ctx
+  }
+
+  /** master -> コンプレッサ -> 出力。selftest は OfflineAudioContext を ctx に入れてこれを呼ぶ。 */
+  wire() {
+    const ctx = this.ctx
+    this.master = ctx.createGain()
+    this.master.gain.value = this.muted ? 0 : 1
+    // ピーク抑え。強い風で散る音が重なっても耳に刺さらないように
+    this.comp = ctx.createDynamicsCompressor()
+    this.comp.threshold.value = AUDIO.compThresholdDb
+    this.comp.knee.value = AUDIO.compKneeDb
+    this.comp.ratio.value = AUDIO.compRatio
+    this.comp.attack.value = AUDIO.compAttackS
+    this.comp.release.value = AUDIO.compReleaseS
+    this.master.connect(this.comp)
+    this.comp.connect(ctx.destination)
+    // 録画に音を載せるための分岐（OfflineAudioContext には無い）
+    if (ctx.createMediaStreamDestination) {
+      this.recordDest = ctx.createMediaStreamDestination()
+      this.comp.connect(this.recordDest)
+    }
   }
 
   /** 最初のタップで呼ぶ。 */
@@ -59,8 +77,11 @@ export class Audio {
   /** 散る瞬間: ホワイトノイズ -> バンドパス 2〜6kHz -> 短いエンベロープ。 */
   scatter(strength) {
     if (!this.ready) { return }
+    this.scatterAt(this.ctx.currentTime, strength)
+  }
+
+  scatterAt(t, strength) {
     const ctx = this.ctx
-    const t = ctx.currentTime
     const dur = AUDIO.scatterDecayS
     const len = Math.max(1, Math.floor(ctx.sampleRate * dur))
     const buf = ctx.createBuffer(1, len, ctx.sampleRate)
@@ -79,8 +100,10 @@ export class Audio {
 
     const g = ctx.createGain()
     const peak = AUDIO.scatterGain * (0.35 + 0.65 * Math.max(0, Math.min(1, strength)))
-    g.gain.setValueAtTime(0.0001, t)
-    g.gain.exponentialRampToValueAtTime(peak, t + 0.04)
+    // 0 から直線で立ち上げる。指数ランプは終端で急に立つので破裂音っぽくなる
+    const attack = AUDIO.scatterAttackS
+    g.gain.setValueAtTime(0, t)
+    g.gain.linearRampToValueAtTime(peak, t + attack)
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur)
 
     src.connect(bp)

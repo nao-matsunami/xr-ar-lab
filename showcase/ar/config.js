@@ -30,13 +30,14 @@ export const BREATHE = {
 
 export const TILT = {
   // BREATHE 中の「暗黙のチュートリアル」。傾けると点群全体がこれだけ低い側に寄る。
-  biasMm: 0.5,
+  biasMm: 0.75,
   // 傾きは認識時の姿勢からの相対角（tilt.js）。これ以下はトラッキングの揺れとみなして 0 にする。
   deadzoneDeg: 4,
-  // ここを越えると本格的に滑り出す（カード面内重力の大きさ 0..1）
-  slideThreshold: 0.18,
+  // ここを越えると本格的に滑り出す（カード面内重力の大きさ 0..1）。
+  // 0.07 は相対 8° 前後（deadzone 込み）。10° 傾ければ平均 4mm ほど低い側へ寄る。
+  slideThreshold: 0.07,
   // 閾値超過分 1.0 あたり何 mm 滑るか
-  slideGainMm: 90.0,
+  slideGainMm: 135.0,
   // 点ごとの摩擦のばらつき（0..1 の乱数にこれを掛けて滑り量を減らす）
   frictionSpread: 0.45,
   // これを越えたら縁からこぼれる
@@ -50,13 +51,18 @@ export const TILT = {
 
 export const WIND = {
   // 時間領域 RMS の閾値。これを holdS 以上連続で越えたら「風」。
-  rmsThreshold: 0.055,
-  holdS: 0.15,
+  rmsThreshold: 0.018,
+  holdS: 0.10,
   // 会話と区別するため、150Hz 以下の帯域が支配的であることも条件にする。
   lowBandHz: 150,
-  lowBandRatio: 0.55,
-  // 強さ 0..1 に正規化するときの上限 RMS
-  rmsFull: 0.30,
+  lowBandRatio: 0.45,
+  // 一度発火したら、この間は次の発火を受け付けない（誤爆・連打対策）
+  cooldownS: 0.8,
+  // 強さは閾値超過量で [strengthMin, strengthMax] に正規化する。
+  // RMS が閾値の strengthFullX 倍に達したら strengthMax。
+  strengthMin: 0.3,
+  strengthMax: 1.0,
+  strengthFullX: 5,
   // 長押しフォールバック（マイクが使えない場合）
   longPressS: 0.5,
   // 風が止んでから再形成を始めるまで
@@ -64,10 +70,10 @@ export const WIND = {
 }
 
 // 風判定の代替設定。URL の ?wind=<名前> で選ぶ（?debug と併用すると画面上部に判定値が出る）。
-//   low: Pixel 7 のマイク想定。息を吹いても RMS が既定の閾値に届かない端末向けに rmsThreshold を半分に
+//   low: Pixel 7 のマイク想定。息を吹いても RMS が既定の閾値に届かない端末向けに rmsThreshold を下げる
 export const WIND_PROFILES = {
   default: {},
-  low: {rmsThreshold: WIND.rmsThreshold / 2},
+  low: {rmsThreshold: 0.012},
 }
 const windParam = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('wind')
 export const WIND_PROFILE = Object.hasOwn(WIND_PROFILES, windParam) ? windParam : 'default'
@@ -94,12 +100,20 @@ export const REFORM = {
 }
 
 export const AUDIO = {
-  scatterGain: 0.35,
+  scatterGain: 0.21,
+  // 立ち上がりのランプ。短いと破裂音（クリック）になる
+  scatterAttackS: 0.06,
   scatterBandHz: [2000, 6000],
   scatterDecayS: 0.9,
   gatherGain: 0.16,
   gatherSweepHz: [300, 1800],
   gatherDurS: 0.45,
+  // 出力段のコンプレッサ（ピーク抑え）
+  compThresholdDb: -18,
+  compKneeDb: 12,
+  compRatio: 6,
+  compAttackS: 0.003,
+  compReleaseS: 0.25,
 }
 
 export const PERF = {

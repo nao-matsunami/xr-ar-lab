@@ -580,6 +580,69 @@ https://nao-matsunami.github.io/xr-ar-lab/showcase/?debug&wind=low を開いて�
 
 ---
 
+## G. 風と音と傾きの調整（2026-10-07）
+
+### G1. 風判定（`config.js` の `WIND` / `wind.js`）
+
+| | 旧 | 新 |
+|---|---|---|
+| `rmsThreshold`（既定） | 0.055 | **0.018** |
+| `rmsThreshold`（`?wind=low`） | 0.0275 | **0.012** |
+| `lowBandRatio` | 0.55 | **0.45** |
+| `holdS` | 0.15 | **0.10** |
+| `cooldownS` | なし | **0.8**（発火後 0.8 秒は次の発火を受け付けない） |
+| 強さ | `(rms-th)/(rmsFull-th)` を 0..1、`rmsFull=0.30` | 閾値超過量で **0.3〜1.0**（閾値ちょうどで 0.3、閾値の 5 倍で 1.0） |
+
+旧式の `rmsFull=0.30` のままだと、閾値を 0.018 に下げても強さはほぼ常に 0 付近になるので、
+上限は閾値の倍数（`strengthFullX: 5`）で決めるようにした。`?wind=low` でも同じ比率で効く。
+クールダウンはマイク経路のみで、長押しフォールバックには掛けていない。
+
+### G2. 散る音（`audio.js`）
+
+- 立ち上がり: 0.0001 から 40ms の指数ランプ → **0 から 60ms の直線ランプ**（`AUDIO.scatterAttackS`）。
+  指数ランプは終端で急に立つので破裂音っぽくなる
+- 音量: `scatterGain` 0.35 → **0.21**（60%）
+- 出力段: `master -> DynamicsCompressor(-18dB, knee 12, 6:1, attack 3ms, release 250ms) -> destination / 録画`
+
+selftest で OfflineAudioContext に実際に鳴らして測った値（strength 1.0、`normal`）:
+
+| | ピーク | 頭 5ms のエンベロープ / 最大 | 最大エンベロープの位置 |
+|---|---|---|---|
+| 1 発 | 0.19 | 0 | 64〜80ms（ランプの後） |
+| 4 発同時（最悪の重なり） | 0.37〜0.38 | 0 | 74〜98ms |
+
+### G3. 傾きの滑り（`config.js` の `TILT`）
+
+| | 旧 | 新 |
+|---|---|---|
+| `biasMm` | 0.5 | **0.75**（1.5 倍） |
+| `slideGainMm` | 90 | **135**（1.5 倍） |
+| `slideThreshold` | 0.18 | **0.07** |
+
+1.5 倍だけでは 10° で見える量にならない。相対 10° は deadzone 4° を引くと面内重力 sin6° = 0.105 で、
+旧閾値 0.18 に届かず `biasMm` 分しか動かないため。selftest で点だけ描いて明るさ重心の移動を測った値（`normal`）:
+
+| 設定 | 10° での移動 |
+|---|---|
+| 旧（0.5 / 90 / 0.18） | 0.18mm |
+| 1.5 倍のみ（0.75 / 135 / 0.18） | 0.33mm |
+| **新（0.75 / 135 / 0.07）** | **3.5mm**（sparse 3.9 / dense 3.1） |
+
+閾値を下げた分、大きく傾けたときの滑りは 1.5 倍より大きくなる（25° で計算上 旧 16mm → 新 39mm）。
+ただし縁でクランプされて溜まるので、見た目は「早めに縁に寄る」になる。
+
+### G4. selftest
+
+`checks.wind` に設定値・クールダウン・強さの範囲、`checks.audio`（上の測定）、`checks.slide`（10° で 2mm 以上）を足した。
+3 バリアント × 既定、`normal` × `?wind=low` で `ok: true`、コンソールエラー 0。
+
+```bash
+node tools/headless-check.mjs "http://127.0.0.1:8811/tools/showcase-selftest.html?variant=normal" \
+  --wait 14000 --eval "JSON.stringify(window.__selftest.checks)"
+```
+
+---
+
 ## 再生成の手順
 
 ```bash

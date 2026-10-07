@@ -21,10 +21,11 @@
 <script type="module">
 import * as THREE_NS from 'three'
 import {ParticleField, MODE} from '../showcase/ar/particles.js'
-import {CARD, TILT, WIND, WIND_PROFILE, WIND_PROFILES} from '../showcase/ar/config.js'
+import {AUDIO, CARD, TILT, WIND, WIND_PROFILE, WIND_PROFILES} from '../showcase/ar/config.js'
 import {cardPoseFromDetail} from '../showcase/ar/targets.js'
 import {Tilt} from '../showcase/ar/tilt.js'
 import {Wind} from '../showcase/ar/wind.js'
+import {Audio} from '../showcase/ar/audio.js'
 
 const THREE = THREE_NS
 window.THREE = THREE
@@ -140,6 +141,9 @@ const checkTilt = (THREE) => {
     near(Math.hypot(out.tilt25.gx, out.tilt25.gy), Math.sin((25 - TILT.deadzoneDeg) * Math.PI / 180), 1e-3) &&
     out.tilt25.deg < TILT.spillDeg
 
+  // 10° 程度でも滑りが見えること（量は描画して main() で測る）
+  out.tilt10 = at(tiltedBy(10, 1))
+
   out.tilt50 = at(tiltedBy(50, 1))
   out.tilt50Spills = out.tilt50.deg > TILT.spillDeg
 
@@ -161,14 +165,18 @@ const checkTilt = (THREE) => {
 
   out.ok = out.foundIsLevel && out.jitterIgnored && out.tilt25Ok && out.tilt50Spills &&
     out.refoundIsLevel && out.backToOldOk && out.sourceSwitchRebased
-  return {out, grav: [out.tilt25.gx, out.tilt25.gy]}
+  return {out, grav: [out.tilt25.gx, out.tilt25.gy], grav10: [out.tilt10.gx, out.tilt10.gy]}
 }
 
 // (3) 風: マイク無しの長押しフォールバックと、マイク経路の判定（AnalyserNode はスタブ）
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const checkWind = async () => {
   const out = {profile: WIND_PROFILE, rmsThreshold: WIND.rmsThreshold,
+    lowBandRatio: WIND.lowBandRatio, holdS: WIND.holdS, cooldownS: WIND.cooldownS,
     lowProfileThreshold: WIND_PROFILES.low.rmsThreshold, longPressS: WIND.longPressS}
+  out.settingsOk = WIND.rmsThreshold === (WIND_PROFILE === 'low' ? 0.012 : 0.018) &&
+    WIND.lowBandRatio === 0.45 && WIND.holdS === 0.10 && WIND.cooldownS === 0.8 &&
+    WIND_PROFILES.low.rmsThreshold === 0.012
   const fakeAudio = {ctx: {sampleRate: 48000}, ensureCtx() { return this.ctx }}
   const log = []
   const wind = new Wind(fakeAudio, s => log.push(['wind', s]), () => log.push(['calm']))
@@ -196,33 +204,113 @@ const checkWind = async () => {
   out.disabledWhenMicGranted = log.length === 4
   el.remove()
 
-  // マイク経路: 指定の RMS / 低域比を返すスタブ Analyser で update() を回す
-  const micRun = (rms, lowDb, highDb) => {
+  // マイク経路: 指定の RMS / 低域比を返すスタブ Analyser で update() を回す。
+  // rms は数値か、時刻 -> RMS の関数（0 なら無音）
+  const micRun = (rms, lowDb, highDb, seconds = 0.4) => {
     const events = []
-    const w = new Wind(fakeAudio, s => events.push('wind'), () => events.push('calm'))
+    const w = new Wind(fakeAudio, s => events.push(['wind', +s.toFixed(3), +now.toFixed(2)]),
+      () => events.push(['calm', +now.toFixed(2)]))
     w.granted = true
     w._td = new Float32Array(1024)
     w._fd = new Float32Array(512)
+    let now = 0
     w.analyser = {
-      getFloatTimeDomainData: a => a.fill(rms),
+      getFloatTimeDomainData: a => a.fill(typeof rms === 'function' ? rms(now) : rms),
       getFloatFrequencyData: a => { for (let i = 0; i < a.length; i++) { a[i] = i < 3 ? lowDb : highDb } },
     }
-    for (let k = 0; k <= 20; k++) { w.update(k * 0.02) }   // 0.4 秒
+    for (let k = 0; k * 0.02 <= seconds + 1e-9; k++) { now = k * 0.02; w.update(now) }
     return {events, rms: +w.rms.toFixed(4), lowRatio: +w.lowRatio.toFixed(3)}
   }
   out.micBreath = micRun(WIND.rmsThreshold * 1.5, -20, -60)      // 低域優勢の強い音
-  out.micBreathFires = out.micBreath.events[0] === 'wind'
+  out.micBreathFires = out.micBreath.events[0][0] === 'wind' &&
+    out.micBreath.events[0][2] >= WIND.holdS - 1e-9 && out.micBreath.events[0][2] < WIND.holdS + 0.05
+  // 強さ: 閾値すれすれ -> 0.3 付近、閾値の strengthFullX 倍以上 -> 1.0。0.3..1.0 の外に出ない
+  out.strengthJustOver = +Wind.strengthOf(WIND.rmsThreshold * 1.01).toFixed(3)
+  out.strengthMid = +Wind.strengthOf(WIND.rmsThreshold * 3).toFixed(3)
+  out.strengthHuge = +Wind.strengthOf(1.0).toFixed(3)
+  out.micLoud = micRun(WIND.rmsThreshold * 20, -20, -60)
+  out.strengthOk = near(out.strengthJustOver, 0.3, 0.01) && out.strengthMid > 0.3 &&
+    out.strengthMid < 1 && out.strengthHuge === 1 &&
+    near(out.micBreath.events[0][1], Wind.strengthOf(WIND.rmsThreshold * 1.5), 1e-3) &&
+    out.micLoud.events[0][1] === 1
+  // クールダウン: 0.2s 吹く -> 0.2s 止む -> また吹く。2 回目は発火から 0.8s 経つまで待たされる
+  const burst = t => (t < 0.2 || t >= 0.4) ? WIND.rmsThreshold * 2 : 0
+  out.micCooldown = micRun(burst, -20, -60, 1.4)
+  const fires = out.micCooldown.events.filter(e => e[0] === 'wind')
+  out.cooldownOk = fires.length === 2 && fires[1][2] - fires[0][2] >= WIND.cooldownS - 1e-9 &&
+    fires[1][2] - fires[0][2] < WIND.cooldownS + 0.05
   out.micVoice = micRun(WIND.rmsThreshold * 1.5, -60, -40)       // 大きいが高域優勢（声）
   out.micVoiceIgnored = out.micVoice.events.length === 0
   out.micQuiet = micRun(WIND.rmsThreshold * 0.8, -20, -60)       // 低域だが閾値未満
   out.micQuietIgnored = out.micQuiet.events.length === 0
-  out.lowProfileHalf = Math.abs(WIND_PROFILES.low.rmsThreshold * 2 -
-    (WIND_PROFILE === 'low' ? WIND.rmsThreshold * 2 : WIND.rmsThreshold)) < 1e-9
 
-  out.ok = out.shortTapIgnored && out.longPressFires && out.releaseCalms && out.cancelCalms &&
-    out.disabledWhenMicGranted && out.micBreathFires && out.micVoiceIgnored && out.micQuietIgnored &&
-    out.lowProfileHalf
+  out.ok = out.settingsOk && out.shortTapIgnored && out.longPressFires && out.releaseCalms &&
+    out.cancelCalms && out.disabledWhenMicGranted && out.micBreathFires && out.micVoiceIgnored &&
+    out.micQuietIgnored && out.strengthOk && out.cooldownOk
   return out
+}
+
+// (4) 散る音: OfflineAudioContext で実際に鳴らし、立ち上がりとピークを測る
+const checkAudio = async () => {
+  const sr = 48000
+  const render = async (strengths) => {
+    const a = new Audio()
+    a.ctx = new OfflineAudioContext(1, Math.ceil(sr * 1.2), sr)
+    a.wire()
+    strengths.forEach(s => a.scatterAt(0, s))   // 複数同時 = 最悪の重なり
+    const buf = await a.ctx.startRendering()
+    return {d: buf.getChannelData(0), comp: a.comp}
+  }
+  const stats = (d) => {
+    let peak = 0
+    let jump = 0
+    for (let i = 0; i < d.length; i++) {
+      peak = Math.max(peak, Math.abs(d[i]))
+      if (i) { jump = Math.max(jump, Math.abs(d[i] - d[i - 1])) }
+    }
+    // 2ms 窓の RMS エンベロープ
+    const win = Math.round(sr * 0.002)
+    const env = []
+    for (let i = 0; i + win <= d.length; i += win) {
+      let e = 0
+      for (let j = i; j < i + win; j++) { e += d[j] * d[j] }
+      env.push(Math.sqrt(e / win))
+    }
+    const envPeak = Math.max(...env)
+    const envPeakMs = env.indexOf(envPeak) * 2
+    const first5ms = Math.max(...env.slice(0, 3))
+    return {peak: +peak.toFixed(4), maxStep: +jump.toFixed(4), envPeakMs,
+      first5msOfPeak: +(first5ms / envPeak).toFixed(3)}
+  }
+  const one = await render([1.0])
+  const four = await render([1.0, 1.0, 1.0, 1.0])
+  const out = {scatterGain: AUDIO.scatterGain, attackS: AUDIO.scatterAttackS,
+    compressor: one.comp instanceof DynamicsCompressorNode,
+    single: stats(one.d), stacked4: stats(four.d)}
+  // 60% 音量: 旧 0.35 の 0.6 倍
+  out.gainIs60pct = near(AUDIO.scatterGain, 0.35 * 0.6, 1e-9)
+  // 破裂音にならない: 頭 5ms はピークの 2 割未満、最大エンベロープはランプの後、クリップしない
+  out.softOnset = out.single.first5msOfPeak < 0.2 && out.single.envPeakMs >= 30 &&
+    out.stacked4.first5msOfPeak < 0.2
+  out.noClip = out.single.peak < 1 && out.stacked4.peak < 1
+  out.ok = out.compressor && out.gainIs60pct && out.softOnset && out.noClip
+  return out
+}
+
+// 明るさの重心（px）。タイル内のピクセル列から
+const centroid = (buf, w) => {
+  let sx = 0
+  let sy = 0
+  let sw = 0
+  for (let i = 0; i < buf.length; i += 4) {
+    const v = buf[i] + buf[i + 1] + buf[i + 2]
+    if (!v) { continue }
+    const p = i / 4
+    sx += (p % w) * v
+    sy += Math.floor(p / w) * v
+    sw += v
+  }
+  return [sx / sw, sy / sw]
 }
 
 window.__selftest = report
@@ -247,7 +335,8 @@ const main = async () => {
   const field = new ParticleField(THREE, particles, shapes)
   const scene = new THREE.Scene()
   const root = new THREE.Group()
-  root.add(field.makeCardPlane())
+  const plane = field.makeCardPlane()
+  root.add(plane)
   root.add(field.points)
   scene.add(root)
 
@@ -260,6 +349,7 @@ const main = async () => {
   const tiltCheck = checkTilt(THREE)
   report.checks.tilt = tiltCheck.out
   report.checks.wind = await checkWind()
+  report.checks.audio = await checkAudio()
 
   const setup = [
     {label: 'breathe (printed rest)', mode: MODE.BREATHE, t: 1.0},
@@ -271,6 +361,9 @@ const main = async () => {
     // 斜め 35° で認識した直後の BREATHE。tilt.js の出力をそのまま重力に入れる -> 印刷位置のまま
     {label: 'found at 35deg (relative tilt 0)', mode: MODE.BREATHE, t: 1.0, grav: [0, 0], read: true},
     {label: 'relative tilt 25deg', mode: MODE.BREATHE, t: 1.0, grav: tiltCheck.grav, read: true},
+    // 板は動かないので重心を薄める。点だけ描いて測る
+    {label: 'relative tilt 10deg (points only)', mode: MODE.BREATHE, t: 1.0, grav: tiltCheck.grav10,
+      read: true, noPlane: true},
   ]
   const pixels = {}
 
@@ -289,6 +382,7 @@ const main = async () => {
       u.uScatterT0.value = 0
     }
     field.update(s.t, TILE, 1.0)
+    plane.visible = !s.noPlane
 
     const cx = (i % COLS) * TILE
     const cy = canvas.height - (Math.floor(i / COLS) + 1) * TILE
@@ -323,6 +417,19 @@ const main = async () => {
   report.checks.breatheStaysPrinted = report.checks.restPixelsDiff === 0 &&
     report.checks.tiltPixelsDiff > 0
 
+  // 10° の傾きで点群がどれだけ寄ったか（明るさ重心の移動、mm 換算）
+  const mmPerPx = 2 * camera.position.z * Math.tan(camera.fov / 2 * Math.PI / 180) / TILE
+  const shiftMm = (i) => {
+    const a = centroid(pixels[`${i}rest`], TILE)
+    const b = centroid(pixels[i], TILE)
+    return +(Math.hypot(b[0] - a[0], b[1] - a[1]) * mmPerPx).toFixed(2)
+  }
+  report.checks.slide = {
+    tilt10Grav: tiltCheck.grav10, tilt10ShiftMm: shiftMm(8),
+  }
+  // 10° で平均 2mm 以上（カード幅 85mm に対し目で追える量）
+  report.checks.slide.ok = report.checks.slide.tilt10ShiftMm >= 2
+
   const gl = renderer.getContext()
   report.glError = gl.getError()
   report.programs = renderer.info.programs.length
@@ -333,7 +440,7 @@ const main = async () => {
   report.cardMm = [CARD.widthMm, CARD.heightMm]
   report.ok = report.glError === 0 && report.drawCalls > 0 &&
     report.checks.pose.ok && report.checks.tilt.ok && report.checks.wind.ok &&
-    report.checks.breatheStaysPrinted
+    report.checks.audio.ok && report.checks.slide.ok && report.checks.breatheStaysPrinted
 }
 
 main().then(() => { window.__selftestDone = true })
