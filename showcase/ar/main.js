@@ -22,7 +22,7 @@ const THREE = window.THREE
 
 // ?debug: 占有板を半透明の赤にし、カード左上に黄色の目印を出す（重なりの確認用）
 //         画面上部に風判定の計器（マイク許可・RMS・低域比・閾値・判定・直近の発火）を出す
-// ?wind=low: 風判定の rmsThreshold を半分にする（config.js の WIND_PROFILES）
+// ?wind=low: 風判定のフロア倍率と下限を下げる（config.js の WIND_PROFILES）
 // ?anydevice: デスクトップ（ヘッドレス Chrome + 偽カメラ）でもパイプラインを回す
 const PARAMS = new URLSearchParams(location.search)
 const DEBUG = PARAMS.has('debug')

@@ -50,15 +50,28 @@ export const TILT = {
 }
 
 export const WIND = {
-  // 時間領域 RMS の閾値。これを holdS 以上連続で越えたら「風」。
-  rmsThreshold: 0.018,
+  // 閾値は固定せず、周囲の音から決める（wind.js）。
+  //   許可直後 calibS 秒の RMS 平均をノイズフロアの初期値にし、以後は時定数 floorTauS の
+  //   指数移動平均で追従する（風の判定中は更新しない）。
+  //   発火の水準: rms > max(noiseFloor * floorX, minRms) かつ低域優勢、が holdS 続く
+  calibS: 1.0,
+  floorTauS: 3.0,
+  floorX: 4,
+  minRms: 0.012,
+  // 判定中のフロア凍結の上限。急に始まって鳴り続ける低い音（空調の起動等）で
+  // 凍結されたままにならないよう、これを越えたらフロアの追従を再開する。
+  freezeMaxS: 4.0,
+  // 立ち上がり: 直近 riseWindowS の RMS 平均に対して riseX 倍以上に急増したときだけ
+  // 発火対象にする。一定レベルで続く音（空調・会話）はここで落ちる。
+  riseWindowS: 0.3,
+  riseX: 2,
   holdS: 0.10,
   // 会話と区別するため、150Hz 以下の帯域が支配的であることも条件にする。
   lowBandHz: 150,
   lowBandRatio: 0.45,
   // 一度発火したら、この間は次の発火を受け付けない（誤爆・連打対策）
   cooldownS: 0.8,
-  // 強さは閾値超過量で [strengthMin, strengthMax] に正規化する。
+  // 強さはその時点の閾値に対する超過量で [strengthMin, strengthMax] に正規化する。
   // RMS が閾値の strengthFullX 倍に達したら strengthMax。
   strengthMin: 0.3,
   strengthMax: 1.0,
@@ -70,10 +83,10 @@ export const WIND = {
 }
 
 // 風判定の代替設定。URL の ?wind=<名前> で選ぶ（?debug と併用すると画面上部に判定値が出る）。
-//   low: Pixel 7 のマイク想定。息を吹いても RMS が既定の閾値に届かない端末向けに rmsThreshold を下げる
+//   low: 息を吹いても RMS が伸びにくい端末向けに、フロアに対する倍率と下限を下げる
 export const WIND_PROFILES = {
   default: {},
-  low: {rmsThreshold: 0.012},
+  low: {floorX: 3, minRms: 0.008},
 }
 const windParam = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('wind')
 export const WIND_PROFILE = Object.hasOwn(WIND_PROFILES, windParam) ? windParam : 'default'

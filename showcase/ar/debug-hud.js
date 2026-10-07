@@ -1,6 +1,6 @@
 // showcase/ar/debug-hud.js
 //
-// ?debug のときだけ画面上部に出す風判定の計器。通常表示（文字を置かない）には出さない。
+// ?debug のときだけ画面上部に出す風判定の計器（RMS・閾値・ノイズフロア・立ち上がり比・帯域比）。通常表示（文字を置かない）には出さない。
 // DOM なので ⏺ の録画（canvas）には写らない。値は Wind が毎フレーム更新したものを読むだけ。
 
 import {WIND, WIND_PROFILE} from './config.js'
@@ -57,6 +57,7 @@ export class DebugHud {
     const ctxState = ctx ? ctx.state : 'none'
     const t = performance.now() / 1000
     const overS = w.overSince >= 0 ? t - w.overSince : 0
+    const calibrating = w.granted && (w.calibStart < 0 || w.lastUpdate - w.calibStart < WIND.calibS)
     const ev = w.lastEvent
     const last = ev
       ? `${clock(ev.at)} ${ev.source} s=${ev.strength.toFixed(2)} (${((Date.now() - ev.at) / 1000).toFixed(1)}s ago)`
@@ -64,8 +65,12 @@ export class DebugHud {
     this.el.innerHTML = [
       `mic   ${mark(w.micState === 'granted', w.micState)}  perm=${this.perm}  ` +
         `ctx=${mark(ctxState === 'running', ctxState)}  analyser=${w.analyser ? 'on' : 'off'}`,
-      `rms   ${mark(w.rms > WIND.rmsThreshold, w.rms.toFixed(4))} / th ${WIND.rmsThreshold.toFixed(4)}` +
+      `rms   ${mark(w.rms > w.threshold, w.rms.toFixed(4))} / th ${w.threshold.toFixed(4)}` +
         `  [wind=${WIND_PROFILE}]`,
+      `floor ${w.noiseFloor.toFixed(4)} x${WIND.floorX} (min ${WIND.minRms})` +
+        `${calibrating ? '  <i>calibrating</i>' : ''}`,
+      `rise  ${mark(w.rise >= WIND.riseX, w.rise.toFixed(2))} / th ${WIND.riseX.toFixed(2)}` +
+        `  (vs ${WIND.riseWindowS * 1000}ms avg)  armed=${w.armed ? 'y' : 'n'}`,
       `low   ${mark(w.lowRatio >= WIND.lowBandRatio, w.lowRatio.toFixed(3))} / th ${WIND.lowBandRatio.toFixed(2)}` +
         `  (<=${WIND.lowBandHz}Hz)`,
       `wind  ${mark(w.blowing, w.blowing ? 'ON ' : 'OFF')}  over ${overS.toFixed(2)}s / hold ${WIND.holdS}s`,

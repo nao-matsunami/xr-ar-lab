@@ -643,6 +643,55 @@ node tools/headless-check.mjs "http://127.0.0.1:8811/tools/showcase-selftest.htm
 
 ---
 
+## H. 風判定の常時発火（Pixel 7、2026-10-07）
+
+許可直後から風が出っぱなしになった。周囲音だけで RMS が固定閾値 0.018 を常に越えていた。
+固定閾値をやめ、その場の環境音を基準にした。
+
+### H1. マイクの音声処理を切る
+
+`getUserMedia` は `autoGainControl / noiseSuppression / echoCancellation: false` を要求している。
+端末が無視することがあるので、実際に適用された値をコンソールに出すようにした（`false` でないものには `(NOT off)` が付く）。
+
+```
+[showcase] wind: applied audio processing: autoGainControl=false noiseSuppression=false echoCancellation=false
+```
+
+### H2. 判定（`wind.js`、値は `config.js` の `WIND`）
+
+| 項目 | 値 |
+|---|---|
+| ノイズフロア初期値 | 許可後 `calibS` 1.0 秒の RMS 平均（この間は発火しない） |
+| フロアの追従 | 時定数 `floorTauS` 3 秒の指数移動平均。判定中（立ち上がりを満たした超過区間）は止める |
+| 水準 | `rms > max(noiseFloor × floorX 4, minRms 0.012)` かつ低域比 ≥ 0.45 が `holdS` 0.10 秒 |
+| 立ち上がり | 超過区間の中で `rms ≥ 直近 300ms の平均 × riseX 2` を一度でも満たしたときだけ発火対象 |
+| 凍結の上限 | `freezeMaxS` 4 秒。急に始まって鳴り続ける音（空調の起動など）は一度発火し得るが、4 秒後にフロアが追従して止む |
+| 強さ | その時点の閾値に対する超過量で 0.3..1.0（閾値の 5 倍で 1.0） |
+| `?wind=low` | `floorX` 3、`minRms` 0.008 |
+
+### H3. `?debug` の計器
+
+`rms` の閾値は動的な値になった。`floor`（ノイズフロア、較正中は `calibrating`）と
+`rise`（立ち上がり比 / 2.00、`armed`）の行を足した。
+
+### H4. selftest（`checks.wind`）
+
+マイク経路は較正 1 秒を含む時系列で流す（環境音は息と同じく低域優勢の最悪ケース）。
+
+| チェック | 内容 |
+|---|---|
+| `ambientConstantIgnored` | 0.03±20%（旧閾値を常に越える）が 5 秒続いても発火しない |
+| `ambientRampIgnored` | 0.01 → 0.08 に 3 秒かけて上がっても発火しない |
+| `micBreathFires` | 環境音 0.01 の `floorX` × 1.125 倍の息で holdS 後に発火（既定では 4.5 倍） |
+| `micBelowFloorXIgnored` | `floorX` × 0.875 倍（既定では 3.5 倍）では発火しない |
+| `micQuietRoomIgnored` | 無音に近い部屋では `minRms` が効く |
+| `ambientStepRecovers` | 急に始まる持続音: 1 回発火 → 凍結上限の後に止む → その上での息でまた発火 |
+| `micVoiceIgnored` / `cooldownOk` / `strengthOk` | 従来どおり（強さは閾値を引数に取る形に変更） |
+
+3 バリアント × 既定、`normal` × `?wind=low` で `ok: true`、コンソールエラー 0。
+
+---
+
 ## 再生成の手順
 
 ```bash

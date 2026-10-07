@@ -2,13 +2,17 @@
 //
 // 「吹いた」の判定。
 //
-//   時間領域 RMS が閾値を holdS 以上連続で越える
-//   かつ 150Hz 以下の帯域が全体の lowBandRatio 以上を占める
+//   時間領域 RMS が max(noiseFloor * floorX, minRms) を越え
+//   かつ 150Hz 以下の帯域が全体の lowBandRatio 以上を占める状態が holdS 以上続き
+//   かつ その状態に入るとき、RMS が直近 riseWindowS の平均の riseX 倍以上に急増していた
 //
-// 後者が無いと、会話・拍手・環境音で簡単に誤爆する。息はほぼ低域の乱流ノイズなので
-// 帯域比で分けられる。閾値は config.js。
+// noiseFloor は許可直後 calibS 秒の RMS 平均で初期化し、以後は時定数 floorTauS の
+// 指数移動平均で追従する（判定中は止める）。固定閾値だと、端末や部屋によっては
+// 周囲音だけで常に越えてしまう（Pixel 7 で確認）。
+// 帯域比が無いと会話・拍手で、立ち上がり条件が無いと空調など一定の低い音で誤爆する。
+// 息はほぼ低域の乱流ノイズで、急に始まる。値は config.js。
 //
-// 発火後 cooldownS の間は次の発火を受け付けない。強さは閾値超過量で
+// 発火後 cooldownS の間は次の発火を受け付けない。強さはその時点の閾値に対する超過量で
 // strengthMin..strengthMax に正規化する（閾値ちょうどで min、閾値の strengthFullX 倍で max）。
 
 import {WIND, WIND_PROFILE} from './config.js'
@@ -28,6 +32,14 @@ export class Wind {
     this.overSince = -1
     this.lastFireAt = -Infinity  // update() の now 基準（秒）
     this.lastStrength = 0
+    // ノイズフロア。calibStart から calibS 秒は較正中（発火しない）
+    this.calibStart = -1
+    this.calibSum = 0
+    this.calibN = 0
+    this.noiseFloor = 0
+    this.lastUpdate = -1
+    this.armed = false          // 今の超過区間の入りで立ち上がりを満たした
+    this._hist = []             // 直近 riseWindowS の [t, rms]
     this.stream = null
     this._td = null
     this._fd = null
@@ -35,6 +47,8 @@ export class Wind {
     this.micState = 'idle'      // idle / requesting / granted / denied:<name> / unsupported
     this.rms = 0
     this.lowRatio = 0
+    this.rise = 0               // rms / 直近 riseWindowS の平均
+    this.threshold = WIND.minRms
     this.lastEvent = null       // {at: Date.now(), strength, source: 'mic' | 'longpress'}
   }
 
@@ -47,8 +61,10 @@ export class Wind {
         `mediaDevices=${!!navigator.mediaDevices}, secure=${window.isSecureContext})`)
       return false
     }
-    console.log(`[showcase] wind: profile=${WIND_PROFILE} rmsThreshold=${WIND.rmsThreshold} ` +
-      `lowBandRatio=${WIND.lowBandRatio} holdS=${WIND.holdS} cooldownS=${WIND.cooldownS}`)
+    console.log(`[showcase] wind: profile=${WIND_PROFILE} calibS=${WIND.calibS} ` +
+      `floorTauS=${WIND.floorTauS} floorX=${WIND.floorX} minRms=${WIND.minRms} ` +
+      `riseX=${WIND.riseX}/${WIND.riseWindowS}s lowBandRatio=${WIND.lowBandRatio} ` +
+      `holdS=${WIND.holdS} cooldownS=${WIND.cooldownS}`)
     console.log(`[showcase] wind: AudioContext state=${ctx.state} sampleRate=${ctx.sampleRate}`)
     this.micState = 'requesting'
     try {
@@ -62,9 +78,14 @@ export class Wind {
       return false
     }
     const track = this.stream.getAudioTracks()[0]
+    const settings = track && track.getSettings ? track.getSettings() : {}
     console.log(`[showcase] wind: getUserMedia ok: "${track && track.label}" ` +
       `readyState=${track && track.readyState} muted=${track && track.muted} ` +
-      `settings=${JSON.stringify(track && track.getSettings ? track.getSettings() : {})}`)
+      `settings=${JSON.stringify(settings)}`)
+    // 要求した 3 つが実際に切れたか。端末によっては無視される（undefined は未報告）
+    const applied = ['autoGainControl', 'noiseSuppression', 'echoCancellation']
+      .map(k => `${k}=${settings[k]}${settings[k] === false ? '' : ' (NOT off)'}`)
+    console.log(`[showcase] wind: applied audio processing: ${applied.join(' ')}`)
     if (track) {
       track.addEventListener('ended', () => console.log('[showcase] wind: mic track ended'))
       track.addEventListener('mute', () => console.log('[showcase] wind: mic track muted'))
@@ -113,11 +134,43 @@ export class Wind {
     this.lowRatio = allE > 0 ? lowE / allE : 0
     const low = this.lowRatio >= WIND.lowBandRatio
 
-    const over = rms > WIND.rmsThreshold && low
+    // 立ち上がり比: 今フレームを除く直近 riseWindowS の平均に対する比
+    const hist = this._hist
+    while (hist.length && hist[0][0] < now - WIND.riseWindowS) { hist.shift() }
+    let ref = this.noiseFloor
+    if (hist.length) {
+      ref = 0
+      for (const h of hist) { ref += h[1] }
+      ref /= hist.length
+    }
+    this.rise = rms / Math.max(1e-6, ref)
+    hist.push([now, rms])
+
+    const dt = this.lastUpdate >= 0 ? Math.max(0, now - this.lastUpdate) : 0
+    this.lastUpdate = now
+
+    // 較正: 許可後 calibS 秒の平均をフロアの初期値にする。この間は発火しない
+    if (this.calibStart < 0) { this.calibStart = now }
+    if (now - this.calibStart < WIND.calibS) {
+      this.calibSum += rms
+      this.calibN++
+      this.noiseFloor = this.calibSum / this.calibN
+      this.threshold = Math.max(this.noiseFloor * WIND.floorX, WIND.minRms)
+      return
+    }
+
+    const th = Math.max(this.noiseFloor * WIND.floorX, WIND.minRms)
+    this.threshold = th
+    const over = rms > th && low
     if (over) {
-      if (this.overSince < 0) { this.overSince = now }
-      this.lastStrength = Math.max(this.lastStrength, Wind.strengthOf(rms))
-      if (!this.blowing && now - this.overSince >= WIND.holdS &&
+      if (this.overSince < 0) {
+        this.overSince = now
+        this.armed = false
+      }
+      // 超過区間のどこかで急増を見たら発火対象。一定の音が閾値の上に居座っても arm されない
+      if (!this.armed && this.rise >= WIND.riseX) { this.armed = true }
+      if (this.armed) { this.lastStrength = Math.max(this.lastStrength, Wind.strengthOf(rms, th)) }
+      if (this.armed && !this.blowing && now - this.overSince >= WIND.holdS &&
           now - this.lastFireAt >= WIND.cooldownS) {
         this.blowing = true
         this.lastFireAt = now
@@ -125,17 +178,24 @@ export class Wind {
       }
     } else {
       this.overSince = -1
+      this.armed = false
       this.lastStrength = 0
       if (this.blowing) {
         this.blowing = false
         this.onCalm()
       }
     }
+
+    // フロアの追従。息（arm 済みの超過区間）は混ぜない。ただし freezeMaxS を越えて
+    // 続くなら息ではなく環境が変わったとみなして追従を再開する
+    const freeze = this.armed && now - this.overSince < WIND.freezeMaxS
+    if (!freeze && dt > 0) {
+      this.noiseFloor += (rms - this.noiseFloor) * (1 - Math.exp(-dt / WIND.floorTauS))
+    }
   }
 
-  /** RMS -> 強さ。閾値ちょうどで strengthMin、閾値の strengthFullX 倍以上で strengthMax。 */
-  static strengthOf(rms) {
-    const th = WIND.rmsThreshold
+  /** RMS -> 強さ。閾値 th ちょうどで strengthMin、th の strengthFullX 倍以上で strengthMax。 */
+  static strengthOf(rms, th) {
     const x = Math.min(1, Math.max(0, (rms - th) / Math.max(1e-6, th * (WIND.strengthFullX - 1))))
     return WIND.strengthMin + (WIND.strengthMax - WIND.strengthMin) * x
   }
