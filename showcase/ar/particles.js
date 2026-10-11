@@ -343,6 +343,22 @@ export class ParticleField {
     this.uniforms.uScatterT0.value = now
   }
 
+  /** 今の形（src）へ向けて再形成する。散っている途中で見失って戻ったとき用。 */
+  reformToCurrent(now) {
+    const src = this.srcIsA ? this.aA : this.aB
+    const dst = this.srcIsA ? this.aB : this.aA
+    dst.array.set(src.array)
+    dst.needsUpdate = true
+    this.uniforms.uMode.value = MODE.REFORM
+    this.uniforms.uT0.value = now
+  }
+
+  /** 散る・再形成の時計を dt 秒進める（見失っていた間を飛ばして、止めた位置から続ける）。 */
+  shiftClock(dt) {
+    this.uniforms.uT0.value += dt
+    this.uniforms.uScatterT0.value += dt
+  }
+
   setBreathe() {
     this.uniforms.uMode.value = MODE.BREATHE
   }

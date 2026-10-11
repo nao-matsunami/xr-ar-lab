@@ -50,47 +50,28 @@ export const TILT = {
 }
 
 export const WIND = {
-  // 閾値は固定せず、周囲の音から決める（wind.js）。
-  //   許可直後 calibS 秒の RMS 平均をノイズフロアの初期値にし、以後は時定数 floorTauS の
-  //   指数移動平均で追従する（風の判定中は更新しない）。
-  //   発火の水準: rms > max(noiseFloor * floorX, minRms) かつ低域優勢、が holdS 続く
-  calibS: 1.0,
-  floorTauS: 3.0,
-  floorX: 4,
-  minRms: 0.012,
-  // 判定中のフロア凍結の上限。急に始まって鳴り続ける低い音（空調の起動等）で
-  // 凍結されたままにならないよう、これを越えたらフロアの追従を再開する。
-  freezeMaxS: 4.0,
-  // 立ち上がり: 直近 riseWindowS の RMS 平均に対して riseX 倍以上に急増したときだけ
-  // 発火対象にする。一定レベルで続く音（空調・会話）はここで落ちる。
-  riseWindowS: 0.3,
-  riseX: 2,
-  holdS: 0.10,
-  // 会話と区別するため、150Hz 以下の帯域が支配的であることも条件にする。
-  lowBandHz: 150,
-  lowBandRatio: 0.45,
-  // 一度発火したら、この間は次の発火を受け付けない（誤爆・連打対策）
-  cooldownS: 0.8,
+  // 第一の入力: 名刺上の短いタップ（wind.js の attachTap）。移動がこれ未満・時間がこれ未満ならタップ
+  tapMaxMovePx: 10,
+  tapMaxS: 0.3,
+  tapStrength: 0.85,
+  // 🌬 でマイクを許可したときの追加入力。
+  //   rms > max(直近 medianWindowS 秒の RMS 中央値 * medianX, minRms) が holdS 続いたら発火。
+  // 帯域比・立ち上がり・ノイズフロアの凍結は持たない。会話や物音での誤発火は許容する
+  // （散って再形成するだけ。気になるならマイクを使わずタップで遊ぶ）。
+  medianWindowS: 2.0,
+  medianX: 3,
+  minRms: 0.008,
+  holdS: 0.08,
+  // 一度発火したら、この間はマイクの次の発火を受け付けない（タップは受け付ける）
+  cooldownS: 2.0,
   // 強さはその時点の閾値に対する超過量で [strengthMin, strengthMax] に正規化する。
   // RMS が閾値の strengthFullX 倍に達したら strengthMax。
   strengthMin: 0.3,
   strengthMax: 1.0,
   strengthFullX: 5,
-  // 長押しフォールバック（マイクが使えない場合）
-  longPressS: 0.5,
   // 風が止んでから再形成を始めるまで
   reformDelayS: 1.5,
 }
-
-// 風判定の代替設定。URL の ?wind=<名前> で選ぶ（?debug と併用すると画面上部に判定値が出る）。
-//   low: 息を吹いても RMS が伸びにくい端末向けに、フロアに対する倍率と下限を下げる
-export const WIND_PROFILES = {
-  default: {},
-  low: {floorX: 3, minRms: 0.008},
-}
-const windParam = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('wind')
-export const WIND_PROFILE = Object.hasOwn(WIND_PROFILES, windParam) ? windParam : 'default'
-Object.assign(WIND, WIND_PROFILES[WIND_PROFILE])
 
 export const SCATTER = {
   // 風の強さ 1.0 のときの初速 (mm/s)

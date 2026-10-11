@@ -692,6 +692,109 @@ node tools/headless-check.mjs "http://127.0.0.1:8811/tools/showcase-selftest.htm
 
 ---
 
+## I. 入力設計の変更：タップ第一・マイク判定の単純化・見失い時の一時停止（2026-10-11）
+
+吹く判定を詰めても端末・部屋ごとの当たり外れが残るので、**第一の入力を名刺上のタップにした**。
+マイクは 🌬 で許可した人だけの追加入力とし、判定は単純な形に戻した。
+
+### I1. タップ（`wind.js` の `attachTap`、値は `config.js` の `WIND`）
+
+| 項目 | 値 |
+|---|---|
+| タップの条件 | `pointerdown` → `pointerup` の移動 < `tapMaxMovePx` **10px**、時間 < `tapMaxS` **0.3 秒** |
+| 位置 | 押した位置が名刺の上（`main.js` の `onCard`：占有板の 4 隅を画面に投影した四角形の内側） |
+| 発火 | 強さ `tapStrength` 0.85 で散る → すぐ「止んだ」扱い → `reformDelayS` 1.5 秒後に再形成 |
+| 無視するもの | ドラッグ（10px 以上）、長押し（0.3 秒以上）、名刺の外、2 本指、`pointercancel`、見失っている間 |
+| クールダウン | タップ自体には掛けない（毎回発火）。ただしタップもマイクのクールダウンを始めるので、画面を叩いた音でマイクが二重に発火しない |
+
+**長押しフォールバックは廃止**（`attachLongPress` と `longPressS` を削除）。
+
+### I2. マイク（🌬）
+
+- 🌬 は残した。**マイクの許可は 🌬 を押したときだけ**要求する（以前は認識後の最初のタップで要求していた。
+  タップが第一の入力になったので、最初のタップで許可ダイアログが出ないようにした）。
+  最初のタップでは音の解禁と DeviceMotion の許可だけを行う。許可が通ると 🌬 は不透明になる。
+- 判定（`wind.js` の `update`）：
+
+| 項目 | 値 |
+|---|---|
+| 水準 | `rms > max(直近 medianWindowS 2.0 秒の RMS 中央値 × medianX 3, minRms 0.008)` |
+| 持続 | `holdS` **80ms** |
+| クールダウン | `cooldownS` **2.0 秒** |
+| 強さ | 閾値に対する超過量で 0.3..1.0（閾値の 5 倍で 1.0）。従来どおり |
+| 持たないもの | 低域比条件、立ち上がり条件、ノイズフロアの較正・凍結 |
+
+- `config.js` から `calibS` `floorTauS` `floorX` `freezeMaxS` `riseWindowS` `riseX` `lowBandHz`
+  `lowBandRatio` `longPressS` を削除した。`?wind=low`（`WIND_PROFILES`）も削除（既定値が旧 low 相当の
+  下限 0.008 になったため）。
+- **誤発火は許容する方針。** 会話・拍手・机を叩く音・急に始まった持続音でも発火し得る。
+  散って再形成するだけで実害は無く、気になる人はマイクを使わずタップで遊べる。
+  持続音は中央値がおよそ 1 秒で追いつくので、鳴り続けても発火は 1 回で止む（selftest `ambientStepOnce`）。
+  ゆっくり大きくなる音（旧 selftest の `ambientRamp`）は、新しい判定では発火し得る。この方針と
+  `wind.js` / `config.js` の冒頭コメントに同じことを書いた。
+
+### I3. 見失い → 再認識（`main.js` の `pause` / `resume`）
+
+- `reality.imagelost`：`root` ごと隠す（粒子・板）、鳴っている途中の効果音を即止める（`Audio.stopAll`）、
+  再形成・settle のタイマーを止める、こぼれ状態を畳む。以後 `onWind` / `onCalm` / タップは無視する。
+- 再認識（`imagefound`、または見えなくなっていた root への最初の更新）：見失っていた時間だけ
+  散る・再形成の時計をずらし（`ParticleField.shiftClock`）、止めた位置から続ける。
+  - **SCATTER**（散っている途中・再形成待ち）→ **今の形への再形成から再開**（`reformToCurrent`：
+    src を dst に写して REFORM）。形の循環は進めない。
+  - **REFORM** → 残りの時間で再形成を終える。
+  - BREATHE → そのまま。
+
+### I4. `?debug` の計器
+
+```
+mic   granted  perm=granted  ctx=running  analyser=on
+rms   0.0123 / th 0.0300  (min 0.008)
+med   0.0100  (2s median)
+ratio 1.23 / x3
+wind  OFF  over 0.00s / hold 0.08s  cool 0
+tap   11:47:02.248 FIRED  0.0px/<10  44ms/<300  card=y
+last  11:47:02.248 tap s=0.85 (0.4s ago)
+```
+
+`floor` / `rise` / `low` の行を `med`（中央値）/ `ratio`（rms ÷ 中央値、緑なら 3 倍以上）に差し替え、
+`tap` 行（直近タップの移動量・時間・名刺上か・発火したか）とクールダウン残りを足した。
+
+### I5. selftest（`checks.wind` を作り直し、`checks.resume` を追加）
+
+| チェック | 内容 |
+|---|---|
+| `settingsOk` | 指定値どおり、旧判定の設定キーが `WIND` に残っていない |
+| `tapFires` / `tapSmallMoveFires` | 50ms・移動 0 / 9px のタップで 0.85 で散る → 止む |
+| `tapDragIgnored` / `tapLongIgnored` | 10px 動く / 400ms 押す → 発火しない（長押しでも何も起きない） |
+| `tapOffCardIgnored` / `tapMultiTouchIgnored` / `tapCancelIgnored` / `noLongPress` | 名刺の外・2 本指・cancel で発火しない、長押し API が無い |
+| `ambientConstantIgnored` | 許可直後から 0.03±20% が 5 秒続いても発火しない |
+| `micBreathFires` / `micBelowXIgnored` / `micTooShortIgnored` | 中央値 × 3.6 で 80ms 後に発火、× 2.4 や 60ms では発火しない |
+| `micQuietRoomIgnored` / `micQuietRoomLoudFires` | 無音に近い部屋では下限 0.008 が効く |
+| `ambientStepOnce` | 急に始まる持続音は 1 回だけ発火し、約 1 秒で止む |
+| `cooldownOk` | 0.6 秒おきの息: 2 回目は 2.0 秒経った後の最初の息 |
+| `tapSharesCooldown` | タップは毎回発火し、直後のマイクはクールダウンで抑えられる |
+| `strengthOk` | 従来どおり |
+| `resume.*` | 散って 0.3 秒で見失い 5 秒後に再認識 → 散った経過 0.3 秒が保たれ、今の形へ REFORM、settle 後も形と循環が変わらない。`stopAll` で鳴っている音が 0 になる |
+
+3 バリアントで `ok: true`、コンソールエラー 0。
+
+偽カメラ（名刺 10 秒 → 灰色 4 秒 → 名刺）の実ページでも通した：名刺の外のタップは `onCard=false` で無視、
+名刺中央のタップで SCATTER、SCATTER 中に見失って `paused`（root 非表示・タイマー無し・鳴っている音 0）、
+見失っている間のタップは無視、再認識で REFORM → 約 3 秒後に BREATHE（`cycleIndex` は進まない）。
+
+### I6. 実機で見てほしいこと
+
+1. 名刺をタップ → 散って 1.5 秒後に再形成。指が少し動いても（10px 未満）反応するか
+2. 名刺の外のタップ・スワイプ・長押しで何も起きないこと
+3. 🌬 → 許可 → 吹いて散るか。`?debug` の `ratio` が吹いたときに 3 を越えるか
+4. 散っている途中にカメラを名刺から外す → 音が止まり何も出ない → 戻すと今の形に集まり直す
+
+### 既知の残り
+
+- 再形成の途中でもう一度タップすると、散る軌道が「前の形」から始め直すので一瞬跳ぶ（以前のマイクの再発火と同じ挙動。今回は触っていない）。
+
+---
+
 ## 再生成の手順
 
 ```bash

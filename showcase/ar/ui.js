@@ -14,6 +14,7 @@ const CSS = `
   -webkit-tap-highlight-color:transparent;transition:opacity .25s;}
 #sc-icons button[hidden]{display:none;}
 #sc-blow{opacity:.45;}
+#sc-blow.sc-mic{opacity:1;border-color:rgba(255,255,255,.75);}
 #sc-rec.sc-on{border-color:rgba(255,70,70,.95);color:#ff4646;
   animation:sc-pulse 1s ease-in-out infinite;}
 @keyframes sc-pulse{0%,100%{opacity:1}50%{opacity:.35}}
@@ -45,7 +46,7 @@ export class Ui {
     // flex-direction:column-reverse なので、先に append したものが下に来る。
     this.rec = this._btn('sc-rec', '⏺', 'Record 5 seconds')
     this.sound = this._btn('sc-sound', '🔊', 'Mute / unmute')
-    this.blow = this._btn('sc-blow', '🌬', 'Blow on the card')
+    this.blow = this._btn('sc-blow', '🌬', 'Use the microphone: blow on the card')
     wrap.appendChild(this.rec)
     wrap.appendChild(this.sound)
     wrap.appendChild(this.blow)
@@ -68,8 +69,9 @@ export class Ui {
     setTimeout(() => this.loading.remove(), 500)
   }
 
-  setBlowVisible(v) {
-    this.blow.hidden = !v
+  /** マイクが通ったら 🌬 を不透明にする（押す前・拒否されたときは半透明のまま）。 */
+  setBlowActive(on) {
+    this.blow.classList.toggle('sc-mic', !!on)
   }
 
   setMuted(m) {

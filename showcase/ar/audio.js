@@ -13,6 +13,7 @@ export class Audio {
     this.armed = false
     this.muted = false
     this.master = null
+    this.playing = new Set()   // 鳴っている途中の音源（stopAll 用）
   }
 
   ensureCtx() {
@@ -111,6 +112,7 @@ export class Audio {
     g.connect(this.master)
     src.start(t)
     src.stop(t + dur)
+    this._track(src)
   }
 
   /** 再形成完了: フィルタスイープ 1 つ。 */
@@ -141,5 +143,19 @@ export class Audio {
     g.connect(this.master)
     osc.start(t)
     osc.stop(t + dur + 0.02)
+    this._track(osc)
+  }
+
+  _track(node) {
+    this.playing.add(node)
+    node.onended = () => this.playing.delete(node)
+  }
+
+  /** 鳴っている途中の効果音を即止める（ターゲットを見失ったとき）。 */
+  stopAll() {
+    for (const node of this.playing) {
+      try { node.stop() } catch (e) { /* 既に止まっている */ }
+    }
+    this.playing.clear()
   }
 }

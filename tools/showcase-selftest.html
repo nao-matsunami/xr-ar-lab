@@ -21,7 +21,7 @@
 <script type="module">
 import * as THREE_NS from 'three'
 import {ParticleField, MODE} from '../showcase/ar/particles.js'
-import {AUDIO, CARD, TILT, WIND, WIND_PROFILE, WIND_PROFILES} from '../showcase/ar/config.js'
+import {AUDIO, CARD, TILT, WIND} from '../showcase/ar/config.js'
 import {cardPoseFromDetail} from '../showcase/ar/targets.js'
 import {Tilt} from '../showcase/ar/tilt.js'
 import {Wind} from '../showcase/ar/wind.js'
@@ -168,133 +168,188 @@ const checkTilt = (THREE) => {
   return {out, grav: [out.tilt25.gx, out.tilt25.gy], grav10: [out.tilt10.gx, out.tilt10.gy]}
 }
 
-// (3) 風: マイク無しの長押しフォールバックと、マイク経路の判定（AnalyserNode はスタブ）。
-//     マイク経路はノイズフロア較正・追従と立ち上がり条件を含めて時系列で流す
+// (3) 入力: 名刺上のタップと、マイク経路の判定（AnalyserNode はスタブ）
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const checkWind = async () => {
-  const out = {profile: WIND_PROFILE, calibS: WIND.calibS, floorTauS: WIND.floorTauS,
-    floorX: WIND.floorX, minRms: WIND.minRms, riseX: WIND.riseX, riseWindowS: WIND.riseWindowS,
-    lowBandRatio: WIND.lowBandRatio, holdS: WIND.holdS, cooldownS: WIND.cooldownS,
-    longPressS: WIND.longPressS}
-  const low = WIND_PROFILE === 'low'
-  out.settingsOk = WIND.calibS === 1.0 && WIND.floorTauS === 3.0 &&
-    WIND.floorX === (low ? 3 : 4) && WIND.minRms === (low ? 0.008 : 0.012) &&
-    WIND.riseX === 2 && WIND.riseWindowS === 0.3 &&
-    WIND.lowBandRatio === 0.45 && WIND.holdS === 0.10 && WIND.cooldownS === 0.8 &&
-    WIND_PROFILES.low.floorX === 3 && WIND_PROFILES.low.minRms === 0.008
+  const out = {tapMaxMovePx: WIND.tapMaxMovePx, tapMaxS: WIND.tapMaxS, tapStrength: WIND.tapStrength,
+    medianWindowS: WIND.medianWindowS, medianX: WIND.medianX, minRms: WIND.minRms,
+    holdS: WIND.holdS, cooldownS: WIND.cooldownS}
+  // 指定どおりの値で、旧判定（ノイズフロア・立ち上がり・帯域比・長押し）の設定が残っていないこと
+  out.settingsOk = WIND.tapMaxMovePx === 10 && WIND.tapMaxS === 0.3 &&
+    WIND.medianWindowS === 2.0 && WIND.medianX === 3 && WIND.minRms === 0.008 &&
+    WIND.holdS === 0.08 && WIND.cooldownS === 2.0 &&
+    ['calibS', 'floorTauS', 'floorX', 'freezeMaxS', 'riseWindowS', 'riseX', 'lowBandHz',
+      'lowBandRatio', 'longPressS'].every(k => !(k in WIND))
   const fakeAudio = {ctx: {sampleRate: 48000}, ensureCtx() { return this.ctx }}
+
+  // タップ: PointerEvent を合成して attachTap に流す。onCard は「左半分が名刺」とする
   const log = []
-  const wind = new Wind(fakeAudio, s => log.push(['wind', s]), () => log.push(['calm']))
+  const wind = new Wind(fakeAudio, s => log.push(['wind', s, wind.lastEvent.source]), () => log.push(['calm']))
   const el = document.createElement('div')
   document.body.appendChild(el)
-  wind.attachLongPress(el)
-  const press = (type) => el.dispatchEvent(new PointerEvent(type, {bubbles: true}))
-  const holdMs = WIND.longPressS * 1000
-
-  // 短いタップ（長押し時間の半分）では吹かない
-  press('pointerdown'); await sleep(holdMs / 2); press('pointerup'); await sleep(holdMs)
-  out.shortTapIgnored = log.length === 0
-  // 長押しで 0.85 の風 -> 離すと止む
-  press('pointerdown'); await sleep(holdMs + 150)
-  out.longPressFires = log.length === 1 && log[0][0] === 'wind' && log[0][1] === 0.85 && wind.blowing
-  out.lastEventSource = wind.lastEvent && wind.lastEvent.source
-  press('pointerup')
-  out.releaseCalms = log.length === 2 && log[1][0] === 'calm' && !wind.blowing
-  // pointercancel（スクロール等で奪われた）でも止む
-  press('pointerdown'); await sleep(holdMs + 150); press('pointercancel')
-  out.cancelCalms = log.length === 4 && log[3][0] === 'calm' && !wind.blowing
-  // マイクが通っていれば長押しは無効
-  wind.granted = true
-  press('pointerdown'); await sleep(holdMs + 150); press('pointerup')
-  out.disabledWhenMicGranted = log.length === 4
+  wind.attachTap(el, x => x < 200)
+  const ev = (type, x, y, id = 1) =>
+    el.dispatchEvent(new PointerEvent(type, {bubbles: true, pointerId: id, clientX: x, clientY: y}))
+  const tapGesture = async (x, y, ms, dx = 0, dy = 0) => {
+    const n = log.length
+    ev('pointerdown', x, y); await sleep(ms); ev('pointerup', x + dx, y + dy)
+    await sleep(20)
+    return log.slice(n)
+  }
+  // 短いタップ（50ms・移動 0）で 散る（0.85）-> すぐ止む（再形成へ）
+  const t1 = await tapGesture(100, 100, 50)
+  out.tapFires = t1.length === 2 && t1[0][0] === 'wind' && t1[0][1] === WIND.tapStrength &&
+    t1[0][2] === 'tap' && t1[1][0] === 'calm' && wind.lastTap.fired
+  // 9px 動いても 10px 未満ならタップ
+  out.tapSmallMoveFires = (await tapGesture(100, 100, 50, 6, 6.7)).length === 2
+  // 10px 以上動いたら（ドラッグ）発火しない
+  out.tapDragIgnored = (await tapGesture(100, 100, 50, 10, 0)).length === 0 &&
+    wind.lastTap.movePx >= 10 && !wind.lastTap.fired
+  // 300ms 以上押していたら発火しない（長押しフォールバックは廃止。長押しでも何も起きない）
+  out.tapLongIgnored = (await tapGesture(100, 100, 400)).length === 0 && wind.lastTap.ms >= 300
+  // 名刺の外では発火しない
+  out.tapOffCardIgnored = (await tapGesture(300, 100, 50)).length === 0 && !wind.lastTap.onCard
+  // 2 本目の指が来たらタップではない
+  {
+    const n = log.length
+    ev('pointerdown', 100, 100, 1); ev('pointerdown', 150, 100, 2)
+    await sleep(50)
+    ev('pointerup', 150, 100, 2); ev('pointerup', 100, 100, 1)
+    await sleep(20)
+    out.tapMultiTouchIgnored = log.length === n
+  }
+  // pointercancel（スクロール等で奪われた）では発火しない
+  {
+    const n = log.length
+    ev('pointerdown', 100, 100); await sleep(50); ev('pointercancel', 100, 100); ev('pointerup', 100, 100)
+    await sleep(20)
+    out.tapCancelIgnored = log.length === n
+  }
+  // 長押し用の API は無い
+  out.noLongPress = typeof wind.attachLongPress === 'undefined'
   el.remove()
 
-  // マイク経路: 指定の RMS / 低域比を返すスタブ Analyser で update() を 50fps で回す。
-  // rms / lowDb / highDb は数値か、時刻 -> 値の関数。最初の calibS 秒は較正（環境音）
-  const micRun = (rms, lowDb, highDb, seconds) => {
+  // マイク経路: 指定の RMS を返すスタブ Analyser で update() を 50fps で回す。
+  // rms は数値か、時刻 -> 値の関数。taps は Wind.tap(t) を呼ぶ時刻
+  const micRun = (rms, seconds, taps = []) => {
     const at = (v, t) => (typeof v === 'function' ? v(t) : v)
     const events = []
-    const w = new Wind(fakeAudio, s => events.push(['wind', +s.toFixed(3), +now.toFixed(2)]),
+    const w = new Wind(fakeAudio, s => events.push(['wind', +s.toFixed(3), +now.toFixed(2), w.lastEvent.source]),
       () => events.push(['calm', +now.toFixed(2)]))
     w.granted = true
     w._td = new Float32Array(1024)
-    w._fd = new Float32Array(512)
     let now = 0
-    let maxRise = 0
-    w.analyser = {
-      getFloatTimeDomainData: a => a.fill(at(rms, now)),
-      getFloatFrequencyData: a => {
-        const l = at(lowDb, now)
-        const h = at(highDb, now)
-        for (let i = 0; i < a.length; i++) { a[i] = i < 3 ? l : h }
-      },
-    }
+    let maxRatio = 0
+    w.analyser = {getFloatTimeDomainData: a => a.fill(at(rms, now))}
+    const pending = taps.slice()
     for (let k = 0; k * 0.02 <= seconds + 1e-9; k++) {
       now = k * 0.02
+      while (pending.length && pending[0] <= now + 1e-9) { w.tap(pending.shift()) }
       w.update(now)
-      if (now >= WIND.calibS) { maxRise = Math.max(maxRise, w.rise) }
+      maxRatio = Math.max(maxRatio, w.ratio)
     }
-    return {events, rms: +w.rms.toFixed(4), lowRatio: +w.lowRatio.toFixed(3),
-      noiseFloor: +w.noiseFloor.toFixed(4), threshold: +w.threshold.toFixed(4),
-      maxRise: +maxRise.toFixed(2), blowing: w.blowing}
+    return {events, rms: +w.rms.toFixed(4), median: +w.median.toFixed(4),
+      threshold: +w.threshold.toFixed(4), maxRatio: +maxRatio.toFixed(2), blowing: w.blowing}
   }
-  const winds = r => r.events.filter(e => e[0] === 'wind')
-  // 環境音 AMB（低域優勢 = 息と同じ見え方の最悪ケース）の中で T0 から息を吹く
+  const mics = r => r.events.filter(e => e[0] === 'wind' && e[3] === 'mic')
+  // 環境音 AMB の中で T0（中央値の窓が埋まった後）から息を吹く
   const AMB = 0.01
-  const T0 = WIND.calibS + 0.5
-  const TH = AMB * WIND.floorX
+  const T0 = WIND.medianWindowS + 0.5
+  const TH = AMB * WIND.medianX
   const breath = (level, end = Infinity) => t => (t >= T0 && t < end ? level : AMB)
-  // 一定の環境音では発火しない: 旧固定閾値 0.018 を常に越える 0.03 前後（±20% の揺らぎ）が 5 秒
-  out.ambientConstant = micRun(t => 0.03 * (1 + 0.2 * Math.sin(t * 37)), -20, -60, 5)
+  // 一定の環境音では発火しない: 許可直後から 0.03±20% が 5 秒（履歴が空の最初の数フレームも含む）
+  out.ambientConstant = micRun(t => 0.03 * (1 + 0.2 * Math.sin(t * 37)), 5)
   out.ambientConstantIgnored = out.ambientConstant.events.length === 0
-  // ゆっくり大きくなる環境音（空調の立ち上がり等）でも発火しない: 0.01 -> 0.08 を 3 秒で
-  out.ambientRamp = micRun(t => AMB + 0.07 * Math.min(1, Math.max(0, t - T0) / 3), -20, -60, 7)
-  out.ambientRampIgnored = out.ambientRamp.events.length === 0
-  // 環境音の floorX 倍を越える息で発火する（floorX 倍未満では発火しない）
-  out.micBreath = micRun(breath(TH * 1.125), -20, -60, T0 + 0.4)
-  out.micBreathFires = winds(out.micBreath).length === 1 &&
-    out.micBreath.events[0][2] - T0 >= WIND.holdS - 1e-9 &&
-    out.micBreath.events[0][2] - T0 < WIND.holdS + 0.05 &&
-    near(out.micBreath.noiseFloor, AMB, 1e-4)
-  out.micBelowFloorX = micRun(breath(TH * 0.875), -20, -60, T0 + 0.4)
-  out.micBelowFloorXIgnored = out.micBelowFloorX.events.length === 0
-  // 下限: 無音に近い部屋では minRms が効く（フロア×floorX が minRms 未満）
-  out.micQuietRoom = micRun(t => (t >= T0 ? WIND.minRms * 0.8 : 0.0005), -20, -60, T0 + 0.4)
+  // 中央値の 3 倍を越える息で holdS 後に発火する
+  out.micBreath = micRun(breath(TH * 1.2, T0 + 0.3), T0 + 0.6)
+  const mb = mics(out.micBreath)
+  out.micBreathFires = mb.length === 1 && mb[0][2] - T0 >= WIND.holdS - 1e-9 &&
+    mb[0][2] - T0 < WIND.holdS + 0.03 && near(out.micBreath.median, AMB, 1e-6) &&
+    out.micBreath.events.some(e => e[0] === 'calm' && e[1] >= T0 + 0.3 - 1e-9)
+  // 3 倍未満では発火しない
+  out.micBelowX = micRun(breath(TH * 0.8), T0 + 0.6)
+  out.micBelowXIgnored = out.micBelowX.events.length === 0
+  // holdS に満たない短い音（80ms 未満）では発火しない
+  out.micTooShort = micRun(breath(TH * 3, T0 + WIND.holdS - 0.02), T0 + 0.6)
+  out.micTooShortIgnored = out.micTooShort.events.length === 0
+  // 下限: 無音に近い部屋では minRms が効く（0.8 倍は発火しない、1.5 倍は発火する）
+  out.micQuietRoom = micRun(t => (t >= T0 ? WIND.minRms * 0.8 : 0.0005), T0 + 0.6)
   out.micQuietRoomIgnored = out.micQuietRoom.events.length === 0
-  // 急に始まって鳴り続ける低い音: 一度は発火しても、freezeMaxS 後にフロアが追従して止み、
-  // その新しい環境音の上でも息で発火する
-  const stepEnd = T0 + 8.5
-  out.ambientStep = micRun(t => (t >= stepEnd ? 0.06 * WIND.floorX * 1.5 : t >= T0 ? 0.06 : AMB),
-    -20, -60, stepEnd + 0.4)
-  const sw = winds(out.ambientStep)
+  out.micQuietRoomLoud = micRun(t => (t >= T0 ? WIND.minRms * 1.5 : 0.0005), T0 + 0.6)
+  out.micQuietRoomLoudFires = mics(out.micQuietRoomLoud).length === 1
+  // 急に始まって鳴り続ける音: 1 回は発火する（許容する誤発火）。中央値が追いつくと止み、
+  // 鳴り続けても 2 回目は来ない
+  out.ambientStep = micRun(t => (t >= T0 ? AMB * 6 : AMB), T0 + 8)
   const calm = out.ambientStep.events.find(e => e[0] === 'calm')
-  out.ambientStepRecovers = sw.length === 2 && !!calm && calm[1] > sw[0][2] &&
-    calm[1] < T0 + WIND.freezeMaxS + 1.5 && sw[1][2] >= stepEnd + WIND.holdS - 1e-9
+  out.ambientStepOnce = mics(out.ambientStep).length === 1 && !!calm &&
+    calm[1] < T0 + WIND.medianWindowS / 2 + 0.2 && !out.ambientStep.blowing
   // 強さ: 閾値すれすれ -> 0.3 付近、閾値の strengthFullX 倍以上 -> 1.0。0.3..1.0 の外に出ない
   out.strengthJustOver = +Wind.strengthOf(TH * 1.01, TH).toFixed(3)
   out.strengthMid = +Wind.strengthOf(TH * 3, TH).toFixed(3)
   out.strengthHuge = +Wind.strengthOf(1.0, TH).toFixed(3)
-  out.micLoud = micRun(breath(TH * 20), -20, -60, T0 + 0.4)
+  out.micLoud = micRun(breath(TH * 20, T0 + 0.2), T0 + 0.6)
   out.strengthOk = near(out.strengthJustOver, 0.3, 0.01) && out.strengthMid > 0.3 &&
     out.strengthMid < 1 && out.strengthHuge === 1 &&
-    near(out.micBreath.events[0][1], Wind.strengthOf(TH * 1.125, TH), 2e-3) &&
-    winds(out.micLoud)[0][1] === 1
-  // クールダウン: 0.2s 吹く -> 0.2s 止む -> また吹く。2 回目は発火から 0.8s 経つまで待たされる
-  const burst = t => (t >= T0 && (t < T0 + 0.2 || t >= T0 + 0.4)) ? TH * 2 : AMB
-  out.micCooldown = micRun(burst, -20, -60, T0 + 1.4)
-  const fires = winds(out.micCooldown)
+    near(mb[0][1], Wind.strengthOf(TH * 1.2, TH), 2e-3) && mics(out.micLoud)[0][1] === 1
+  // クールダウン 2.0s: 0.15s の息を 0.6s おきに。2 回目は発火から 2.0s 経った後の最初の息
+  const burst = t => (t >= T0 && (t - T0) % 0.6 < 0.15 ? TH * 1.5 : AMB)
+  out.micCooldown = micRun(burst, T0 + 2.7)
+  const fires = mics(out.micCooldown)
   out.cooldownOk = fires.length === 2 && fires[1][2] - fires[0][2] >= WIND.cooldownS - 1e-9 &&
-    fires[1][2] - fires[0][2] < WIND.cooldownS + 0.05
-  // 大きく急に始まるが高域優勢（声）
-  const voice = t => (t >= T0 ? -60 : -20)
-  out.micVoice = micRun(breath(TH * 2), voice, t => (t >= T0 ? -40 : -60), T0 + 0.4)
-  out.micVoiceIgnored = out.micVoice.events.length === 0
+    near(fires[1][2], T0 + 2.4 + WIND.holdS, 0.03)
+  // タップもクールダウンを始める（画面を叩いた音でマイクが二重に発火しない）。タップ自体は
+  // クールダウンに関係なく毎回発火する
+  out.tapThenMic = micRun(t => (t >= T0 && t < T0 + 0.15) || (t >= T0 + 1.6 && t < T0 + 1.75)
+    ? TH * 1.5 : AMB, T0 + 2, [T0 - 0.5, T0 - 0.3])
+  const tm = out.tapThenMic.events.filter(e => e[0] === 'wind')
+  out.tapSharesCooldown = tm.length === 3 && tm[0][3] === 'tap' && tm[1][3] === 'tap' &&
+    tm[2][3] === 'mic' && near(tm[2][2], T0 + 1.6 + WIND.holdS, 0.03)
 
-  out.ok = out.settingsOk && out.shortTapIgnored && out.longPressFires && out.releaseCalms &&
-    out.cancelCalms && out.disabledWhenMicGranted && out.ambientConstantIgnored &&
-    out.ambientRampIgnored && out.micBreathFires && out.micBelowFloorXIgnored &&
-    out.micQuietRoomIgnored && out.ambientStepRecovers && out.micVoiceIgnored &&
-    out.strengthOk && out.cooldownOk
+  out.ok = out.settingsOk && out.tapFires && out.tapSmallMoveFires && out.tapDragIgnored &&
+    out.tapLongIgnored && out.tapOffCardIgnored && out.tapMultiTouchIgnored && out.tapCancelIgnored &&
+    out.noLongPress && out.ambientConstantIgnored && out.micBreathFires && out.micBelowXIgnored &&
+    out.micTooShortIgnored && out.micQuietRoomIgnored && out.micQuietRoomLoudFires &&
+    out.ambientStepOnce && out.strengthOk && out.cooldownOk && out.tapSharesCooldown
+  return out
+}
+
+// (3b) 見失い -> 再認識: main.js の pause / resume が使う ParticleField と Audio の部品
+const checkResume = async (field) => {
+  const u = field.uniforms
+  const out = {}
+  const src = () => (field.srcIsA ? field.aA : field.aB).array
+  const dst = () => (field.srcIsA ? field.aB : field.aA).array
+  // 散って 0.3s で見失い、5s 後に再認識
+  field.startScatter(0.9, 1.0)
+  const lostAt = 1.3
+  const foundAt = 6.3
+  field.shiftClock(foundAt - lostAt)
+  out.scatterElapsedKept = +(foundAt - u.uScatterT0.value).toFixed(6)
+  field.reformToCurrent(foundAt)
+  out.reformsToCurrent = u.uMode.value === MODE.REFORM && u.uT0.value === foundAt &&
+    dst().every((v, i) => v === src()[i])
+  out.scatterKeptOk = near(out.scatterElapsedKept, lostAt - 1.0, 1e-6)
+  // settle 後の形は見失う前と同じ（循環は進まない）
+  const before = src().slice()
+  const cycle = field.cycleIndex
+  field.settle()
+  out.shapeUnchanged = src().every((v, i) => v === before[i]) && field.cycleIndex === cycle &&
+    u.uMode.value === MODE.BREATHE
+
+  // 鳴っている途中の音を stopAll で即止める
+  const sr = 48000
+  const a = new Audio()
+  a.ctx = new OfflineAudioContext(1, sr, sr)
+  a.wire()
+  a.scatterAt(0, 1.0)
+  out.playingBeforeStop = a.playing.size
+  a.stopAll()
+  const d = (await a.ctx.startRendering()).getChannelData(0)
+  out.peakAfterStop = +Math.max(...d.map(Math.abs)).toFixed(5)
+  out.audioStops = out.playingBeforeStop === 1 && a.playing.size === 0 && out.peakAfterStop < 1e-3
+
+  out.ok = out.reformsToCurrent && out.scatterKeptOk && out.shapeUnchanged && out.audioStops
+  u.uMode.value = MODE.BREATHE
   return out
 }
 
@@ -398,6 +453,7 @@ const main = async () => {
   report.checks.tilt = tiltCheck.out
   report.checks.wind = await checkWind()
   report.checks.audio = await checkAudio()
+  report.checks.resume = await checkResume(field)
 
   const setup = [
     {label: 'breathe (printed rest)', mode: MODE.BREATHE, t: 1.0},
@@ -488,7 +544,7 @@ const main = async () => {
   report.cardMm = [CARD.widthMm, CARD.heightMm]
   report.ok = report.glError === 0 && report.drawCalls > 0 &&
     report.checks.pose.ok && report.checks.tilt.ok && report.checks.wind.ok &&
-    report.checks.audio.ok && report.checks.slide.ok && report.checks.breatheStaysPrinted
+    report.checks.audio.ok && report.checks.resume.ok && report.checks.slide.ok && report.checks.breatheStaysPrinted
 }
 
 main().then(() => { window.__selftestDone = true })

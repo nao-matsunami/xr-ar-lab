@@ -1,21 +1,28 @@
 // showcase/ar/wind.js
 //
-// 「吹いた」の判定。
+// 「散る」のきっかけ。第一の入力は名刺上の短いタップ、マイクで吹くのは 🌬 で許可したときの追加入力。
 //
-//   時間領域 RMS が max(noiseFloor * floorX, minRms) を越え
-//   かつ 150Hz 以下の帯域が全体の lowBandRatio 以上を占める状態が holdS 以上続き
-//   かつ その状態に入るとき、RMS が直近 riseWindowS の平均の riseX 倍以上に急増していた
+// タップ: pointerdown -> pointerup の移動が tapMaxMovePx 未満、時間が tapMaxS 未満で、
+//         押した位置が名刺の上（main.js が判定して渡す）なら、散る -> 再形成を 1 回発火する。
 //
-// noiseFloor は許可直後 calibS 秒の RMS 平均で初期化し、以後は時定数 floorTauS の
-// 指数移動平均で追従する（判定中は止める）。固定閾値だと、端末や部屋によっては
-// 周囲音だけで常に越えてしまう（Pixel 7 で確認）。
-// 帯域比が無いと会話・拍手で、立ち上がり条件が無いと空調など一定の低い音で誤爆する。
-// 息はほぼ低域の乱流ノイズで、急に始まる。値は config.js。
+// マイク: 時間領域 RMS が max(直近 medianWindowS 秒の RMS 中央値 * medianX, minRms) を
+//         holdS 続けて越えたら発火。発火後 cooldownS は次を受け付けない。値は config.js。
 //
-// 発火後 cooldownS の間は次の発火を受け付けない。強さはその時点の閾値に対する超過量で
-// strengthMin..strengthMax に正規化する（閾値ちょうどで min、閾値の strengthFullX 倍で max）。
+// マイク判定はわざと単純にしてある（帯域比・立ち上がり・ノイズフロアの凍結は持たない）。
+// 会話・拍手・机を叩く音・急に始まった持続音でも発火し得る。これは許容する誤発火で、
+// 散って再形成するだけなので実害は無い。止めたければ 🌬 を押さなければよい（タップだけで遊べる）。
+// 持続音は中央値がおよそ medianWindowS / 2 で追いつくので、鳴り続けても発火は 1 回で止む。
+//
+// 強さはその時点の閾値に対する超過量で strengthMin..strengthMax に正規化する
+// （閾値ちょうどで min、閾値の strengthFullX 倍で max）。タップは tapStrength 固定。
 
-import {WIND, WIND_PROFILE} from './config.js'
+import {WIND} from './config.js'
+
+const median = (xs) => {
+  const s = xs.slice().sort((a, b) => a - b)
+  const m = s.length >> 1
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2
+}
 
 export class Wind {
   /**
@@ -30,30 +37,26 @@ export class Wind {
     this.granted = false
     this.blowing = false
     this.overSince = -1
-    this.lastFireAt = -Infinity  // update() の now 基準（秒）
+    // 最後の発火時刻（秒、performance.now() 基準。update() の now と同じ）。タップもここを更新するので、
+    // タップで画面を叩いた音がマイクで二重に発火することはない
+    this.lastFireAt = -Infinity
     this.lastStrength = 0
-    // ノイズフロア。calibStart から calibS 秒は較正中（発火しない）
-    this.calibStart = -1
-    this.calibSum = 0
-    this.calibN = 0
-    this.noiseFloor = 0
-    this.lastUpdate = -1
-    this.armed = false          // 今の超過区間の入りで立ち上がりを満たした
-    this._hist = []             // 直近 riseWindowS の [t, rms]
+    this._hist = []             // 直近 medianWindowS の [t, rms]
     this.stream = null
     this._td = null
-    this._fd = null
     // 以下は ?debug の表示用（判定には使わない）
     this.micState = 'idle'      // idle / requesting / granted / denied:<name> / unsupported
     this.rms = 0
-    this.lowRatio = 0
-    this.rise = 0               // rms / 直近 riseWindowS の平均
+    this.median = 0
+    this.ratio = 0              // rms / median
     this.threshold = WIND.minRms
-    this.lastEvent = null       // {at: Date.now(), strength, source: 'mic' | 'longpress'}
+    this.lastEvent = null       // {at: Date.now(), strength, source: 'mic' | 'tap'}
+    this.lastTap = null         // {at: Date.now(), movePx, ms, onCard, fired}
   }
 
-  /** 認識後の最初のタップから呼ぶ。拒否されたら false（長押しにフォールバック）。 */
+  /** 🌬 から呼ぶ。拒否・非対応なら false（タップだけで続ける）。 */
   async request() {
+    if (this.granted) { return true }
     const ctx = this.audio.ensureCtx()
     if (!ctx || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       this.micState = 'unsupported'
@@ -61,10 +64,8 @@ export class Wind {
         `mediaDevices=${!!navigator.mediaDevices}, secure=${window.isSecureContext})`)
       return false
     }
-    console.log(`[showcase] wind: profile=${WIND_PROFILE} calibS=${WIND.calibS} ` +
-      `floorTauS=${WIND.floorTauS} floorX=${WIND.floorX} minRms=${WIND.minRms} ` +
-      `riseX=${WIND.riseX}/${WIND.riseWindowS}s lowBandRatio=${WIND.lowBandRatio} ` +
-      `holdS=${WIND.holdS} cooldownS=${WIND.cooldownS}`)
+    console.log(`[showcase] wind: medianWindowS=${WIND.medianWindowS} medianX=${WIND.medianX} ` +
+      `minRms=${WIND.minRms} holdS=${WIND.holdS} cooldownS=${WIND.cooldownS}`)
     console.log(`[showcase] wind: AudioContext state=${ctx.state} sampleRate=${ctx.sampleRate}`)
     this.micState = 'requesting'
     try {
@@ -73,8 +74,7 @@ export class Wind {
       })
     } catch (e) {
       this.micState = `denied:${e && e.name}`
-      console.log('[showcase] wind: getUserMedia failed, falling back to long press:',
-        e && e.name, e && e.message)
+      console.log('[showcase] wind: getUserMedia failed, tap only:', e && e.name, e && e.message)
       return false
     }
     const track = this.stream.getAudioTracks()[0]
@@ -94,83 +94,37 @@ export class Wind {
     const src = ctx.createMediaStreamSource(this.stream)
     this.analyser = ctx.createAnalyser()
     this.analyser.fftSize = 1024
-    this.analyser.smoothingTimeConstant = 0.2
     src.connect(this.analyser)     // destination には繋がない（ハウリング防止）
     this._td = new Float32Array(this.analyser.fftSize)
-    this._fd = new Float32Array(this.analyser.frequencyBinCount)
     this.granted = true
     this.micState = 'granted'
     console.log(`[showcase] wind: AnalyserNode connected: MediaStreamSource -> Analyser ` +
-      `(fftSize=${this.analyser.fftSize}, bins=${this.analyser.frequencyBinCount}, ` +
-      `lowBand bins=${this._lowCut()}, AudioContext state=${ctx.state})`)
+      `(fftSize=${this.analyser.fftSize}, AudioContext state=${ctx.state})`)
     return true
-  }
-
-  _lowCut() {
-    const nyquist = this.audio.ctx.sampleRate / 2
-    return Math.max(1, Math.round(WIND.lowBandHz / nyquist * this._fd.length))
   }
 
   /** 毎フレーム呼ぶ。 */
   update(now) {
     if (!this.granted || !this.analyser) { return }
-    const a = this.analyser
-    a.getFloatTimeDomainData(this._td)
+    this.analyser.getFloatTimeDomainData(this._td)
     let sum = 0
     for (let i = 0; i < this._td.length; i++) { sum += this._td[i] * this._td[i] }
     const rms = Math.sqrt(sum / this._td.length)
     this.rms = rms
 
-    // 帯域比は ?debug で常に見えるよう毎フレーム出す（512 ビン、負荷は無視できる）
-    a.getFloatFrequencyData(this._fd)
-    const cut = this._lowCut()
-    let lowE = 0
-    let allE = 0
-    for (let i = 0; i < this._fd.length; i++) {
-      const e = Math.pow(10, this._fd[i] / 10)  // dB -> パワー
-      allE += e
-      if (i < cut) { lowE += e }
-    }
-    this.lowRatio = allE > 0 ? lowE / allE : 0
-    const low = this.lowRatio >= WIND.lowBandRatio
-
-    // 立ち上がり比: 今フレームを除く直近 riseWindowS の平均に対する比
+    // 基準は今フレームを除く直近 medianWindowS の中央値。履歴が空なら minRms だけで判定する
     const hist = this._hist
-    while (hist.length && hist[0][0] < now - WIND.riseWindowS) { hist.shift() }
-    let ref = this.noiseFloor
-    if (hist.length) {
-      ref = 0
-      for (const h of hist) { ref += h[1] }
-      ref /= hist.length
-    }
-    this.rise = rms / Math.max(1e-6, ref)
+    while (hist.length && hist[0][0] < now - WIND.medianWindowS) { hist.shift() }
+    this.median = hist.length ? median(hist.map(h => h[1])) : 0
     hist.push([now, rms])
+    this.ratio = rms / Math.max(1e-6, this.median)
 
-    const dt = this.lastUpdate >= 0 ? Math.max(0, now - this.lastUpdate) : 0
-    this.lastUpdate = now
-
-    // 較正: 許可後 calibS 秒の平均をフロアの初期値にする。この間は発火しない
-    if (this.calibStart < 0) { this.calibStart = now }
-    if (now - this.calibStart < WIND.calibS) {
-      this.calibSum += rms
-      this.calibN++
-      this.noiseFloor = this.calibSum / this.calibN
-      this.threshold = Math.max(this.noiseFloor * WIND.floorX, WIND.minRms)
-      return
-    }
-
-    const th = Math.max(this.noiseFloor * WIND.floorX, WIND.minRms)
+    const th = Math.max(this.median * WIND.medianX, WIND.minRms)
     this.threshold = th
-    const over = rms > th && low
-    if (over) {
-      if (this.overSince < 0) {
-        this.overSince = now
-        this.armed = false
-      }
-      // 超過区間のどこかで急増を見たら発火対象。一定の音が閾値の上に居座っても arm されない
-      if (!this.armed && this.rise >= WIND.riseX) { this.armed = true }
-      if (this.armed) { this.lastStrength = Math.max(this.lastStrength, Wind.strengthOf(rms, th)) }
-      if (this.armed && !this.blowing && now - this.overSince >= WIND.holdS &&
+    if (rms > th) {
+      if (this.overSince < 0) { this.overSince = now }
+      this.lastStrength = Math.max(this.lastStrength, Wind.strengthOf(rms, th))
+      if (!this.blowing && now - this.overSince >= WIND.holdS &&
           now - this.lastFireAt >= WIND.cooldownS) {
         this.blowing = true
         this.lastFireAt = now
@@ -178,19 +132,11 @@ export class Wind {
       }
     } else {
       this.overSince = -1
-      this.armed = false
       this.lastStrength = 0
       if (this.blowing) {
         this.blowing = false
         this.onCalm()
       }
-    }
-
-    // フロアの追従。息（arm 済みの超過区間）は混ぜない。ただし freezeMaxS を越えて
-    // 続くなら息ではなく環境が変わったとみなして追従を再開する
-    const freeze = this.armed && now - this.overSince < WIND.freezeMaxS
-    if (!freeze && dt > 0) {
-      this.noiseFloor += (rms - this.noiseFloor) * (1 - Math.exp(-dt / WIND.floorTauS))
     }
   }
 
@@ -206,30 +152,40 @@ export class Wind {
     this.onWind(strength)
   }
 
-  /** マイクが使えないときの代替。カードの長押し 500ms。 */
-  attachLongPress(el) {
-    let timer = null
-    let fired = false
-    const down = () => {
-      if (this.granted) { return }
-      fired = false
-      timer = setTimeout(() => {
-        fired = true
-        this.blowing = true
-        this._fire(0.85, 'longpress')
-      }, WIND.longPressS * 1000)
+  /** タップ 1 回分: 散る -> すぐ止む（再形成は main.js の onCalm から）。クールダウンは見ない。 */
+  tap(now = performance.now() / 1000) {
+    this.lastFireAt = now
+    this._fire(WIND.tapStrength, 'tap')
+    if (!this.blowing) { this.onCalm() }
+  }
+
+  /**
+   * 名刺上の短いタップを拾う。
+   * @param el      pointer イベントを受ける要素（XR8 の canvas）
+   * @param onCard  (clientX, clientY) => bool   押した位置が名刺の上か
+   */
+  attachTap(el, onCard) {
+    let down = null
+    const start = (e) => {
+      // 2 本目の指が来たらタップではない（ピンチ等）
+      if (down) { down = null; return }
+      down = {id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now()}
     }
-    const up = () => {
-      if (timer) { clearTimeout(timer); timer = null }
-      if (fired) {
-        fired = false
-        this.blowing = false
-        this.onCalm()
-      }
+    const end = (e) => {
+      if (!down || e.pointerId !== down.id) { return }
+      const movePx = Math.hypot(e.clientX - down.x, e.clientY - down.y)
+      const ms = performance.now() - down.t
+      const short = movePx < WIND.tapMaxMovePx && ms < WIND.tapMaxS * 1000
+      const on = short && !!onCard(down.x, down.y)
+      down = null
+      this.lastTap = {at: Date.now(), movePx, ms, onCard: on, fired: short && on}
+      if (short && on) { this.tap() }
     }
-    el.addEventListener('pointerdown', down, {passive: true})
-    el.addEventListener('pointerup', up, {passive: true})
-    el.addEventListener('pointercancel', up, {passive: true})
-    el.addEventListener('pointerleave', up, {passive: true})
+    const cancel = (e) => {
+      if (down && e.pointerId === down.id) { down = null }
+    }
+    el.addEventListener('pointerdown', start, {passive: true})
+    el.addEventListener('pointerup', end, {passive: true})
+    el.addEventListener('pointercancel', cancel, {passive: true})
   }
 }

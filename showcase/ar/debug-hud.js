@@ -1,9 +1,9 @@
 // showcase/ar/debug-hud.js
 //
-// ?debug のときだけ画面上部に出す風判定の計器（RMS・閾値・ノイズフロア・立ち上がり比・帯域比）。通常表示（文字を置かない）には出さない。
+// ?debug のときだけ画面上部に出す入力の計器（RMS・閾値・中央値・倍率・クールダウン・タップの判定）。通常表示（文字を置かない）には出さない。
 // DOM なので ⏺ の録画（canvas）には写らない。値は Wind が毎フレーム更新したものを読むだけ。
 
-import {WIND, WIND_PROFILE} from './config.js'
+import {WIND} from './config.js'
 
 const CSS = `
 #sc-debug{position:fixed;left:0;right:0;top:0;z-index:10000;pointer-events:none;
@@ -57,23 +57,28 @@ export class DebugHud {
     const ctxState = ctx ? ctx.state : 'none'
     const t = performance.now() / 1000
     const overS = w.overSince >= 0 ? t - w.overSince : 0
-    const calibrating = w.granted && (w.calibStart < 0 || w.lastUpdate - w.calibStart < WIND.calibS)
+    const cool = Math.max(0, WIND.cooldownS - (t - w.lastFireAt))
     const ev = w.lastEvent
     const last = ev
       ? `${clock(ev.at)} ${ev.source} s=${ev.strength.toFixed(2)} (${((Date.now() - ev.at) / 1000).toFixed(1)}s ago)`
+      : '-'
+    const tp = w.lastTap
+    const tap = tp
+      ? `${clock(tp.at)} ${mark(tp.fired, tp.fired ? 'FIRED' : 'no')}  ` +
+        `${mark(tp.movePx < WIND.tapMaxMovePx, `${tp.movePx.toFixed(1)}px`)}/<${WIND.tapMaxMovePx}  ` +
+        `${mark(tp.ms < WIND.tapMaxS * 1000, `${Math.round(tp.ms)}ms`)}/<${WIND.tapMaxS * 1000}  ` +
+        `card=${mark(tp.onCard, tp.onCard ? 'y' : 'n')}`
       : '-'
     this.el.innerHTML = [
       `mic   ${mark(w.micState === 'granted', w.micState)}  perm=${this.perm}  ` +
         `ctx=${mark(ctxState === 'running', ctxState)}  analyser=${w.analyser ? 'on' : 'off'}`,
       `rms   ${mark(w.rms > w.threshold, w.rms.toFixed(4))} / th ${w.threshold.toFixed(4)}` +
-        `  [wind=${WIND_PROFILE}]`,
-      `floor ${w.noiseFloor.toFixed(4)} x${WIND.floorX} (min ${WIND.minRms})` +
-        `${calibrating ? '  <i>calibrating</i>' : ''}`,
-      `rise  ${mark(w.rise >= WIND.riseX, w.rise.toFixed(2))} / th ${WIND.riseX.toFixed(2)}` +
-        `  (vs ${WIND.riseWindowS * 1000}ms avg)  armed=${w.armed ? 'y' : 'n'}`,
-      `low   ${mark(w.lowRatio >= WIND.lowBandRatio, w.lowRatio.toFixed(3))} / th ${WIND.lowBandRatio.toFixed(2)}` +
-        `  (<=${WIND.lowBandHz}Hz)`,
-      `wind  ${mark(w.blowing, w.blowing ? 'ON ' : 'OFF')}  over ${overS.toFixed(2)}s / hold ${WIND.holdS}s`,
+        `  (min ${WIND.minRms})`,
+      `med   ${w.median.toFixed(4)}  (${WIND.medianWindowS}s median)`,
+      `ratio ${mark(w.ratio >= WIND.medianX, w.ratio.toFixed(2))} / x${WIND.medianX}`,
+      `wind  ${mark(w.blowing, w.blowing ? 'ON ' : 'OFF')}  over ${overS.toFixed(2)}s / hold ${WIND.holdS}s` +
+        `  cool ${cool > 0 ? `<i>${cool.toFixed(1)}s</i>` : '0'}`,
+      `tap   ${tap}`,
       `last  ${last}`,
     ].join('\n')
   }
