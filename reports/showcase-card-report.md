@@ -820,14 +820,14 @@ node tools/headless-check.mjs "http://127.0.0.1:8811/tools/showcase-selftest.htm
 ## `git log --oneline -10 main`
 
 ```
+6b939fb Make card tap the primary showcase input and pause on image lost
+5f53862 Replace fixed wind threshold with adaptive noise floor and rise check
+8517e69 Tune showcase wind detection, scatter sound, and tilt slide
+ca78855 Update git log tail in showcase-card report
 d6459a0 Add wind-detection debug HUD, ?wind=low profile, and long-press selftest
 e3abfef Update git log tail in showcase-card report
 d831805 Fix showcase card overlay scale/axes and make tilt relative to found pose
 dddf54c Raise background particle min size and lift its brightness
 c05c9e1 Fill git log tail in showcase-card report
 c51e8df Merge showcase-card: antymark 名刺の印刷面生成と粒子AR
-5d81c49 Add antymark showcase card: print-face generator and particle AR
-8501788 Mark the quick-tunnel test section superseded by GitHub Pages
-96c3dba Add MIT migration and bugfix report
-74207e7 Fix card-demo object switcher and gate audience SE behind a user gesture
 ```
