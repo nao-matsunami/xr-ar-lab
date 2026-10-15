@@ -1,11 +1,11 @@
-// showcase/ar/audio.js
+// shared/ar-core/audio.js
 //
 // 効果音は全部 WebAudio で合成する。音声ファイルは持たない（外部URLゼロの一部）。
 // AudioContext は 1 つだけ作り、最初のユーザー操作で resume する。
 //
 //   各音 -> master(Gain, ミュート) -> DynamicsCompressor -> destination / 録画
 
-import {AUDIO} from './config.js'
+import {AUDIO, LOG} from 'ar-config'
 
 export class Audio {
   constructor() {
@@ -22,9 +22,9 @@ export class Audio {
       if (!AC) { return null }
       this.ctx = new AC()
       this.wire()
-      console.log(`[showcase] AudioContext created: state=${this.ctx.state} sampleRate=${this.ctx.sampleRate}`)
+      console.log(`${LOG} AudioContext created: state=${this.ctx.state} sampleRate=${this.ctx.sampleRate}`)
       this.ctx.addEventListener('statechange', () => {
-        console.log(`[showcase] AudioContext state -> ${this.ctx.state}`)
+        console.log(`${LOG} AudioContext state -> ${this.ctx.state}`)
       })
     }
     return this.ctx
@@ -58,11 +58,11 @@ export class Audio {
     if (ctx.state === 'suspended') {
       try { await ctx.resume() } catch (e) {
         // ユーザー操作が要る端末では次のタップで通る
-        console.log('[showcase] AudioContext resume failed:', e && e.name, e && e.message)
+        console.log(`${LOG} AudioContext resume failed:`, e && e.name, e && e.message)
       }
     }
     this.armed = ctx.state === 'running'
-    console.log(`[showcase] AudioContext arm: state=${ctx.state}`)
+    console.log(`${LOG} AudioContext arm: state=${ctx.state}`)
     return this.armed
   }
 
@@ -75,13 +75,23 @@ export class Audio {
     return !!(this.ctx && this.armed && this.ctx.state === 'running' && !this.muted)
   }
 
-  /** 散る瞬間: ホワイトノイズ -> バンドパス 2〜6kHz -> 短いエンベロープ。 */
+  /** 散る瞬間の音。AUDIO.scatterVoice で選ぶ。 */
   scatter(strength) {
     if (!this.ready) { return }
     this.scatterAt(this.ctx.currentTime, strength)
   }
 
   scatterAt(t, strength) {
+    if (AUDIO.scatterVoice === 'bell') {
+      this.bellAt(t, strength)
+      this.brushAt(t, strength)
+    } else {
+      this.grainAt(t, strength)
+    }
+  }
+
+  /** 'grain': ホワイトノイズ -> バンドパス 2〜6kHz -> 短いエンベロープ。 */
+  grainAt(t, strength) {
     const ctx = this.ctx
     const dur = AUDIO.scatterDecayS
     const len = Math.max(1, Math.floor(ctx.sampleRate * dur))
@@ -109,6 +119,69 @@ export class Audio {
 
     src.connect(bp)
     bp.connect(g)
+    g.connect(this.master)
+    src.start(t)
+    src.stop(t + dur)
+    this._track(src)
+  }
+
+  /**
+   * 'bell': 低い鐘 1 発。正弦波の基音 AUDIO.bellHz と、鐘らしい非整数倍の倍音 3 つ。
+   * 高い倍音ほど早く消え、基音は bellDecayS かけて消える。
+   */
+  bellAt(t, strength) {
+    const ctx = this.ctx
+    const s = Math.max(0, Math.min(1, strength))
+    const peak = AUDIO.bellGain * (0.6 + 0.4 * s)
+    AUDIO.bellPartials.forEach(([ratio, amp, decayS]) => {
+      const osc = ctx.createOscillator()
+      osc.type = 'sine'
+      osc.frequency.value = AUDIO.bellHz * ratio
+      const g = ctx.createGain()
+      // 立ち上がりは直線（クリックを避ける）、減衰は指数
+      g.gain.setValueAtTime(0, t)
+      g.gain.linearRampToValueAtTime(peak * amp, t + AUDIO.bellAttackS)
+      g.gain.exponentialRampToValueAtTime(0.0001, t + AUDIO.bellAttackS + decayS)
+      osc.connect(g)
+      g.connect(this.master)
+      osc.start(t)
+      osc.stop(t + AUDIO.bellAttackS + decayS + 0.05)
+      this._track(osc)
+    })
+  }
+
+  /** 'bell' に添える、筆が紙を擦るような薄い帯域ノイズ（散っている間）。 */
+  brushAt(t, strength) {
+    const ctx = this.ctx
+    const dur = AUDIO.brushDurS
+    const len = Math.max(1, Math.floor(ctx.sampleRate * dur))
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate)
+    const data = buf.getChannelData(0)
+    // ゆっくり揺れる振幅で、擦れのむらを付ける
+    for (let i = 0; i < len; i++) {
+      const u = i / ctx.sampleRate
+      data[i] = (Math.random() * 2 - 1) * (0.7 + 0.3 * Math.sin(u * 9.1) * Math.sin(u * 3.7 + 1))
+    }
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    const [lo, hi] = AUDIO.brushBandHz
+    const hp = ctx.createBiquadFilter()
+    hp.type = 'highpass'
+    hp.frequency.value = lo
+    hp.Q.value = 0.7
+    const lp = ctx.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.value = hi
+    lp.Q.value = 0.7
+    const g = ctx.createGain()
+    const peak = AUDIO.brushGain * (0.5 + 0.5 * Math.max(0, Math.min(1, strength)))
+    g.gain.setValueAtTime(0, t)
+    g.gain.linearRampToValueAtTime(peak, t + AUDIO.brushAttackS)
+    g.gain.setValueAtTime(peak, t + dur * 0.45)
+    g.gain.linearRampToValueAtTime(0, t + dur)
+    src.connect(hp)
+    hp.connect(lp)
+    lp.connect(g)
     g.connect(this.master)
     src.start(t)
     src.stop(t + dur)

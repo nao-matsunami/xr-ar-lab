@@ -1,4 +1,4 @@
-// showcase/ar/targets.js
+// showcase/ar/targets.js（importmap で 'ar-targets'。shared/ar-core/main.js が読む）
 //
 // 画像ターゲットをコードから登録する。クラウド（8thwall.com のプロジェクト）は使わない。
 //
@@ -65,6 +65,12 @@ export const cardPoseFromDetail = (detail) => {
     aspectRatio: (Math.max(sw, sh) / Math.min(sw, sh)) / (CARD.widthMm / CARD.heightMm),
   }
 }
+
+// 点群の JSON（ページからの相対 URL）
+export const dataUrls = (variant) => ({
+  particles: `./ar/particles-${variant}.json`,
+  shapes: `./ar/shapes-${variant}.json`,
+})
 
 export const variantOf = (targetName) => {
   const m = /^antymark-card-(.+)$/.exec(targetName || '')

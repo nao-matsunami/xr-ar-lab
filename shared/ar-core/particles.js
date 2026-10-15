@@ -1,4 +1,4 @@
-// showcase/ar/particles.js
+// shared/ar-core/particles.js
 //
 // 印刷された粒子をそのまま GPU ポイントにする。
 //
@@ -7,10 +7,10 @@
 //   - モードと開始時刻の uniform を書く
 // だけ。毎フレーム 3 万点を JS で触らない。
 //
-// 座標系: カードローカルの mm。x 右 (-42.5..42.5) / y 上 (-27.5..27.5) / z カード法線。
+// 座標系: カードローカルの mm。x 右 / y 上（原点はターゲット中央）/ z カード法線。
 // particles.json と shapes.json は「左上原点・mm」なので読み込み時に変換する。
 
-import {CARD, PARTICLES, BREATHE, SCATTER, REFORM, TILT} from './config.js'
+import {CARD, PARTICLES, BREATHE, SCATTER, REFORM, TILT} from 'ar-config'
 
 export const MODE = {BREATHE: 0, SCATTER: 1, REFORM: 2}
 
@@ -40,6 +40,10 @@ uniform float uScatterSpeedMin;
 uniform float uDrag;
 uniform float uFall;
 uniform float uSpread;
+uniform vec3  uDown;         // 落ちる向き（カードローカル）。uFall < 0 なら逆向きに昇る
+uniform float uLift;         // 初速に足す「上」の量
+uniform float uSwirl;        // 横揺れ (mm)
+uniform float uUnit;         // 下の直書きの mm に掛ける倍率（config の PARTICLES.unitMm）
 
 uniform float uReformDur;
 uniform float uDelaySpan;
@@ -77,11 +81,17 @@ vec3 dstPos() { return uSrc == 0 ? aB : aA; }
 vec3 scatterAt(vec3 base, float t) {
   t = max(t, 0.0);
   float sp = mix(uScatterSpeedMin, uScatterSpeed, uWind) * (0.55 + aSeed.z * 0.9);
-  vec3 dir = normalize(vec3((aSeed.xy - 0.5) * 2.0 * uSpread, 1.0));
+  vec3 dir = normalize(vec3((aSeed.xy - 0.5) * 2.0 * uSpread, 1.0) - uDown * uLift);
   float k = max(uDrag, 0.0001);
   float ramp = (1.0 - exp(-k * t)) / k;
   vec3 p = base + dir * sp * ramp;
-  p.y -= uFall * (t - ramp);   // 終端速度つきの落下
+  p += uDown * uFall * (t - ramp);   // 終端速度つきの落下（uFall < 0 なら上昇）
+  if (uSwirl > 0.0) {
+    // 煙のゆらぎ: 昇るほど大きくなる横揺れ
+    float g = min(t, 2.5) / 2.5;
+    p.x += sin(t * (1.1 + aSeed.y) + aPhase) * uSwirl * g;
+    p.z += cos(t * (0.9 + aSeed.x) + aPhase * 1.3) * uSwirl * 0.5 * g;
+  }
   return p;
 }
 
@@ -94,10 +104,10 @@ vec3 slide(vec3 base, vec2 grav, out float atEdge) {
   float amt = uTiltBias * min(g / max(uTiltThresh, 1e-4), 1.0)
             + uTiltGain * max(g - uTiltThresh, 0.0);
   amt *= (1.0 - uFriction * aSeed.x);
-  vec2 lim = uCardHalf - vec2(0.35);
+  vec2 lim = uCardHalf - vec2(0.35 * uUnit);
   vec2 un = base.xy + dir * amt;
   vec2 cl = clamp(un, -lim, lim);
-  atEdge = step(0.25, length(un - cl));
+  atEdge = step(0.25 * uUnit, length(un - cl));
   return vec3(cl, base.z);
 }
 
@@ -139,7 +149,7 @@ void main() {
             vAlpha = 0.0;
           } else {
             float e = 1.0 - pow(1.0 - clamp(tr, 0.0, 1.0), 3.0);
-            p += uSpillDown * (1.0 - e) * 14.0;
+            p += uSpillDown * (1.0 - e) * 14.0 * uUnit;
             vAlpha = e;
           }
         }
@@ -253,6 +263,10 @@ export class ParticleField {
       uDrag: {value: SCATTER.drag},
       uFall: {value: SCATTER.fallMm},
       uSpread: {value: SCATTER.spread},
+      uDown: {value: new THREE.Vector3(0, -1, 0)},
+      uLift: {value: SCATTER.lift},
+      uSwirl: {value: SCATTER.swirlMm},
+      uUnit: {value: PARTICLES.unitMm},
       uReformDur: {value: REFORM.durationS},
       uDelaySpan: {value: REFORM.delaySpanS},
       uCardHalf: {value: new THREE.Vector2(halfW, halfH)},
@@ -295,7 +309,7 @@ export class ParticleField {
     const geo = new THREE.PlaneGeometry(CARD.widthMm, CARD.heightMm)
     const mat = new THREE.MeshBasicMaterial({color: new THREE.Color(this.paper)})
     const mesh = new THREE.Mesh(geo, mat)
-    mesh.position.z = -0.2      // mm。点群のすぐ下
+    mesh.position.z = -0.2 * PARTICLES.unitMm      // mm。点群のすぐ下
     return mesh
   }
 
@@ -336,7 +350,16 @@ export class ParticleField {
     this.uniforms.uMode.value = MODE.BREATHE
   }
 
-  startScatter(strength, now) {
+  /**
+   * @param down  散る瞬間の「下」（カードローカル、正規化）。省略時はカードの -y。
+   *              散っている間は固定する（毎フレーム変えると軌道ごと振れる）
+   */
+  startScatter(strength, now, down) {
+    if (down) {
+      this.uniforms.uDown.value.copy(down)
+    } else {
+      this.uniforms.uDown.value.set(0, -1, 0)
+    }
     this.uniforms.uWind.value = Math.max(0, Math.min(1, strength))
     this.uniforms.uMode.value = MODE.SCATTER
     this.uniforms.uT0.value = now

@@ -1,4 +1,9 @@
-// showcase/ar/main.js
+// shared/ar-core/main.js
+//
+// showcase（名刺）と samples-ar/*（墨文字など）の共通の本体。ページごとの違いは
+// importmap で解決する 2 つのモジュールだけ:
+//   'ar-config'  演出の値（shared/ar-core/defaults.js を再エクスポートして差分を上書き）
+//   'ar-targets' 画像ターゲットの登録・姿勢の換算・点群 JSON の場所
 //
 // 状態機械: IDLE -> BREATHE -> SCATTER -> REFORM -> BREATHE ...  BREATHE 中に傾き。
 // 入力は名刺上の短いタップ（第一）と、🌬 で許可したマイク（wind.js）。
@@ -8,8 +13,8 @@
 // three.js は lib/vendor/three/（ローカル）。外部URLはひとつも踏まない。
 
 import * as THREE_NS from 'three'
-import {CARD, PARTICLES, PERF, REFORM, TILT, WIND} from './config.js'
-import {cardPoseFromDetail, configureTargets, variantOf} from './targets.js'
+import {AUDIO, CARD, PARTICLES, PERF, REFORM, SCATTER, TILT, WIND, LOG} from 'ar-config'
+import {cardPoseFromDetail, configureTargets, dataUrls, variantOf} from 'ar-targets'
 import {ParticleField, MODE} from './particles.js'
 import {Audio} from './audio.js'
 import {Wind} from './wind.js'
@@ -75,7 +80,7 @@ const startSettle = (ms) => {
     if (!app.field) { return }
     app.field.settle()
     app.state = STATE.BREATHE
-    audio.gather()
+    if (AUDIO.gather) { audio.gather() }
   }, ms)
 }
 
@@ -86,7 +91,8 @@ const onWind = (strength) => {
   app.field.uniforms.uSpillT0.value = -1
   app.field.uniforms.uRespawnT0.value = -1
   app.field.setGravity(0, 0)
-  app.field.startScatter(strength, now())
+  // worldDown: 散った瞬間の実際の「下」の逆へ昇る（墨の煙）。tilt.downLocal は毎フレーム更新している
+  app.field.startScatter(strength, now(), SCATTER.worldDown ? tilt.downLocal : null)
   app.state = STATE.SCATTER
   if (!audio.ready && app.audioP) {
     // 最初のタップは pointerdown で AudioContext を resume し始め、pointerup で散る。間に合わなければ待つ
@@ -121,7 +127,7 @@ const pause = () => {
     app.field.uniforms.uSpillT0.value = -1
     app.field.uniforms.uRespawnT0.value = -1
   }
-  console.log(`[showcase] paused (state=${app.state})`)
+  console.log(`${LOG} paused (state=${app.state})`)
 }
 
 // 再認識: 見失っていた時間だけ時計をずらして、止めた位置から続ける。
@@ -140,7 +146,7 @@ const resume = () => {
   } else if (app.state === STATE.REFORM) {
     startSettle(Math.max(0, app.settleAt - app.pausedAt) * 1000)
   }
-  console.log(`[showcase] resumed after ${(t - app.pausedAt).toFixed(2)}s (state=${app.state})`)
+  console.log(`${LOG} resumed after ${(t - app.pausedAt).toFixed(2)}s (state=${app.state})`)
 }
 
 const wind = new Wind(audio, onWind, onCalm)
@@ -210,10 +216,8 @@ let loadingVariant = null
 const attachVariant = async (variant) => {
   if (loadingVariant || app.variant) { return }
   loadingVariant = variant
-  const [particles, shapes] = await Promise.all([
-    loadJson(`./ar/particles-${variant}.json`),
-    loadJson(`./ar/shapes-${variant}.json`),
-  ])
+  const urls = dataUrls(variant)
+  const [particles, shapes] = await Promise.all([loadJson(urls.particles), loadJson(urls.shapes)])
   const field = new ParticleField(THREE, particles, shapes)
   const root = new THREE.Group()
   root.visible = false
@@ -225,9 +229,10 @@ const attachVariant = async (variant) => {
     plate.material.transparent = true
     plate.material.opacity = 0.45
     plate.material.color.set(0xff0000)
-    const mark = new THREE.Mesh(new THREE.PlaneGeometry(6, 6),
+    const m = Math.min(CARD.widthMm, CARD.heightMm) * 6 / 55   // 名刺で 6mm
+    const mark = new THREE.Mesh(new THREE.PlaneGeometry(m, m),
       new THREE.MeshBasicMaterial({color: 0xffff00}))
-    mark.position.set(-CARD.widthMm / 2 + 3, CARD.heightMm / 2 - 3, 0.5)
+    mark.position.set(-CARD.widthMm / 2 + m / 2, CARD.heightMm / 2 - m / 2, 0.5 * PARTICLES.unitMm)
     card.add(mark)
   }
   root.add(card)
@@ -238,7 +243,7 @@ const attachVariant = async (variant) => {
   app.plate = plate
   app.variant = variant
   loadingVariant = null
-  console.log(`[showcase] variant "${variant}" attached: ` +
+  console.log(`${LOG} variant "${variant}" attached: ` +
     `${field.count} particles (json ${particles.count}, cap ${PARTICLES.max})`)
   installFirstTap()
   wind.attachTap(app.canvas, onCard)
@@ -248,20 +253,20 @@ const onImage = ({detail}, found) => {
   const variant = variantOf(detail.name)
   if (!variant) { return }
   if (!app.variant && !loadingVariant) {
-    console.log(`[showcase] target found: ${detail.name} (variant=${variant}) ` +
+    console.log(`${LOG} target found: ${detail.name} (variant=${variant}) ` +
       `after ${((performance.now() - app.t0) / 1000).toFixed(2)}s`)
-    attachVariant(variant).catch(e => console.error('[showcase] load failed', e))
+    attachVariant(variant).catch(e => console.error(`${LOG} load failed`, e))
     return
   }
   if (!app.variant) { return }     // 点群の読み込み中
   if (variant !== app.variant) {
     // 3 枚のうち別のバリアントも同時に見えている場合。実機比較のために出すだけ。
-    console.log(`[showcase] also visible: ${detail.name} (using ${app.variant})`)
+    console.log(`${LOG} also visible: ${detail.name} (using ${app.variant})`)
     return
   }
   if (!app.root) { return }
-  // detail.scale はカード長辺（85mm）のワールド長、姿勢の軸は 90° 回った縦長画像のもの。
-  // 詳細は targets.js の cardPoseFromDetail。
+  // detail.scale はターゲット長辺のワールド長。横長画像なら姿勢の軸は 90° 回った縦長画像のもの。
+  // 詳細は各ページの targets.js の cardPoseFromDetail。
   const pose = cardPoseFromDetail(detail)
   app.root.position.copy(detail.position)
   app.root.quaternion.copy(detail.rotation)
@@ -273,7 +278,7 @@ const onImage = ({detail}, found) => {
     // 最初の imagefound は点群の読み込みに使われて root がまだ無いので、
     // 「root が見えるようになった最初の更新」も認識の瞬間として扱う。
     tilt.resetBase()
-    console.log(`[showcase] pose: scale=${detail.scale.toFixed(4)} ` +
+    console.log(`${LOG} pose: scale=${detail.scale.toFixed(4)} ` +
       `scaled=${(detail.scaledWidth || 1).toFixed(3)}x${(detail.scaledHeight || 1).toFixed(3)} ` +
       `-> mm=${pose.mmToWorld.toExponential(3)} world, roll=${Math.round(pose.roll * 180 / Math.PI)}deg, ` +
       `aspect=${pose.aspectRatio.toFixed(3)}`)
@@ -308,7 +313,7 @@ const trackFps = (t) => {
     if (!fps.halved && t - fps.lowSince >= PERF.holdS && app.field) {
       if (app.field.halve()) {
         fps.halved = true
-        console.log(`[showcase] fps ${avg.toFixed(1)} < ${PERF.minFps} for ${PERF.holdS}s ` +
+        console.log(`${LOG} fps ${avg.toFixed(1)} < ${PERF.minFps} for ${PERF.holdS}s ` +
           `-> particles reduced to ${app.field.drawCount}`)
       }
     }

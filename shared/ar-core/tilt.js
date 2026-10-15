@@ -1,4 +1,4 @@
-// showcase/ar/tilt.js
+// shared/ar-core/tilt.js
 //
 // カードの傾き -> 「カード平面内の重力」を出す。
 //
@@ -12,7 +12,7 @@
 // 下方向（画面の下）をカードの姿勢行列で引き戻して代用する。どちらの場合も基準との
 // 相対で使うので、許可が下りて情報源が切り替わった瞬間にも基準を取り直す。
 
-import {TILT} from './config.js'
+import {TILT, LOG} from 'ar-config'
 
 export class Tilt {
   constructor(THREE) {
@@ -44,7 +44,7 @@ export class Tilt {
       if (typeof DM.requestPermission === 'function') {
         const res = await DM.requestPermission()
         if (res !== 'granted') {
-          console.log('[showcase] devicemotion denied, using camera-down fallback')
+          console.log(`${LOG} devicemotion denied, using camera-down fallback`)
           return false
         }
       }

@@ -1,4 +1,4 @@
-// showcase/ar/ui.js
+// shared/ar-core/ui.js
 //
 // UI は記号アイコンだけ。文字は 1 文字も置かない。
 // 見た目は shared/attribution.js の ⓘ ボタンに合わせてある（同じ丸・同じ枠・同じ背景）。
