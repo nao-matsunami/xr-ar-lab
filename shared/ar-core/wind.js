@@ -1,4 +1,4 @@
-// showcase/ar/wind.js
+// shared/ar-core/wind.js
 //
 // 「散る」のきっかけ。第一の入力は名刺上の短いタップ、マイクで吹くのは 🌬 で許可したときの追加入力。
 //
@@ -16,7 +16,7 @@
 // 強さはその時点の閾値に対する超過量で strengthMin..strengthMax に正規化する
 // （閾値ちょうどで min、閾値の strengthFullX 倍で max）。タップは tapStrength 固定。
 
-import {WIND} from './config.js'
+import {WIND, LOG} from 'ar-config'
 
 const median = (xs) => {
   const s = xs.slice().sort((a, b) => a - b)
@@ -60,13 +60,13 @@ export class Wind {
     const ctx = this.audio.ensureCtx()
     if (!ctx || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       this.micState = 'unsupported'
-      console.log(`[showcase] wind: getUserMedia unavailable (AudioContext=${!!ctx}, ` +
+      console.log(`${LOG} wind: getUserMedia unavailable (AudioContext=${!!ctx}, ` +
         `mediaDevices=${!!navigator.mediaDevices}, secure=${window.isSecureContext})`)
       return false
     }
-    console.log(`[showcase] wind: medianWindowS=${WIND.medianWindowS} medianX=${WIND.medianX} ` +
+    console.log(`${LOG} wind: medianWindowS=${WIND.medianWindowS} medianX=${WIND.medianX} ` +
       `minRms=${WIND.minRms} holdS=${WIND.holdS} cooldownS=${WIND.cooldownS}`)
-    console.log(`[showcase] wind: AudioContext state=${ctx.state} sampleRate=${ctx.sampleRate}`)
+    console.log(`${LOG} wind: AudioContext state=${ctx.state} sampleRate=${ctx.sampleRate}`)
     this.micState = 'requesting'
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({
@@ -74,22 +74,22 @@ export class Wind {
       })
     } catch (e) {
       this.micState = `denied:${e && e.name}`
-      console.log('[showcase] wind: getUserMedia failed, tap only:', e && e.name, e && e.message)
+      console.log(`${LOG} wind: getUserMedia failed, tap only:`, e && e.name, e && e.message)
       return false
     }
     const track = this.stream.getAudioTracks()[0]
     const settings = track && track.getSettings ? track.getSettings() : {}
-    console.log(`[showcase] wind: getUserMedia ok: "${track && track.label}" ` +
+    console.log(`${LOG} wind: getUserMedia ok: "${track && track.label}" ` +
       `readyState=${track && track.readyState} muted=${track && track.muted} ` +
       `settings=${JSON.stringify(settings)}`)
     // 要求した 3 つが実際に切れたか。端末によっては無視される（undefined は未報告）
     const applied = ['autoGainControl', 'noiseSuppression', 'echoCancellation']
       .map(k => `${k}=${settings[k]}${settings[k] === false ? '' : ' (NOT off)'}`)
-    console.log(`[showcase] wind: applied audio processing: ${applied.join(' ')}`)
+    console.log(`${LOG} wind: applied audio processing: ${applied.join(' ')}`)
     if (track) {
-      track.addEventListener('ended', () => console.log('[showcase] wind: mic track ended'))
-      track.addEventListener('mute', () => console.log('[showcase] wind: mic track muted'))
-      track.addEventListener('unmute', () => console.log('[showcase] wind: mic track unmuted'))
+      track.addEventListener('ended', () => console.log(`${LOG} wind: mic track ended`))
+      track.addEventListener('mute', () => console.log(`${LOG} wind: mic track muted`))
+      track.addEventListener('unmute', () => console.log(`${LOG} wind: mic track unmuted`))
     }
     const src = ctx.createMediaStreamSource(this.stream)
     this.analyser = ctx.createAnalyser()
@@ -98,7 +98,7 @@ export class Wind {
     this._td = new Float32Array(this.analyser.fftSize)
     this.granted = true
     this.micState = 'granted'
-    console.log(`[showcase] wind: AnalyserNode connected: MediaStreamSource -> Analyser ` +
+    console.log(`${LOG} wind: AnalyserNode connected: MediaStreamSource -> Analyser ` +
       `(fftSize=${this.analyser.fftSize}, AudioContext state=${ctx.state})`)
     return true
   }
@@ -148,7 +148,7 @@ export class Wind {
 
   _fire(strength, source) {
     this.lastEvent = {at: Date.now(), strength, source}
-    console.log(`[showcase] wind: fired (${source}, strength=${strength.toFixed(2)})`)
+    console.log(`${LOG} wind: fired (${source}, strength=${strength.toFixed(2)})`)
     this.onWind(strength)
   }
 

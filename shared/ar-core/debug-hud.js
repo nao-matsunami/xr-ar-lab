@@ -1,9 +1,9 @@
-// showcase/ar/debug-hud.js
+// shared/ar-core/debug-hud.js
 //
 // ?debug のときだけ画面上部に出す入力の計器（RMS・閾値・中央値・倍率・クールダウン・タップの判定）。通常表示（文字を置かない）には出さない。
 // DOM なので ⏺ の録画（canvas）には写らない。値は Wind が毎フレーム更新したものを読むだけ。
 
-import {WIND} from './config.js'
+import {WIND} from 'ar-config'
 
 const CSS = `
 #sc-debug{position:fixed;left:0;right:0;top:0;z-index:10000;pointer-events:none;

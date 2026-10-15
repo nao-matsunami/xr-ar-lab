@@ -17,11 +17,15 @@
 
   <!-- three.js（lib/vendor/three/ — ローカル、MIT）。
        three.module.min.js は同ディレクトリの three.core.min.js を相対 import する
-       ので、importmap の項目は "three" ひとつで足りる。 -->
+       ので、three の項目は "three" ひとつで足りる。
+       本体は shared/ar-core/（samples-ar/* と共通）。名刺に固有の設定とターゲットは
+       ar-config / ar-targets としてここで ./ar/ に解決させる。 -->
   <script type="importmap">
   {
     "imports": {
-      "three": "../lib/vendor/three/three.module.min.js"
+      "three": "../lib/vendor/three/three.module.min.js",
+      "ar-config": "./ar/config.js",
+      "ar-targets": "./ar/targets.js"
     }
   }
   </script>
@@ -40,7 +44,7 @@
 <body>
   <canvas id="camerafeed"></canvas>
 
-  <script type="module" src="./ar/main.js"></script>
+  <script type="module" src="../shared/ar-core/main.js"></script>
 
   <!-- 8th Wall エンジンの帰属表示（ⓘ）。MIT 版の文面が出る。 -->
   <script src="../shared/attribution.js"></script>

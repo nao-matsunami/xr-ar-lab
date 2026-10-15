@@ -1,10 +1,10 @@
-// showcase/ar/capture.js
+// shared/ar-core/capture.js
 //
 // ⏺ で 5 秒録画して端末に保存する。
 // templates/capture-demo と同じく MediaRecorder + canvas.captureStream。
 // 効果音も一緒に録るため、Audio 側の MediaStreamDestination を混ぜる。
 
-import {RECORD} from './config.js'
+import {RECORD, LOG} from 'ar-config'
 
 const pickMime = () => {
   const candidates = [
@@ -45,7 +45,7 @@ export class Capture {
         ? {mimeType, videoBitsPerSecond: RECORD.videoBitsPerSecond}
         : {videoBitsPerSecond: RECORD.videoBitsPerSecond})
     } catch (e) {
-      console.warn('[showcase] MediaRecorder unavailable:', e)
+      console.warn(`${LOG} MediaRecorder unavailable:`, e)
       return false
     }
 
@@ -67,7 +67,7 @@ export class Capture {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `antymark-card-${Date.now()}.${ext}`
+    a.download = `${RECORD.filePrefix}-${Date.now()}.${ext}`
     document.body.appendChild(a)
     a.click()
     a.remove()

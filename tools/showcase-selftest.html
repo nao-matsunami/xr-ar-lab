@@ -5,47 +5,115 @@
 <title>showcase particle self test</title>
 <link rel="icon" href="data:,">
 <!--
-  showcase/ar/particles.js を XR8 抜きで動かす確認用ページ。
+  shared/ar-core/ の粒子・傾き・入力・音を XR8 抜きで動かす確認用ページ。
   ヘッドレス Chrome にはカメラが無く XR8.run() が走らないので、
   シェーダが通るか / 形状が正しいかはここで見る。
 
-    node tools/headless-check.mjs http://127.0.0.1:8811/tools/showcase-selftest.html \
-      --wait 8000 --eval "window.__selftest"
+  ?sample= で対象を選ぶ（既定は showcase）。ページと同じく 'ar-config' / 'ar-targets' を
+  importmap でそのサンプルのファイルに解決してから読む。
+
+    node tools/headless-check.mjs "http://127.0.0.1:8811/tools/showcase-selftest.html?variant=normal" \
+      --wait 9000 --eval "window.__selftest"
+    node tools/headless-check.mjs "http://127.0.0.1:8811/tools/showcase-selftest.html?sample=sumi" \
+      --wait 12000 --screenshot /tmp/sumi-selftest.png --eval "window.__selftest"
 -->
 <style>html,body{margin:0;background:#000}canvas{display:block}</style>
-<script type="importmap">
-{ "imports": { "three": "../lib/vendor/three/three.module.min.js" } }
+<script>
+  // module より前に importmap を差す（module が読み込まれ始めた後では効かない）
+  (function () {
+    var DIRS = {showcase: '../showcase/', sumi: '../samples-ar/sumi/'}
+    var sample = new URLSearchParams(location.search).get('sample') || 'showcase'
+    var dir = DIRS[sample]
+    if (!dir) { throw new Error('unknown sample: ' + sample) }
+    window.__SAMPLE = {name: sample, dir: dir}
+    var map = document.createElement('script')
+    map.type = 'importmap'
+    map.textContent = JSON.stringify({imports: {
+      'three': '../lib/vendor/three/three.module.min.js',
+      'ar-config': dir + 'ar/config.js',
+      'ar-targets': dir + 'ar/targets.js',
+    }})
+    document.currentScript.after(map)
+  })()
 </script>
 </head>
 <body>
 <script type="module">
 import * as THREE_NS from 'three'
-import {ParticleField, MODE} from '../showcase/ar/particles.js'
-import {AUDIO, CARD, TILT, WIND} from '../showcase/ar/config.js'
-import {cardPoseFromDetail} from '../showcase/ar/targets.js'
-import {Tilt} from '../showcase/ar/tilt.js'
-import {Wind} from '../showcase/ar/wind.js'
-import {Audio} from '../showcase/ar/audio.js'
+import {ParticleField, MODE} from '../shared/ar-core/particles.js'
+import {AUDIO, CARD, PARTICLES, REFORM, SCATTER, TILT, WIND} from 'ar-config'
+import {cardPoseFromDetail, dataUrls} from 'ar-targets'
+import {Tilt} from '../shared/ar-core/tilt.js'
+import {Wind} from '../shared/ar-core/wind.js'
+import {Audio} from '../shared/ar-core/audio.js'
 
 const THREE = THREE_NS
 window.THREE = THREE
 
-const VARIANT = new URLSearchParams(location.search).get('variant') || 'normal'
+const SAMPLE = window.__SAMPLE.name
 const COLS = 3
 const ROWS = 3
 const TILE = 520
-const report = {variant: VARIANT, ok: false, tiles: [], checks: {}}
+// 再形成が終わりきった時刻
+const SETTLED_T = REFORM.durationS + REFORM.delaySpanS + 0.4
 
-// MIT エンジンが返した実際の detail（ヘッドレス Chrome + 偽カメラで取得。
-// 名刺を正面・面内 12° 回転で写したもの）。scale はカード長辺のワールド長。
-const REAL_DETAIL = {
-  name: 'antymark-card-normal',
-  position: {x: -0.000028, y: 1.998735, z: -0.967302},
-  rotation: {x: 0.000603, y: 0.000443, z: -0.104514, w: -0.994523},
-  scale: 0.6318985223770142,
-  scaledWidth: 1.5444947209653093,
-  scaledHeight: 1,
+// サンプルごとの違い（それ以外の確認は共通）
+const SAMPLES = {
+  showcase: {
+    variant: new URLSearchParams(location.search).get('variant') || 'normal',
+    // MIT エンジンが返した実際の detail（ヘッドレス Chrome + 偽カメラで取得。
+    // 名刺を正面・面内 12° 回転で写したもの）。scale はカード長辺のワールド長。
+    detail: {
+      name: 'antymark-card-normal',
+      position: {x: -0.000028, y: 1.998735, z: -0.967302},
+      rotation: {x: 0.000603, y: 0.000443, z: -0.104514, w: -0.994523},
+      scale: 0.6318985223770142,
+      scaledWidth: 1.5444947209653093,
+      scaledHeight: 1,
+    },
+    // エンジンの姿勢（90° 回った縦長画像の軸）で見たカード左上: (+27.5, +42.5)
+    topLeftInEngine: [CARD.heightMm / 2, CARD.widthMm / 2],
+    states: [
+      {label: 'breathe (printed rest)', mode: MODE.BREATHE, t: 1.0},
+      {label: 'tilt slide + pile', mode: MODE.BREATHE, t: 1.0, grav: [0.9, -0.42]},
+      {label: 'scatter t=0.45s', mode: MODE.SCATTER, t: 0.45, wind: 0.9},
+      {label: 'reform logotype', mode: MODE.REFORM, shape: 'logotype', t: 3.4, wind: 0.9},
+      {label: 'reform fish', mode: MODE.REFORM, shape: 'fish', t: 3.4, wind: 0.9},
+      {label: 'reform ant', mode: MODE.REFORM, shape: 'ant', t: 3.4, wind: 0.9},
+    ],
+    // 10° で平均 2mm 以上（カード幅 85mm に対し目で追える量）
+    minSlide10Mm: 2,
+  },
+  sumi: {
+    variant: 'sumi',
+    // 偽カメラに target.png（縦長）を正面から写したときの実際の値。scaledWidth = 502 / 1024
+    detail: {
+      name: 'sample-sumi',
+      position: {x: -0.001246, y: 2.000968, z: -0.726713},
+      rotation: {x: -0.0000547, y: 0.000582, z: 0.706996, w: -0.707217},
+      scale: 0.6318985223770142,
+      scaledWidth: 0.490234375,
+      scaledHeight: 1,
+    },
+    // 縦長画像は回されないので roll 0。左上は (-260, +530) のまま
+    topLeftInEngine: [-CARD.widthMm / 2, CARD.heightMm / 2],
+    // 6 状態。煙の 2 枚は紙を壁に掛けた姿勢（実際の下 = 紙の -y）
+    states: [
+      {label: 'breathe (printed rest)', mode: MODE.BREATHE, t: 1.0},
+      {label: 'tilt slide + pile', mode: MODE.BREATHE, t: 1.0, grav: [0.9, -0.42]},
+      {label: 'scatter t=0.45s (smoke)', mode: MODE.SCATTER, t: 0.45, wind: 0.85},
+      {label: 'scatter t=1.5s (rising)', mode: MODE.SCATTER, t: 1.5, wind: 0.85},
+      {label: 'reform enso', mode: MODE.REFORM, shape: 'enso', t: SETTLED_T, wind: 0.85},
+      {label: 'reform sumi', mode: MODE.REFORM, shape: 'sumi', t: SETTLED_T, wind: 0.85},
+    ],
+    // showcase の 2mm を、滑り量 0.5 倍・紙の大きさ（unitMm）で換算
+    minSlide10Mm: 2 * 0.5 * PARTICLES.unitMm,
+  },
 }
+const S = SAMPLES[SAMPLE]
+const VARIANT = S.variant
+const REAL_DETAIL = S.detail
+const report = {sample: SAMPLE, variant: VARIANT, ok: false, tiles: [], checks: {}}
 
 const near = (a, b, eps) => Math.abs(a - b) <= eps
 
@@ -77,8 +145,8 @@ const checkPose = (THREE) => {
   const tl = w(-hw, hh)
   const tr = w(hw, hh)
   const bl = w(-hw, -hh)
-  const longWorld = tl.distanceTo(tr)
-  const shortWorld = tl.distanceTo(bl)
+  const longWorld = Math.max(tl.distanceTo(tr), tl.distanceTo(bl))
+  const shortWorld = Math.min(tl.distanceTo(tr), tl.distanceTo(bl))
   const tlRoot = toRoot(-hw, hh)
   const c = {
     mmToWorld: pose.mmToWorld,
@@ -86,12 +154,14 @@ const checkPose = (THREE) => {
     aspectRatio: pose.aspectRatio,
     longWorld,
     shortWorld,
-    // 長辺 85mm が detail.scale に、短辺がその 55/85 に一致すること
+    // 長辺が detail.scale に、短辺がその 短辺/長辺 に一致すること
     longIsScale: near(longWorld, REAL_DETAIL.scale, 1e-6),
-    shortIsScaled: near(shortWorld, REAL_DETAIL.scale * CARD.heightMm / CARD.widthMm, 1e-6),
-    // エンジンの姿勢では長辺がローカル Y。カード左上は (+27.5, +42.5) に来る
+    shortIsScaled: near(shortWorld, REAL_DETAIL.scale *
+      Math.min(CARD.widthMm, CARD.heightMm) / Math.max(CARD.widthMm, CARD.heightMm), 1e-6),
+    // エンジンの姿勢では長辺がローカル Y。カード左上は S.topLeftInEngine に来る
     topLeftInEngineAxes: tlRoot.map(v => Math.round(v * 100) / 100),
-    longAlongEngineY: near(tlRoot[0], hh, 1e-4) && near(tlRoot[1], hw, 1e-4),
+    longAlongEngineY: near(tlRoot[0], S.topLeftInEngine[0], 1e-4) &&
+      near(tlRoot[1], S.topLeftInEngine[1], 1e-4) && Math.abs(tlRoot[1]) >= Math.abs(tlRoot[0]),
     aspectOk: near(pose.aspectRatio, 1, 0.01),
   }
   c.ok = c.longIsScale && c.shortIsScaled && c.longAlongEngineY && c.aspectOk
@@ -346,7 +416,7 @@ const checkResume = async (field) => {
   a.stopAll()
   const d = (await a.ctx.startRendering()).getChannelData(0)
   out.peakAfterStop = +Math.max(...d.map(Math.abs)).toFixed(5)
-  out.audioStops = out.playingBeforeStop === 1 && a.playing.size === 0 && out.peakAfterStop < 1e-3
+  out.audioStops = out.playingBeforeStop >= 1 && a.playing.size === 0 && out.peakAfterStop < 1e-3
 
   out.ok = out.reformsToCurrent && out.scatterKeptOk && out.shapeUnchanged && out.audioStops
   u.uMode.value = MODE.BREATHE
@@ -354,13 +424,97 @@ const checkResume = async (field) => {
 }
 
 // (4) 散る音: OfflineAudioContext で実際に鳴らし、立ち上がりとピークを測る
-const checkAudio = async () => {
+const checkAudio = () => (AUDIO.scatterVoice === 'bell' ? checkBell() : checkGrain())
+
+// Goertzel: 周波数 f の成分の大きさ（d[i0..i1)）
+const goertzel = (d, sr, f, i0, i1) => {
+  const w = 2 * Math.PI * f / sr
+  const c = 2 * Math.cos(w)
+  let s1 = 0
+  let s2 = 0
+  for (let i = i0; i < i1; i++) {
+    const s0 = d[i] + c * s1 - s2
+    s2 = s1
+    s1 = s0
+  }
+  return Math.sqrt(s1 * s1 + s2 * s2 - c * s1 * s2) / (i1 - i0)
+}
+const rmsOf = (d, i0, i1) => {
+  let e = 0
+  for (let i = i0; i < i1; i++) { e += d[i] * d[i] }
+  return Math.sqrt(e / (i1 - i0))
+}
+
+// 'bell'（墨）: 鐘 110Hz ＋倍音 3 つ、4 秒で減衰。散っている間の擦れは 1〜3kHz の帯域ノイズ
+const checkBell = async () => {
+  const sr = 48000
+  const render = async (fn, seconds) => {
+    const a = new Audio()
+    a.ctx = new OfflineAudioContext(1, Math.ceil(sr * seconds), sr)
+    a.wire()
+    fn(a)
+    const buf = await a.ctx.startRendering()
+    return {d: buf.getChannelData(0), comp: a.comp}
+  }
+  const both = await render(a => a.scatterAt(0, 1.0), 4.6)
+  const four = await render(a => [1, 1, 1, 1].forEach(() => a.scatterAt(0, 1.0)), 1.0)
+  const bell = (await render(a => a.bellAt(0, 1.0), 4.6)).d
+  const brush = (await render(a => a.brushAt(0, 1.0), 3.0)).d
+  const at = s => Math.round(s * sr)
+  const peakOf = d => d.reduce((m, v) => Math.max(m, Math.abs(v)), 0)
+  const out = {bellHz: AUDIO.bellHz, partials: AUDIO.bellPartials.map(p => p[0]),
+    compressor: both.comp instanceof DynamicsCompressorNode}
+  out.settingsOk = AUDIO.bellHz === 110 && AUDIO.bellPartials.length === 4 &&
+    AUDIO.bellPartials[0][0] === 1 && AUDIO.bellPartials[0][2] === 4.0 &&
+    AUDIO.brushBandHz[0] === 1000 && AUDIO.brushBandHz[1] === 3000 && AUDIO.gather === false
+  // 基音: 0.5〜1.5s で 110Hz が周りの周波数より十分大きい
+  const g = f => goertzel(bell, sr, f, at(0.5), at(1.5))
+  out.g110 = +g(110).toExponential(2)
+  out.g80 = +g(80).toExponential(2)
+  out.g150 = +g(150).toExponential(2)
+  out.fundamentalOk = out.g110 > 20 * out.g80 && out.g110 > 20 * out.g150
+  // 倍音 3 つがそれぞれ鳴っている（隣の周波数より大きい）
+  out.overtonesOk = AUDIO.bellPartials.slice(1).every(([r]) => {
+    const f = AUDIO.bellHz * r
+    const gp = goertzel(bell, sr, f, at(0.05), at(0.45))
+    return gp > 5 * goertzel(bell, sr, f * 1.13, at(0.05), at(0.45))
+  })
+  // 減衰 4 秒: 3.9〜4.0s の RMS は鳴り始め（0.05〜0.15s）の 2% 未満、1s ではまだ 20% 以上
+  const r0 = rmsOf(bell, at(0.05), at(0.15))
+  out.decay1sRatio = +(rmsOf(bell, at(0.95), at(1.05)) / r0).toFixed(3)
+  out.decay4sRatio = +(rmsOf(bell, at(3.9), at(4.0)) / r0).toFixed(4)
+  out.decayOk = out.decay1sRatio > 0.2 && out.decay4sRatio < 0.02
+  // 擦れ: 1〜3kHz に収まり、薄い（鐘のピークより十分小さい）
+  const gb = f => goertzel(brush, sr, f, at(0.5), at(1.2))
+  out.brush2k = +gb(2000).toExponential(2)
+  out.brush300 = +gb(300).toExponential(2)
+  out.brush7k = +gb(7000).toExponential(2)
+  out.brushBandOk = out.brush2k > 5 * out.brush300 && out.brush2k > 5 * out.brush7k
+  out.brushPeak = +peakOf(brush).toFixed(4)
+  out.bellPeak = +peakOf(bell).toFixed(4)
+  out.brushThin = out.brushPeak < out.bellPeak * 0.5
+  // 破裂音にならない（頭 5ms はピークの 2 割未満）、4 つ重ねてもクリップしない
+  const env = (d, i0) => rmsOf(d, i0, i0 + at(0.002))
+  let envPeak = 0
+  for (let i = 0; i + at(0.002) < at(0.3); i += at(0.002)) { envPeak = Math.max(envPeak, env(both.d, i)) }
+  out.first5msOfPeak = +(Math.max(env(both.d, 0), env(both.d, at(0.002))) / envPeak).toFixed(3)
+  out.softOnset = out.first5msOfPeak < 0.2
+  out.peak = +peakOf(both.d).toFixed(4)
+  out.stacked4Peak = +peakOf(four.d).toFixed(4)
+  out.noClip = out.peak < 1 && out.stacked4Peak < 1
+  out.ok = out.compressor && out.settingsOk && out.fundamentalOk && out.overtonesOk && out.decayOk &&
+    out.brushBandOk && out.brushThin && out.softOnset && out.noClip
+  return out
+}
+
+// 'grain'（showcase）
+const checkGrain = async () => {
   const sr = 48000
   const render = async (strengths) => {
     const a = new Audio()
     a.ctx = new OfflineAudioContext(1, Math.ceil(sr * 1.2), sr)
     a.wire()
-    strengths.forEach(s => a.scatterAt(0, s))   // 複数同時 = 最悪の重なり
+    strengths.forEach(s => a.grainAt(0, s))   // 複数同時 = 最悪の重なり
     const buf = await a.ctx.startRendering()
     return {d: buf.getChannelData(0), comp: a.comp}
   }
@@ -419,9 +573,12 @@ const centroid = (buf, w) => {
 window.__selftest = report
 
 const main = async () => {
+  // dataUrls はページからの相対 URL なので、サンプルのディレクトリを基準に解決する
+  const base = new URL(window.__SAMPLE.dir, location.href)
+  const urls = dataUrls(VARIANT)
   const [particles, shapes] = await Promise.all([
-    fetch(`../showcase/ar/particles-${VARIANT}.json`).then(r => r.json()),
-    fetch(`../showcase/ar/shapes-${VARIANT}.json`).then(r => r.json()),
+    fetch(new URL(urls.particles, base)).then(r => r.json()),
+    fetch(new URL(urls.shapes, base)).then(r => r.json()),
   ])
   report.count = particles.count
   report.shapes = Object.keys(shapes.shapes)
@@ -444,8 +601,10 @@ const main = async () => {
   scene.add(root)
 
   // カード全体が入るように正面から見る
-  const camera = new THREE.PerspectiveCamera(40, 1, 1, 2000)
-  camera.position.set(0, 0, 130)
+  // 名刺（長辺 85mm）で 130mm。大きな紙はその比で引く
+  const K = Math.max(CARD.widthMm, CARD.heightMm) / 85
+  const camera = new THREE.PerspectiveCamera(40, 1, K, 2000 * K)
+  camera.position.set(0, 0, 130 * K)
   camera.lookAt(0, 0, 0)
 
   report.checks.pose = checkPose(THREE)
@@ -456,12 +615,7 @@ const main = async () => {
   report.checks.resume = await checkResume(field)
 
   const setup = [
-    {label: 'breathe (printed rest)', mode: MODE.BREATHE, t: 1.0},
-    {label: 'tilt slide + pile', mode: MODE.BREATHE, t: 1.0, grav: [0.9, -0.42]},
-    {label: 'scatter t=0.45s', mode: MODE.SCATTER, t: 0.45, wind: 0.9},
-    {label: 'reform logotype', mode: MODE.REFORM, shape: 'logotype', t: 3.4, wind: 0.9},
-    {label: 'reform fish', mode: MODE.REFORM, shape: 'fish', t: 3.4, wind: 0.9},
-    {label: 'reform ant', mode: MODE.REFORM, shape: 'ant', t: 3.4, wind: 0.9},
+    ...S.states,
     // 斜め 35° で認識した直後の BREATHE。tilt.js の出力をそのまま重力に入れる -> 印刷位置のまま
     {label: 'found at 35deg (relative tilt 0)', mode: MODE.BREATHE, t: 1.0, grav: [0, 0], read: true},
     {label: 'relative tilt 25deg', mode: MODE.BREATHE, t: 1.0, grav: tiltCheck.grav, read: true},
@@ -470,6 +624,40 @@ const main = async () => {
       read: true, noPlane: true},
   ]
   const pixels = {}
+
+  // 煙（fallMm < 0）: 紙を壁に掛けた姿勢（実際の下 = 紙の -y）で散らすと、点群の重心が上へ動くこと。
+  // タイル 0 の場所で点だけ描いて測る（タイル 0 は後で描き直す）
+  if (SCATTER.fallMm < 0) {
+    const u = field.uniforms
+    const mmPerPx0 = 2 * camera.position.z * Math.tan(camera.fov / 2 * Math.PI / 180) / TILE
+    renderer.setViewport(0, canvas.height - TILE, TILE, TILE)
+    renderer.setScissor(0, canvas.height - TILE, TILE, TILE)
+    plane.visible = false
+    const shot = (mode, t) => {
+      u.uMode.value = mode
+      u.uT0.value = 0
+      u.uScatterT0.value = 0
+      u.uWind.value = 0.85
+      u.uGrav.value.set(0, 0)
+      u.uDown.value.set(0, -1, 0)
+      field.update(t, TILE, 1.0)
+      renderer.render(scene, camera)
+      const buf = new Uint8Array(TILE * TILE * 4)
+      renderer.getContext().readPixels(0, canvas.height - TILE, TILE, TILE, 0x1908, 0x1401, buf)
+      return centroid(buf, TILE)
+    }
+    const rest = shot(MODE.BREATHE, 1.0)
+    const early = shot(MODE.SCATTER, 0.45)
+    const late = shot(MODE.SCATTER, 1.5)
+    // readPixels の行は下から上。行が増える = 上
+    const upMm = c => +((c[1] - rest[1]) * mmPerPx0).toFixed(1)
+    report.checks.smoke = {riseAt045sMm: upMm(early), riseAt15sMm: upMm(late),
+      sideAt15sMm: +((late[0] - rest[0]) * mmPerPx0).toFixed(1)}
+    // 1.5s で紙の高さの 15% 以上昇り、0.45s より上にいる（昇り続けている）
+    report.checks.smoke.ok = report.checks.smoke.riseAt15sMm > 0.15 * CARD.heightMm &&
+      report.checks.smoke.riseAt15sMm > report.checks.smoke.riseAt045sMm
+    plane.visible = true
+  }
 
   setup.forEach((s, i) => {
     const u = field.uniforms
@@ -531,8 +719,8 @@ const main = async () => {
   report.checks.slide = {
     tilt10Grav: tiltCheck.grav10, tilt10ShiftMm: shiftMm(8),
   }
-  // 10° で平均 2mm 以上（カード幅 85mm に対し目で追える量）
-  report.checks.slide.ok = report.checks.slide.tilt10ShiftMm >= 2
+  report.checks.slide.minMm = +S.minSlide10Mm.toFixed(2)
+  report.checks.slide.ok = report.checks.slide.tilt10ShiftMm >= S.minSlide10Mm
 
   const gl = renderer.getContext()
   report.glError = gl.getError()
@@ -544,7 +732,8 @@ const main = async () => {
   report.cardMm = [CARD.widthMm, CARD.heightMm]
   report.ok = report.glError === 0 && report.drawCalls > 0 &&
     report.checks.pose.ok && report.checks.tilt.ok && report.checks.wind.ok &&
-    report.checks.audio.ok && report.checks.resume.ok && report.checks.slide.ok && report.checks.breatheStaysPrinted
+    report.checks.audio.ok && report.checks.resume.ok && report.checks.slide.ok && report.checks.breatheStaysPrinted &&
+    (!report.checks.smoke || report.checks.smoke.ok)
 }
 
 main().then(() => { window.__selftestDone = true })
