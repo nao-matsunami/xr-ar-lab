@@ -38,6 +38,7 @@ const STATE = {IDLE: 'IDLE', BREATHE: 'BREATHE', SCATTER: 'SCATTER', REFORM: 'RE
 const app = {
   state: STATE.IDLE,
   variant: null,
+  targetName: null, // 姿勢を取っているターゲット。同じ variant の別ターゲットがあっても混ぜない
   field: null,
   root: null,       // ターゲットの姿勢 + mm -> ワールドの倍率
   card: null,       // root の子。カードローカル mm（x 右・y 上）。板と点群はここに付ける
@@ -255,6 +256,7 @@ const onImage = ({detail}, found) => {
   if (!app.variant && !loadingVariant) {
     console.log(`${LOG} target found: ${detail.name} (variant=${variant}) ` +
       `after ${((performance.now() - app.t0) / 1000).toFixed(2)}s`)
+    app.targetName = detail.name
     attachVariant(variant).catch(e => console.error(`${LOG} load failed`, e))
     return
   }
@@ -265,6 +267,16 @@ const onImage = ({detail}, found) => {
     return
   }
   if (!app.root) { return }
+  if (detail.name !== app.targetName) {
+    // 同じ点群を使う別ターゲット（showcase の生成画像と印刷物の写真など）。
+    // 見失っている間に見つかったらそちらに乗り換え、見えている間は姿勢を混ぜない。
+    if (app.root.visible) {
+      if (found) { console.log(`${LOG} also visible: ${detail.name} (using ${app.targetName})`) }
+      return
+    }
+    console.log(`${LOG} target switched: ${app.targetName} -> ${detail.name} (variant=${variant})`)
+    app.targetName = detail.name
+  }
   // detail.scale はターゲット長辺のワールド長。横長画像なら姿勢の軸は 90° 回った縦長画像のもの。
   // 詳細は各ページの targets.js の cardPoseFromDetail。
   const pose = cardPoseFromDetail(detail)
@@ -291,7 +303,7 @@ const onImage = ({detail}, found) => {
 }
 
 const onImageLost = ({detail}) => {
-  if (variantOf(detail.name) !== app.variant || !app.root) { return }
+  if (detail.name !== app.targetName || !app.root) { return }
   pause()
 }
 

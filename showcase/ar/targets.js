@@ -16,9 +16,19 @@ import {CARD, VARIANTS} from './config.js'
 // front-target-*.png の実ピクセル寸法。gen_front.py が 1024px 幅・85x55mm で出す。
 export const TARGET_PX = {width: 1024, height: 663}
 
-export const buildImageTargetData = () => VARIANTS.map(variant => ({
-  imagePath: `./print/front-target-${variant}.png`,
-  name: `antymark-card-${variant}`,
+// 登録するターゲット。gen_front.py の生成画像（variant ごと）に加えて、印刷した名刺の
+// 写真 front-printed.jpg を rectify_printed.py で矩形化したもの（printed）。
+// printed は手元の印刷物が normal だったので normal の点群を使う。印刷で右側 14% ほどが
+// 切れているため、写真はカード座標に貼り直してあり（切れた部分は紙色）、姿勢と mm の
+// 対応は生成画像と同じに扱える。
+const TARGETS = [
+  ...VARIANTS.map(variant => ({id: variant, variant, imagePath: `./print/front-target-${variant}.png`})),
+  {id: 'printed', variant: 'normal', imagePath: './print/front-target-printed.png'},
+]
+
+export const buildImageTargetData = () => TARGETS.map(({id, variant, imagePath}) => ({
+  imagePath,
+  name: `antymark-card-${id}`,
   type: 'PLANAR',
   metadata: {variant},
   moveable: true,
@@ -73,8 +83,8 @@ export const dataUrls = (variant) => ({
 })
 
 export const variantOf = (targetName) => {
-  const m = /^antymark-card-(.+)$/.exec(targetName || '')
-  return m ? m[1] : null
+  const t = TARGETS.find(({id}) => `antymark-card-${id}` === targetName)
+  return t ? t.variant : null
 }
 
 export const configureTargets = () => {
@@ -83,8 +93,9 @@ export const configureTargets = () => {
     disableWorldTracking: true,
     imageTargetData: data,
   })
-  // どのバリアントが読み込まれたかは実機比較のために出しておく
+  // どのターゲットが登録されたかは実機比較のために出しておく。認識したターゲット名は
+  // shared/ar-core/main.js の "target found" / "target switched" のログに出る
   console.log('[showcase] image targets registered:',
-    data.map(d => `${d.name} (${d.properties.width}x${d.properties.height}px, ` +
+    data.map(d => `${d.name} [${d.metadata.variant}] (${d.properties.width}x${d.properties.height}px, ` +
       `${CARD.widthMm}x${CARD.heightMm}mm)`).join(', '))
 }
