@@ -1,0 +1,8 @@
+{
+  "name": "xr-ar-lab-image-target-cli",
+  "private": true,
+  "description": "Pinned @8thwall/image-target-cli for generating image targets (replaces the old 8th Wall console)",
+  "dependencies": {
+    "@8thwall/image-target-cli": "1.0.0"
+  }
+}

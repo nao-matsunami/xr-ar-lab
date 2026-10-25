@@ -1,15 +1,28 @@
 <!doctype html>
-<html>
+<html lang="ja">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Can Demo - Target Image</title>
+  <title>Can Demo - Target Label</title>
   <style>
-    body { margin: 0; background: #111; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    img { max-width: 600px; width: 100%; height: auto; }
+    body { margin: 0; background: #111; color: #eee; font: 15px/1.6 sans-serif; padding: 16px; box-sizing: border-box; }
+    main { max-width: 640px; margin: 0 auto; }
+    img { width: 100%; height: auto; display: block; margin: 12px 0; }
+    a { color: #7fb8ff; }
+    .warn { background: #3a1d1d; border-left: 4px solid #e63946; padding: 8px 12px; }
   </style>
 </head>
 <body>
-  <img src="image-targets/target.png" alt="Can Demo Target">
+  <main>
+    <h1>Can Demo ターゲット（曲面）</h1>
+    <p class="warn">このターゲットは <b>CYLINDER（円柱）型</b>です。画面に表示したままでは検出できません。
+      印刷して 350ml 缶に巻いてください。</p>
+    <img src="assets/can-label.png" alt="星風サイダー テスト用ラベル（208×105mm）">
+    <ul>
+      <li><a href="assets/print/can-label-A4.pdf">A4 横・トンボ付き PDF</a>（家庭用プリンタ向け。実寸 / 100% で印刷）</li>
+      <li><a href="assets/print/can-label-208x105mm.pdf">208×105mm 原寸 PDF</a>（用紙サイズを指定できる場合）</li>
+    </ul>
+    <p>手順は <code>docs/curved-target-plan.md</code> の「実機確認手順（can-demo）」を参照。</p>
+  </main>
 </body>
 </html>

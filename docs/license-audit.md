@@ -43,7 +43,7 @@ MIT 版を使うページは `<head>` 先頭で `window.__XR_ENGINE_LICENSE = 'm
 | image-target-demo | image-target | なし | MIT only | `engine/mit/xr.js`、`disableWorldTracking: true`、`XR8.XrController.configure`（`image-targets/*.json`） |
 | multi-target-demo | image-target | なし | MIT only | `engine/mit/xr.js`、`disableWorldTracking: true`、`xrextras-named-image-target` + `xrimagefound/lost`。`imageTargetData` の設定が見当たらない（後述） |
 | sky-effects-demo | sky | なし | MIT only | `engine/mit/xr.js`（preload-chunks なし）、`xrlayers="allowedDevices: any"`、`xrlayerscene="name: sky"`、coaching-overlay |
-| print-shop/can-demo | image-target | なし | MIT only | `engine/mit/xr.js`、`disableWorldTracking: true`、`XR8.XrController.configure`。缶だがターゲットは `PLANAR` |
+| print-shop/can-demo | curved-target（CYLINDER） | なし | MIT only | `engine/mit/xr.js`、`disableWorldTracking: true`、`XR8.XrController.configure`。2026-10-25 に `PLANAR` から `CYLINDER` に変更（`docs/curved-target-plan.md`） |
 | print-shop/card-demo | image-target | なし | MIT only | 同上（`PLANAR`） |
 | print-shop/flyer-demo | image-target | なし | MIT only | 同上（`PLANAR`） |
 | print-shop/mug-demo | image-target | なし | MIT only | 同上。マグだがターゲットは `PLANAR` |
@@ -111,7 +111,8 @@ MIT 版を使うページは `<head>` 先頭で `window.__XR_ENGINE_LICENSE = 'm
 2. **curved-target-demo / multi-target-demo** — MIT 版エンジンを読み、`disableWorldTracking: true` で `xrextras-named-image-target` を置いているので image-target と判定。ただし両方とも `XR8.XrController.configure({imageTargetData})` が無く、ターゲットが 1 つも登録されないので、実機ではたぶん何も検出されない。curved-target は CYLINDER/CONICAL 型を使わず円柱メッシュで見た目を寄せているだけなので、「curved-target 機能を使っている」とはしなかった。
 3. **hand-tracking-demo / vr-mode-demo** — 8th Wall に一切依存しないので、3 区分のどれにもきれいには当てはまらない。バイナリ不要という意味で MIT only に入れたが、MIT ライセンスの 8th Wall エンジンを使っているわけではない。hand-tracking-demo は MediaPipe を**バージョン未固定**で CDN から読んでおり、8th Wall の期限とは別に、CDN 側の更新で壊れるリスクがある。
 4. **geo-ar-demo / himino-e-demo** — 「Geo AR」は VPS / Maps を連想させるが、`navigator.geolocation` と自前の距離計算だけ。クラウド非依存として Binary required（SLAM 用）にした。
-5. **print-shop/mug-demo / can-demo** — 曲面の商品だが、ターゲット JSON は `"type": "PLANAR"`。curved-target ではなく image-target と判定した。
+5. **print-shop/mug-demo / can-demo** — 曲面の商品だが、ターゲット JSON は `"type": "PLANAR"`。curved-target ではなく image-target と判定した。（can-demo は 2026-10-25 に CYLINDER 化済み。mug-demo は PLANAR のまま）
+   - `demos/print-shop/can-demo/`（templates とは別のコピー）は平面（PLANAR）のまま。templates 側への統合を要検討。
 6. **xrextras / 8frame / coaching-overlay**（`lib/vendor/web/`）— MIT 版のページもこれを読んでいる。→ 出所とライセンスは下の「vendor ライブラリの出所」で確認した。区分は変わらない。
 
 ## vendor ライブラリの出所（2026-10-25 追記）

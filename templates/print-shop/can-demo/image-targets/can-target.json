@@ -2,15 +2,23 @@
   "imagePath": "image-targets/can-target_luminance.png",
   "metadata": null,
   "name": "can-target",
-  "type": "PLANAR",
+  "type": "CYLINDER",
   "properties": {
     "left": 0,
-    "top": 0,
-    "width": 768,
-    "height": 1024,
-    "isRotated": false,
-    "originalWidth": 768,
-    "originalHeight": 1024
+    "top": 408,
+    "width": 1260,
+    "height": 1680,
+    "isRotated": true,
+    "originalWidth": 1260,
+    "originalHeight": 2496,
+    "targetCircumferenceTop": 208,
+    "cylinderCircumferenceTop": 208,
+    "cylinderCircumferenceBottom": 208,
+    "cylinderSideLength": 105,
+    "arcAngle": 360,
+    "coniness": 0,
+    "inputMode": "ADVANCED",
+    "unit": "mm"
   },
   "resources": {
     "originalImage": "can-target_original.png",
@@ -18,6 +26,6 @@
     "thumbnailImage": "can-target_thumbnail.png",
     "luminanceImage": "can-target_luminance.png"
   },
-  "created": 1772899537105,
-  "updated": 1772899537105
+  "created": 1792895417534,
+  "updated": 1792895417534
 }
