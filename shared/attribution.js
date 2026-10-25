@@ -16,6 +16,7 @@
   window.__xrAttributionInstalled = true;
 
   var BINARY_LINES = [
+    'This product includes the XR Engine software developed by Niantic Spatial, Inc.',
     'This experience uses the 8th Wall Engine.',
     '8th Wall Engine © Niantic Spatial, Inc. All rights reserved.',
     'Niantic Spatial, Inc. is the creator of the 8th Wall Engine.',
