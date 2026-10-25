@@ -34,6 +34,12 @@
 | `web/resources/draco_wasm_wrapper-l325u8do.js` | `cdn.8thwall.com/web/resources/` | — | Draco (Google) = **Apache-2.0** | エンジンの `resolveDracoWrapper` 用。現状エンジンは実際にはfetchしない（下記） |
 | `web/resources/draco-worker-l5sniji5.js` | 同上 | — | 同上 | 同上 |
 
+**LICENSE 本文の同梱（2026-10-25 追加）**: MIT の表示条件を満たすため、
+`web/xrextras/LICENSE`・`web/coaching-overlay/LICENSE`（8thwall/8thwall `519b988` の
+`packages/*/LICENSE` をそのままコピー、Copyright Niantic Spatial, Inc.）と、
+`web/aframe/LICENSE`（8frame-*.min.js 用。A-Frame の MIT 本文 ＋ 8th Wall パッチ部分を
+8thwall/8thwall と同じ MIT 扱いとする注記）を置いた。
+
 **MIT以外だったもの**: フォント（OFL 1.1）と Draco（Apache-2.0）。どちらも
 再配布可能な許容的ライセンスなので、自前ホストを止める理由はない。
 `aframe-physics-system` が同梱する ammo.js は zlib ライセンス。
