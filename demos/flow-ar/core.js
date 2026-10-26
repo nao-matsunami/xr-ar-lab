@@ -12,7 +12,9 @@
 //
 // 動き:
 //   認識 -> 板（動画）を出して頭から再生。終わったら最後のコマで止める（ループしない）
-//   見失う -> 板を隠して一時停止。再認識で続きから
+//   見失う -> 板を隠して一時停止。RESUME_MS 以内に再認識したら続きから（手ぶれ等の一瞬の見失い）。
+//            それを過ぎたら最初のコマに戻して一時停止のまま待ち、次の認識で頭から再生
+//            （最後まで再生し終わっていても同じ。向け直せばもう一度見られる）
 //   タップ（認識中ならどこでも）-> 頭からもう一度
 // 音声は無し（video.mp4 は音声トラック自体を抜いてある）。
 //
@@ -38,6 +40,8 @@ const TARGET_PX = {width: 1024, height: 576}
 const W = TARGET_PX.width
 const H = TARGET_PX.height
 const LONG = Math.max(W, H)
+// 見失ってからこの時間以内に再認識したら続きから。過ぎたら最初のコマに戻す
+const RESUME_MS = 1000
 
 const app = {
   scene: null,
@@ -46,6 +50,7 @@ const app = {
   card: null,     // root の子。横長画像はエンジン内で 90° 回して読まれるので、ここで戻す
   video: null,
   visible: false,
+  rewindTimer: 0,  // 見失い中に RESUME_MS 後の巻き戻しを待っているタイマー
   t0: performance.now(),
 }
 
@@ -173,13 +178,19 @@ const onImage = ({detail}, found) => {
   if (!app.visible) {
     app.visible = true
     const v = app.video
-    if (v.ended) {
+    const quick = !!app.rewindTimer
+    clearTimeout(app.rewindTimer)
+    app.rewindTimer = 0
+    if (quick && v.ended) {
+      console.log(`${LOG} refound within ${RESUME_MS}ms: stays ended`)
       setHint('タップでもう一度')
-    } else if (v.currentTime === 0) {
-      playFromStart()
-    } else {
+    } else if (quick && v.currentTime > 0) {
+      console.log(`${LOG} refound within ${RESUME_MS}ms: resume at ${v.currentTime.toFixed(2)}s`)
       setHint('')
       v.play().catch(e => console.warn(`${LOG} play() failed`, e))
+    } else {
+      console.log(`${LOG} found: play from start`)
+      playFromStart()
     }
   }
 }
@@ -187,9 +198,18 @@ const onImage = ({detail}, found) => {
 const onImageLost = ({detail}) => {
   if (detail.name !== NAME || !app.root) { return }
   app.visible = false
-  if (!app.video.ended) { app.video.pause() }
+  const v = app.video
+  if (!v.ended) { v.pause() }
   setHint('印刷物にカメラを向けてください')
-  console.log(`${LOG} lost at ${app.video.currentTime.toFixed(2)}s`)
+  console.log(`${LOG} lost at ${v.currentTime.toFixed(2)}s`)
+  clearTimeout(app.rewindTimer)
+  app.rewindTimer = setTimeout(() => {
+    app.rewindTimer = 0
+    if (app.visible) { return }
+    v.pause()
+    v.currentTime = 0
+    console.log(`${LOG} lost for ${RESUME_MS}ms: rewound to first frame`)
+  }, RESUME_MS)
 }
 
 // --------------------------------------------------------------------------
