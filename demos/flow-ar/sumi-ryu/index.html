@@ -23,17 +23,17 @@
     }
   </style>
 
-  <!-- three.js / xrextras / MIT エンジンはリポジトリ同梱のもの（samples-ar/sumi と同じ構成）。
+  <!-- three.js / xrextras / MIT エンジンは同梱ファイルのコピー（vendor/。tools/sync-flow-ar-vendor.sh で更新）。
        本体は ../core.js。このページの固有の設定は body の data-* だけ。 -->
   <script type="importmap">
   {
     "imports": {
-      "three": "../../../lib/vendor/three/three.module.min.js"
+      "three": "../vendor/three/three.module.min.js"
     }
   }
   </script>
-  <script src="../../../lib/vendor/web/xrextras/xrextras.js"></script>
-  <script async src="../../../engine/mit/xr.js" data-preload-chunks="slam"></script>
+  <script src="../vendor/xrextras/xrextras.js"></script>
+  <script async src="../vendor/engine/xr.js" data-preload-chunks="slam"></script>
 </head>
 
 <body data-name="flow-sumi-ryu" data-width-mm="260">
@@ -43,6 +43,6 @@
   <script type="module" src="../core.js"></script>
 
   <!-- 8th Wall エンジンの帰属表示（ⓘ）。MIT 版の文面が出る。 -->
-  <script src="../../../shared/attribution.js"></script>
+  <script src="../vendor/attribution.js"></script>
 </body>
 </html>

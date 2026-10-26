@@ -141,6 +141,7 @@ console.log(JSON.stringify({
   consoleErrorCount: consoleErrors.length,
   consoleErrors,
   requestCount: requests.length,
+  requests: [...new Set(requests)],
   externalRequests: external,
   cdn8thwallRequests: requests.filter(u => u.includes('cdn.8thwall.com')),
   console: consoleAll,
