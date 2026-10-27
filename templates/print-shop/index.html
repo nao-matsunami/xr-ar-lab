@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XR AR Lab — Print Shop Demos</title>
+  <style>
+    /* 見た目は templates/index.html（ギャラリー）と同系 */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .back {
+      display: inline-block;
+      color: #888;
+      text-decoration: none;
+      font-size: 0.85rem;
+      margin-bottom: 10px;
+    }
+    .back:hover { color: #00f0ff; }
+
+    h1 {
+      text-align: center;
+      font-size: 1.6rem;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #888;
+      font-size: 0.85rem;
+      margin-bottom: 30px;
+    }
+
+    .section-title {
+      font-size: 0.8rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin: 30px 0 14px;
+      padding-left: 4px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #14142a;
+      border: 1px solid #2a2a4a;
+      border-radius: 14px;
+      padding: 20px;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+    }
+    .card:hover {
+      border-color: #00f0ff;
+      box-shadow: 0 8px 30px rgba(0,240,255,0.1);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .card-icon {
+      font-size: 1.6rem;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,240,255,0.08);
+      border-radius: 10px;
+    }
+    .card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .card-sub {
+      font-size: 0.75rem;
+      color: #666;
+    }
+
+    .card-desc {
+      font-size: 0.85rem;
+      color: #999;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .tag {
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .tag-image  { background: rgba(241,196,15,0.15); color: #f1c40f; }
+    .tag-curved { background: rgba(230,126,34,0.15); color: #e67e22; }
+    .tag-aframe { background: rgba(255,255,255,0.08); color: #888; }
+    .req { font-size: 0.65rem; padding: 2px 7px; border-radius: 4px; font-weight: 700; align-self: center; }
+    .req-camera { background: rgba(255,193,7,0.15); color: #ffc107; }
+    .req-https  { background: rgba(33,150,243,0.15); color: #2196f3; }
+
+    .card-btns {
+      display: flex;
+      gap: 8px;
+      margin-top: auto;
+    }
+    .card-btns a {
+      flex: 1;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 12px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-ar { background: #00f0ff; color: #0a0a1a; }
+    .btn-ar:hover { background: #5cf6ff; }
+    .btn-print { background: #1d1d38; color: #ccc; border: 1px solid #2a2a4a; }
+    .btn-print:hover { border-color: #00f0ff; color: #00f0ff; }
+
+    .card-extra {
+      margin-top: 10px;
+      font-size: 0.75rem;
+      color: #777;
+      line-height: 1.6;
+    }
+    .card-extra a { color: #00f0ff; text-decoration: none; }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      padding: 20px;
+      padding-bottom: calc(20px + env(safe-area-inset-bottom));
+      color: #555;
+      font-size: 0.875rem;
+    }
+    footer a { color: #00f0ff; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <a class="back" href="../">&#x2190; テンプレート一覧</a>
+
+  <h1>Print Shop Demos</h1>
+  <p class="subtitle">印刷物 × AR の営業デモ — ターゲットを印刷（または画面に表示）してかざす</p>
+
+  <div class="grid">
+
+    <div class="section-title" style="grid-column: 1 / -1;">Print Shop</div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">🥫</div>
+        <div><div class="card-title">缶・ボトル</div><div class="card-sub">can-demo</div></div>
+      </div>
+      <div class="card-desc">350ml 缶に巻いたラベルを曲面ターゲットとして認識。缶の上に金色の泡と光</div>
+      <div class="card-tags">
+        <span class="tag tag-curved">Curved (CYLINDER)</span>
+        <span class="tag tag-aframe">A-Frame</span>
+        <span class="req req-camera">要カメラ</span>
+        <span class="req req-https">要HTTPS</span>
+      </div>
+      <div class="card-btns">
+        <a class="btn-ar" href="./can-demo/">ARデモを起動</a>
+        <a class="btn-print" href="./can-demo/target-display.html">印刷用ターゲット</a>
+      </div>
+      <div class="card-extra">
+        PDF: <a href="./can-demo/assets/print/can-label-A4.pdf">A4（トンボ付き）</a> ・
+        <a href="./can-demo/assets/print/can-label-208x105mm.pdf">208×105mm 原寸</a><br>
+        画面表示では認識しません。実寸で印刷して缶に巻いてください
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">📇</div>
+        <div><div class="card-title">名刺</div><div class="card-sub">card-demo</div></div>
+      </div>
+      <div class="card-desc">名刺の上に雲をまとった地球儀が浮かび上がる</div>
+      <div class="card-tags">
+        <span class="tag tag-image">Image Target</span>
+        <span class="tag tag-aframe">A-Frame</span>
+        <span class="req req-camera">要カメラ</span>
+        <span class="req req-https">要HTTPS</span>
+      </div>
+      <div class="card-btns">
+        <a class="btn-ar" href="./card-demo/">ARデモを起動</a>
+        <a class="btn-print" href="./card-demo/target-display.html">印刷用ターゲット</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">📄</div>
+        <div><div class="card-title">チラシ</div><div class="card-sub">flyer-demo</div></div>
+      </div>
+      <div class="card-desc">チラシの上に時計とランナーが現れ、3:00 からのタイマー演出</div>
+      <div class="card-tags">
+        <span class="tag tag-image">Image Target</span>
+        <span class="tag tag-aframe">A-Frame</span>
+        <span class="req req-camera">要カメラ</span>
+        <span class="req req-https">要HTTPS</span>
+      </div>
+      <div class="card-btns">
+        <a class="btn-ar" href="./flyer-demo/">ARデモを起動</a>
+        <a class="btn-print" href="./flyer-demo/target-display.html">印刷用ターゲット</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">👕</div>
+        <div><div class="card-title">Tシャツ</div><div class="card-sub">tshirt-demo</div></div>
+      </div>
+      <div class="card-desc">柄の上に扉が開き、夕焼けの向こうから鳥が飛び出す</div>
+      <div class="card-tags">
+        <span class="tag tag-image">Image Target</span>
+        <span class="tag tag-aframe">A-Frame</span>
+        <span class="req req-camera">要カメラ</span>
+        <span class="req req-https">要HTTPS</span>
+      </div>
+      <div class="card-btns">
+        <a class="btn-ar" href="./tshirt-demo/">ARデモを起動</a>
+        <a class="btn-print" href="./tshirt-demo/target-display.html">印刷用ターゲット</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">☕</div>
+        <div><div class="card-title">マグカップ</div><div class="card-sub">mug-demo</div></div>
+      </div>
+      <div class="card-desc">絵柄の上にコーヒー入りのマグと湯気（現状は平面ターゲット）</div>
+      <div class="card-tags">
+        <span class="tag tag-image">Image Target</span>
+        <span class="tag tag-aframe">A-Frame</span>
+        <span class="req req-camera">要カメラ</span>
+        <span class="req req-https">要HTTPS</span>
+      </div>
+      <div class="card-btns">
+        <a class="btn-ar" href="./mug-demo/">ARデモを起動</a>
+        <a class="btn-print" href="./mug-demo/target-display.html">印刷用ターゲット</a>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    XR AR Lab &mdash; Print Shop Demos<br>
+    <a href="../">テンプレート一覧に戻る</a>
+  </footer>
+
+</body>
+</html>
